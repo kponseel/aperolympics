@@ -1,0 +1,42 @@
+name: smoke
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Smoke test — server boots and key routes return 200
+        run: |
+          npm start &
+          SRV=$!
+          # Wait up to ~30s for the server to accept connections.
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3000/; then break; fi
+            sleep 1
+          done
+          fail=0
+          check() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000$1")
+            if [ "$code" = "200" ]; then echo "OK   $1 -> $code"; else echo "FAIL $1 -> $code"; fail=1; fi
+          }
+          check /
+          check /socket.io/socket.io.js
+          check /r/ABCD
+          check /manifest.webmanifest
+          # Socket.IO long-polling handshake (the shared-hosting fallback path).
+          hs=$(curl -s "http://127.0.0.1:3000/socket.io/?EIO=4&transport=polling")
+          if echo "$hs" | grep -q '"sid"'; then echo "OK   engine.io handshake"; else echo "FAIL engine.io handshake -> $hs"; fail=1; fi
+          kill "$SRV" 2>/dev/null || true
+          exit "$fail"
