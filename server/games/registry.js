@@ -15,6 +15,10 @@ const truth_dare = require("./truth_dare");
 const dares = require("./dares");
 const kings = require("./kings");
 const bomb = require("./bomb");
+const paranoia = require("./paranoia");
+const spyfall = require("./spyfall");
+const undercover = require("./undercover");
+const wolves = require("./wolves");
 
 const GAMES = [
   quiz,
@@ -29,7 +33,10 @@ const GAMES = [
   dares,
   kings,
   bomb,
-  // ... port the other 4 (private-role) from esp32-hub/src/games/ here.
+  paranoia,
+  spyfall,
+  undercover,
+  wolves,
 ];
 
 module.exports = {
