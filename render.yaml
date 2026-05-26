@@ -1,0 +1,13 @@
+# Render Blueprint — 1-click deploy from GitHub.
+# Free web service, WebSockets supported. Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: aperolympics
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
