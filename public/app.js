@@ -151,6 +151,11 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     };
     $("startBtn").onclick = function () { send({ t: "next" }); };
     $("backToHubBtn").onclick = function () { send({ t: "select_game", id: "" }); };
+    // Desktop affordance: Enter in the landing inputs submits (join if a code is typed, else create).
+    function landingSubmit() { (($("code").value || "").trim() ? $("joinBtn") : $("createBtn")).click(); }
+    ["name", "code"].forEach(function (id) {
+      $(id).addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); landingSubmit(); } });
+    });
     connect(); show("s-join");
   });
 })();

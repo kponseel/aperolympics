@@ -1,8 +1,9 @@
 # 🍹 Aperolympics
 
 Les **jeux olympiques de l'apéro** : plateforme de jeux de soirée multijoueur,
-**en ligne**, jouable depuis le navigateur de chaque téléphone, installable en
-**PWA** (Android + iPhone). Version hébergée de [GamesHub](https://github.com/kponseel/PickMate)
+**en ligne**, jouable depuis **n'importe quel navigateur** — téléphone **ou
+ordinateur** (idéal aussi en *office game* au bureau) — et installable en **PWA**
+(Android + iPhone). Version hébergée de [GamesHub](https://github.com/kponseel/PickMate)
 (sans Flipper Zero ni ESP32).
 
 - **Serveur** Node.js + **Socket.IO** (état faisant autorité, en mémoire ; bascule
@@ -27,7 +28,8 @@ depuis ce repo — avant tout déploiement prod.
 2. À l'ouverture, `npm install` tourne tout seul (`postCreateCommand`).
 3. Dans le terminal du Codespace : **`npm start`**.
 4. Le port **3000** est forwardé en **public** : onglet *Ports* → ouvre / copie l'URL
-   `…app.github.dev` et lance-la sur ton téléphone. 🎉
+   `…app.github.dev` et lance-la sur ton **téléphone ou ton ordinateur** (et partage-la
+   à tes collègues). 🎉
 
 > Réglé par `.devcontainer/devcontainer.json` : image **Node 20**, `npm install` au
 > `postCreate`, et visibilité **publique** du port 3000.
@@ -62,10 +64,14 @@ npm install
 npm start            # http://localhost:3000
 ```
 
-Ouvre `http://localhost:3000`, **crée une partie**, puis rejoins-la depuis un 2ᵉ
-onglet (ou ton téléphone sur le même réseau) avec le **code** à 4 lettres affiché —
-ou via le lien `…/r/CODE`. L'hôte 👑 choisit une épreuve et fait *Démarrer* /
-*Question suivante*.
+Ouvre `http://localhost:3000`, **crée une partie**, puis rejoins-la avec le **code**
+à 4 lettres affiché — ou via le lien `…/r/CODE`. L'hôte 👑 choisit une épreuve et fait
+*Démarrer* / *Question suivante*.
+
+L'interface marche aussi bien **sur ordinateur que sur téléphone** (mise en page
+centrée, boutons cliquables, **Entrée** pour valider). Pour tester en solo sur desktop,
+ouvre simplement **plusieurs onglets / fenêtres** (chacun = un joueur) ; pour un *office
+game*, chaque collègue ouvre l'URL sur sa machine.
 
 ## 🏗️ Arborescence
 
