@@ -8,6 +8,8 @@ const most_likely = require("./most_likely");
 const superlatives = require("./superlatives");
 const would_rather = require("./would_rather");
 const never = require("./never");
+const bluff = require("./bluff");
+const quips = require("./quips");
 
 const GAMES = [
   quiz,
@@ -15,7 +17,9 @@ const GAMES = [
   superlatives,
   would_rather,
   never,
-  // ... port the other 11 from esp32-hub/src/games/ here.
+  bluff,
+  quips,
+  // ... port the other 9 from esp32-hub/src/games/ here.
 ];
 
 module.exports = {
