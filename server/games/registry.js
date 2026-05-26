@@ -13,6 +13,8 @@ const quips = require("./quips");
 const picolo = require("./picolo");
 const truth_dare = require("./truth_dare");
 const dares = require("./dares");
+const kings = require("./kings");
+const bomb = require("./bomb");
 
 const GAMES = [
   quiz,
@@ -25,7 +27,9 @@ const GAMES = [
   picolo,
   truth_dare,
   dares,
-  // ... port the other 6 from esp32-hub/src/games/ here.
+  kings,
+  bomb,
+  // ... port the other 4 (private-role) from esp32-hub/src/games/ here.
 ];
 
 module.exports = {
