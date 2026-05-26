@@ -10,6 +10,9 @@ const would_rather = require("./would_rather");
 const never = require("./never");
 const bluff = require("./bluff");
 const quips = require("./quips");
+const picolo = require("./picolo");
+const truth_dare = require("./truth_dare");
+const dares = require("./dares");
 
 const GAMES = [
   quiz,
@@ -19,7 +22,10 @@ const GAMES = [
   never,
   bluff,
   quips,
-  // ... port the other 9 from esp32-hub/src/games/ here.
+  picolo,
+  truth_dare,
+  dares,
+  // ... port the other 6 from esp32-hub/src/games/ here.
 ];
 
 module.exports = {
