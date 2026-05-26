@@ -41,9 +41,32 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   var helpers = { $: $, send: send, setStatus: setStatus, escapeHtml: escapeHtml, findMe: findMe, amHost: amHost };
 
   // --- overlays (leaderboard / help) -----------------------------------------
-  function openOverlay(id) { $(id).classList.add("on"); if (id === "ov-board") renderBoard(); if (id === "ov-help") renderHelp(); }
+  function openOverlay(id) { $(id).classList.add("on"); if (id === "ov-board") renderBoard(); if (id === "ov-help") renderHelp(); if (id === "ov-history") renderHistory(); }
   function closeOverlay(id) { $(id).classList.remove("on"); }
   function boardOpen() { return $("ov-board").classList.contains("on"); }
+
+  function renderHistory() {
+    var body = $("historyBody"); body.innerHTML = "";
+    var h = (state && state.history) ? state.history.slice().reverse() : [];
+    $("historyEmpty").style.display = h.length ? "none" : "block";
+    var medals = ["🥇", "🥈", "🥉"];
+    h.forEach(function (e) {
+      var g = window.Apero.games[e.game] || {};
+      var scored = (e.standings || []).some(function (s) { return s.score > 0; });
+      var rows;
+      if (scored) {
+        rows = (e.standings || []).slice(0, 5).map(function (s, i) {
+          return '<li><span>' + (medals[i] || (i + 1) + ".") + ' ' + escapeHtml(s.name) + '</span><b>' + s.score + '</b></li>';
+        }).join("");
+      } else {
+        rows = '<li><span class="muted">Partie jouée — ' + (e.standings || []).length + ' joueur(s)</span></li>';
+      }
+      var div = document.createElement("div");
+      div.className = "hist-entry";
+      div.innerHTML = '<div class="hist-head">' + (g.emoji || "🎮") + ' <b>' + escapeHtml(g.name || e.game) + '</b></div><ol>' + rows + '</ol>';
+      body.appendChild(div);
+    });
+  }
 
   function roomShare() {
     var code = (state && state.room) || myRoom;
@@ -167,7 +190,9 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("navLeaveBtn").style.display = roomed ? "" : "none";
     $("navBoardBtn").style.display = roomed ? "" : "none";
     $("navMenuBtn").style.display = (inGame && amHost()) ? "" : "none";
+    $("navHistoryBtn").style.display = (roomed && state && state.history && state.history.length) ? "" : "none";
     if (boardOpen()) renderBoard();
+    if ($("ov-history").classList.contains("on")) renderHistory();
   }
 
   function render() {
@@ -204,7 +229,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function leaveRoom() {
     myName = ""; myRoom = ""; state = null;
     if (currentRendererId) switchTo(null);
-    closeOverlay("ov-board"); closeOverlay("ov-help");
+    closeOverlay("ov-board"); closeOverlay("ov-help"); closeOverlay("ov-history");
     if (socket) { socket.disconnect(); socket.connect(); }
     $("code").value = ""; $("joinError").textContent = "";
     show("s-join"); updateChrome(); setStatus("Choisis ton pseudo");
@@ -264,6 +289,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("backToHubBtn").onclick = function () { send({ t: "select_game", id: "" }); };
     $("navMenuBtn").onclick = function () { if (amHost()) send({ t: "select_game", id: "" }); };
     $("navBoardBtn").onclick = function () { openOverlay("ov-board"); };
+    $("navHistoryBtn").onclick = function () { openOverlay("ov-history"); };
     $("navHelpBtn").onclick = function () { openOverlay("ov-help"); };
     $("navLeaveBtn").onclick = function () { if (!inRoom() || window.confirm("Quitter la partie ?")) leaveRoom(); };
     // Desktop affordance: Enter in the landing inputs submits (join if a code is typed, else create).

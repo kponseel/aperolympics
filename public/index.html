@@ -19,6 +19,7 @@
     <div class="bar-actions">
       <button type="button" class="iconbtn" id="navMenuBtn" title="Revenir au menu des épreuves" style="display:none">🏠</button>
       <button type="button" class="iconbtn" id="navBoardBtn" title="Classement" style="display:none">🏆</button>
+      <button type="button" class="iconbtn" id="navHistoryBtn" title="Historique des parties" style="display:none">📜</button>
       <button type="button" class="iconbtn" id="navHelpBtn" title="Aide &amp; règles">?</button>
       <button type="button" class="iconbtn danger" id="navLeaveBtn" title="Quitter la partie" style="display:none">✕</button>
     </div>
@@ -83,6 +84,15 @@
       <div class="sheet-head"><h2>🏆 Classement</h2><button type="button" class="iconbtn" data-close="ov-board">✕</button></div>
       <ol id="boardList" class="board"></ol>
       <div class="center muted" id="boardEmpty" style="display:none">Pas encore de joueurs.</div>
+    </div>
+  </div>
+
+  <!-- Match history overlay -->
+  <div class="overlay" id="ov-history">
+    <div class="sheet">
+      <div class="sheet-head"><h2>📜 Historique</h2><button type="button" class="iconbtn" data-close="ov-history">✕</button></div>
+      <div id="historyBody"></div>
+      <div class="center muted" id="historyEmpty" style="display:none">Aucune partie jouée pour l'instant.</div>
     </div>
   </div>
 

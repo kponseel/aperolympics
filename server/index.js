@@ -54,10 +54,25 @@ function buildState(room) {
     hostId: hostName,
     players,
     round: room.game && room.game.serializeRound ? room.game.serializeRound(room) : {},
+    history: room.history || [],
   };
 }
 
+// Match history: snapshot a game's standings once, when it ends or when the
+// host moves on from it. Lets players review past games (📜). histRecorded is
+// reset whenever a new game instance is selected.
+function recordHistory(room) {
+  if (!room.game || !room.gameId || room.histRecorded) return;
+  const standings = [];
+  room.players.forEach((p) => { if (p.name) standings.push({ name: p.name, score: p.score || 0 }); });
+  standings.sort((a, b) => (b.score - a.score) || (a.name < b.name ? -1 : 1));
+  room.history.push({ game: room.gameId, at: Date.now(), standings });
+  if (room.history.length > 30) room.history.shift();
+  room.histRecorded = true;
+}
+
 function broadcast(room) {
+  if (room.game && room.game.phase() === "finished") recordHistory(room);
   io.to(room.code).emit("state", buildState(room));
   if (room.game && room.game.serializePrivate) {
     room.players.forEach((p) => {
@@ -122,10 +137,11 @@ io.on("connection", (socket) => {
     if (m.t === "select_game") {
       if (!isHost(socket, room)) return;
       const id = m.id || "";
-      if (!id) { room.gameId = null; room.game = null; }
+      recordHistory(room); // snapshot the game we're leaving (if any, not already logged)
+      if (!id) { room.gameId = null; room.game = null; room.histRecorded = false; }
       else {
         const g = registry.get(id);
-        if (g) { room.gameId = id; room.game = g.create(); if (room.game.onSelect) room.game.onSelect(room); }
+        if (g) { room.gameId = id; room.game = g.create(); room.histRecorded = false; if (room.game.onSelect) room.game.onSelect(room); }
       }
       broadcast(room);
     } else if (m.t === "next" || m.t === "start") {
