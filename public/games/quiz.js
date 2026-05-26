@@ -7,6 +7,10 @@
   function build(area, h) {
     area.innerHTML =
       '<div class="screen on" id="q-question">' +
+        '<div class="quiz-top">' +
+          '<div class="timerbar"><i id="qTimerFill"></i></div>' +
+          '<div class="points" id="qPoints"></div>' +
+        '</div>' +
         '<div class="q" id="qText"></div>' +
         '<div class="grid">' +
           '<button class="a" id="b0"></button>' +
@@ -15,6 +19,13 @@
           '<button class="d" id="b3"></button>' +
         '</div>' +
         '<div class="center muted" id="qStatus"></div>' +
+        '<button id="qPauseBtn" style="display:none">&#9208; Pause</button>' +
+      '</div>' +
+      '<div class="screen" id="q-paused">' +
+        '<div class="big">&#9208;&#65039;</div>' +
+        '<div class="q center">En pause</div>' +
+        '<div class="center muted">L\'h&ocirc;te a mis la partie en pause.</div>' +
+        '<button class="primary" id="qResumeBtn" style="display:none">&#9654; Reprendre</button>' +
       '</div>' +
       '<div class="screen" id="q-reveal">' +
         '<div class="big" id="revealMark"></div>' +
@@ -41,10 +52,12 @@
     }
     h.$("quizNextBtn").onclick = function () { h.send({ t: "next" }); };
     h.$("quizResetBtn").onclick = function () { h.send({ t: "reset" }); };
+    h.$("qPauseBtn").onclick = function () { h.send({ t: "pause" }); };
+    h.$("qResumeBtn").onclick = function () { h.send({ t: "resume" }); };
   }
 
   function showScreen(h, id) {
-    ["q-question", "q-reveal", "q-end"].forEach(function (s) { h.$(s).classList.toggle("on", s === id); });
+    ["q-question", "q-paused", "q-reveal", "q-end"].forEach(function (s) { h.$(s).classList.toggle("on", s === id); });
   }
 
   function render(state, h) {
@@ -52,6 +65,11 @@
     var me = h.findMe();
 
     if (state.phase === "playing") {
+      if (r.paused) {
+        showScreen(h, "q-paused");
+        h.$("qResumeBtn").style.display = h.amHost() ? "block" : "none";
+        return;
+      }
       showScreen(h, "q-question");
       h.$("qText").textContent = "(" + ((r.idx || 0) + 1) + "/" + (r.total || "?") + ") " + (r.q || "");
       var locked = !!(me && me.answered);
@@ -60,6 +78,15 @@
         b.textContent = (r.options && r.options[i]) || "";
         b.disabled = locked;
       }
+      // Live countdown: points fade with time + a draining timer bar.
+      var total = r.time_total_ms || 10000;
+      var left = (r.time_left_ms != null) ? r.time_left_ms : total;
+      var frac = Math.max(0, Math.min(1, left / total));
+      var fill = h.$("qTimerFill");
+      fill.style.width = (frac * 100) + "%";
+      fill.style.background = frac > 0.5 ? "#26890c" : (frac > 0.25 ? "#d89e00" : "#e6394a");
+      h.$("qPoints").textContent = (r.points_now != null) ? (r.points_now + " pts") : "";
+      h.$("qPauseBtn").style.display = h.amHost() ? "block" : "none";
       h.$("qStatus").textContent = locked
         ? "Réponse envoyée, attends les autres…"
         : (r.answered !== undefined ? (r.answered + " / " + state.players.length + " répondu(s)") : "");
@@ -91,9 +118,9 @@
     name: "Quiz",
     emoji: "🧠",
     desc: "Questions à choix multiples, score au chrono.",
-    rules: "Une question + 4 options <b>A/B/C/D</b>. Tape la bonne réponse <b>le plus vite possible</b>.<br>" +
-           "Score = 500 pts + bonus chrono (plus tu réponds tôt, plus tu marques).<br>" +
-           "L'hôte 👑 avance entre chaque question.",
+    rules: "Une question + 4 options <b>A/B/C/D</b>. Réponds <b>le plus vite possible</b> : tu as " +
+           "<b>10 secondes</b> et les points <b>fondent avec le temps</b> (de <b>1000</b> à <b>500</b>).<br>" +
+           "L'hôte 👑 peut <b>mettre en pause</b> (tout est masqué pour tout le monde) et avance entre les questions.",
     mount: build,
     render: render,
   });

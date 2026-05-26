@@ -18,7 +18,7 @@
 //   serializePrivate(room,p) -> per-player whisper, or null (optional)
 //   tick(room, nowMs)        -> return true if state changed (timers)
 
-const QUESTION_TIME_MS = 20000;
+const QUESTION_TIME_MS = 10000; // max answer time per question (10 s)
 
 const QUESTIONS = [
   { text: "Quelle est la capitale de la France ?", options: ["Lyon", "Paris", "Marseille", "Nice"], correct: 1 },
@@ -52,11 +52,15 @@ function create() {
   let phase = "lobby";
   let currentQ = -1;
   let questionStart = 0;
+  let paused = false; // host pause: timer frozen, question hidden for everyone
+  let pausedAt = 0;
 
   function startQuestion(room, idx) {
     currentQ = idx;
     phase = "playing";
     questionStart = Date.now();
+    paused = false;
+    pausedAt = 0;
     room.players.forEach((p) => {
       p.answered = false;
       p.answer = -1;
@@ -84,6 +88,8 @@ function create() {
   function resetAll(room) {
     phase = "lobby";
     currentQ = -1;
+    paused = false;
+    pausedAt = 0;
     room.players.forEach((p) => {
       p.score = 0;
       p.answered = false;
@@ -106,8 +112,20 @@ function create() {
     onReset: resetAll,
     onPlayerLeave: (room) => { if (phase === "playing" && allAnswered(room)) doReveal(room); },
     onMessage: (room, p, msg) => {
-      if (!p || msg.t !== "answer") return;
-      if (phase !== "playing" || p.answered) return;
+      if (!p) return;
+      const isHost = room.hostName() === p.name;
+      // Host pause/resume: freeze the timer; while paused the question is hidden
+      // for everyone (serializeRound) and answers are refused.
+      if (msg.t === "pause") {
+        if (isHost && phase === "playing" && !paused) { paused = true; pausedAt = Date.now(); }
+        return;
+      }
+      if (msg.t === "resume") {
+        if (isHost && phase === "playing" && paused) { questionStart += Date.now() - pausedAt; paused = false; }
+        return;
+      }
+      if (msg.t !== "answer") return;
+      if (phase !== "playing" || paused || p.answered) return;
       const choice = msg.choice;
       if (typeof choice !== "number" || choice < 0 || choice > 3) return;
       p.answered = true;
@@ -120,13 +138,20 @@ function create() {
       if (currentQ < 0) return r;
       const q = QUESTIONS[currentQ];
       r.idx = currentQ;
+      if (phase === "playing" && paused) {
+        r.paused = true; // hide everything while the host has paused
+        return r;
+      }
       if (phase === "playing" || phase === "reveal") {
         r.q = q.text;
         r.options = q.options.slice();
       }
       if (phase === "playing") {
         const elapsed = Date.now() - questionStart;
-        r.time_left_ms = elapsed >= QUESTION_TIME_MS ? 0 : QUESTION_TIME_MS - elapsed;
+        const left = elapsed >= QUESTION_TIME_MS ? 0 : QUESTION_TIME_MS - elapsed;
+        r.time_left_ms = left;
+        r.time_total_ms = QUESTION_TIME_MS;
+        r.points_now = 500 + Math.round(500 * (left / QUESTION_TIME_MS)); // points a correct answer earns right now
         r.answered = room.activePlayers().filter((p) => p.answered).length;
       } else if (phase === "reveal") {
         r.correct = q.correct;
@@ -134,11 +159,9 @@ function create() {
       return r;
     },
     tick: (room, now) => {
-      if (phase === "playing" && now - questionStart > QUESTION_TIME_MS) {
-        doReveal(room);
-        return true;
-      }
-      return false;
+      if (phase !== "playing" || paused) return false;
+      if (now - questionStart >= QUESTION_TIME_MS) { doReveal(room); return true; }
+      return true; // refresh the live countdown (points + timer bar) ~2x/s
     },
   };
 }

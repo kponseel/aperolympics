@@ -54,3 +54,9 @@ button:disabled { opacity: .4; }
 
 ol { list-style: none; padding: 0; }
 li { display: flex; justify-content: space-between; padding: 10px 14px; background: #1b1d35; border-radius: 10px; margin-bottom: 8px; }
+
+/* Quiz countdown: points fading with time + draining timer bar */
+.quiz-top { display: flex; align-items: center; gap: 12px; }
+.timerbar { flex: 1; height: 14px; background: #1b1d35; border-radius: 999px; overflow: hidden; }
+.timerbar > i { display: block; height: 100%; width: 100%; border-radius: 999px; background: #26890c; transition: width .5s linear, background-color .3s; }
+.points { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; font-size: 1.1rem; }
