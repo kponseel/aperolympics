@@ -14,22 +14,50 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <header><h1>🍹 Aperolympics</h1><div class="sub" id="status">Connexion…</div></header>
+  <header class="topbar">
+    <div class="brand">🍹 <span>Aperolympics</span></div>
+    <div class="bar-actions">
+      <button type="button" class="iconbtn" id="navMenuBtn" title="Revenir au menu des épreuves" style="display:none">🏠</button>
+      <button type="button" class="iconbtn" id="navBoardBtn" title="Classement" style="display:none">🏆</button>
+      <button type="button" class="iconbtn" id="navHelpBtn" title="Aide &amp; règles">?</button>
+      <button type="button" class="iconbtn danger" id="navLeaveBtn" title="Quitter la partie" style="display:none">✕</button>
+    </div>
+  </header>
+  <div class="sub center" id="status">Connexion…</div>
+
   <main>
     <!-- Landing: create or join a room -->
     <section class="screen on" id="s-join">
+      <div class="hero">
+        <div class="hero-emoji">🍹</div>
+        <h1>Aperolympics</h1>
+        <p class="muted">Les mini-jeux de l'apéro — sur le téléphone de chacun.</p>
+      </div>
+      <ol class="steps">
+        <li><span class="num">1</span> Choisis un <b>pseudo</b>.</li>
+        <li><span class="num">2</span> <b>Crée</b> une partie (tu deviens l'hôte 👑) ou <b>rejoins</b> avec un code.</li>
+        <li><span class="num">3</span> L'hôte lance une épreuve — jouez et grimpez au <b>classement</b> 🏆.</li>
+      </ol>
       <input id="name" placeholder="Ton pseudo" maxlength="16" autocomplete="off" />
-      <button class="primary" id="createBtn">Créer une partie</button>
+      <div class="row">
+        <button class="primary grow" id="createBtn">Créer une partie</button>
+        <button type="button" class="info" data-tip="Crée une nouvelle salle : tu en deviens l'hôte 👑 et tu reçois un code à partager.">?</button>
+      </div>
       <div class="or">— ou —</div>
-      <input id="code" placeholder="Code de partie (ex: ABCD)" maxlength="6" autocomplete="off" autocapitalize="characters" />
-      <button id="joinBtn">Rejoindre</button>
+      <input id="code" placeholder="Code de partie (ex : ABCD)" maxlength="6" autocomplete="off" autocapitalize="characters" />
+      <div class="row">
+        <button class="grow" id="joinBtn">Rejoindre</button>
+        <button type="button" class="info" data-tip="Entre le code à 4 lettres donné par l'hôte (ou ouvre son lien) pour rejoindre sa salle.">?</button>
+      </div>
       <div class="center error" id="joinError"></div>
     </section>
 
     <!-- Hub: host picks an épreuve -->
     <section class="screen" id="s-hub">
       <div class="roombadge" id="hubRoom"></div>
+      <div class="section-label">Joueurs <button type="button" class="info" data-tip="Tout le monde dans cette salle. 👑 = hôte (le 1er arrivé). Grisé = déconnecté.">?</button></div>
       <div class="players" id="hubPlayers"></div>
+      <div class="section-label">Épreuves <button type="button" class="info" data-tip="L'hôte 👑 touche une épreuve pour la lancer. Les autres suivent automatiquement.">?</button></div>
       <div class="center muted" id="hubHint"></div>
       <div class="game-list" id="gameList"></div>
     </section>
@@ -48,6 +76,23 @@
     <!-- Active game renderer mounts here -->
     <section class="screen" id="game-area"></section>
   </main>
+
+  <!-- Leaderboard overlay -->
+  <div class="overlay" id="ov-board">
+    <div class="sheet">
+      <div class="sheet-head"><h2>🏆 Classement</h2><button type="button" class="iconbtn" data-close="ov-board">✕</button></div>
+      <ol id="boardList" class="board"></ol>
+      <div class="center muted" id="boardEmpty" style="display:none">Pas encore de joueurs.</div>
+    </div>
+  </div>
+
+  <!-- Help / rules overlay -->
+  <div class="overlay" id="ov-help">
+    <div class="sheet">
+      <div class="sheet-head"><h2>❓ Aide &amp; règles</h2><button type="button" class="iconbtn" data-close="ov-help">✕</button></div>
+      <div id="helpBody"></div>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/app.js"></script>
