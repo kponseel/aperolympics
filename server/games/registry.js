@@ -4,10 +4,12 @@
 // public/games/<id>.js included from index.html.
 
 const quiz = require("./quiz");
+const most_likely = require("./most_likely");
 
 const GAMES = [
   quiz,
-  // ... port the other 15 from esp32-hub/src/games/ here.
+  most_likely,
+  // ... port the other 14 from esp32-hub/src/games/ here.
 ];
 
 module.exports = {
