@@ -19,7 +19,7 @@ window.Apero.register = function (id, def) { this.games[id] = def; };
 window.GamesHub = window.Apero; // compat alias: ported renderers can keep window.GamesHub.register
 
 (function () {
-  var socket, myName = "", myRoom = "", state = null, currentRendererId = null, sessionRestoring = false;
+  var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false;
 
   function $(id) { return document.getElementById(id); }
   function setStatus(t) { $("status").textContent = t; }
@@ -227,23 +227,29 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function connect() {
     socket = io({ transports: ["polling", "websocket"] });
     socket.on("connect", function () {
-      // (Re)connect: rejoin the same room under the same pseudo (score kept).
-      // Covers both a dropped socket and a full page refresh — the session is
-      // restored from localStorage before we connect.
-      if (myName && myRoom) { send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnexion — " + myName + "…"); }
+      // Auto-rejoin the same room under the same pseudo (score kept). Covers a
+      // dropped socket AND a full page refresh (session restored from
+      // localStorage before we connect). `rejoining` lets error_msg below tell
+      // a failed auto-rejoin (room gone) apart from a manual bad code.
+      if (myName && myRoom) { rejoining = true; send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnexion — " + myName + "…"); }
       else setStatus("Choisis ton pseudo");
     });
     socket.on("disconnect", function () { setStatus("Déconnecté, reconnexion…"); });
     socket.on("state", function (m) {
       state = m; myRoom = m.room || myRoom;
-      if (findMe()) { sessionRestoring = false; saveSession(); }
+      if (findMe()) { rejoining = false; saveSession(); }
       render();
     });
     socket.on("private", function (m) { if (state) { state._private = m.round || {}; render(); } });
     socket.on("error_msg", function (m) {
-      // A failed auto-restore (room swept/gone) clears the stale session quietly
-      // and drops to the landing screen instead of flashing an error.
-      if (sessionRestoring) { sessionRestoring = false; clearSession(); myName = ""; myRoom = ""; render(); setStatus("Choisis ton pseudo"); return; }
+      // An auto-rejoin failed: the room was swept after inactivity, or the
+      // server restarted and lost all rooms. Clear the dead session and drop to
+      // the landing screen cleanly instead of freezing on a now-defunct room.
+      if (rejoining) {
+        rejoining = false; clearSession(); myName = ""; myRoom = ""; state = null;
+        if (currentRendererId) switchTo(null);
+        render(); setStatus("Choisis ton pseudo"); return;
+      }
       var e = $("joinError"); if (e) e.textContent = (m && m.msg) ? m.msg : "Erreur";
     });
   }
@@ -251,7 +257,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Leave the room: drop our session (server marks us offline) and reset to the
   // landing screen with a fresh socket that won't auto-rejoin.
   function leaveRoom() {
-    myName = ""; myRoom = ""; state = null; sessionRestoring = false; clearSession();
+    myName = ""; myRoom = ""; state = null; rejoining = false; clearSession();
     if (currentRendererId) switchTo(null);
     closeOverlay("ov-board"); closeOverlay("ov-help"); closeOverlay("ov-history");
     if (socket) { socket.disconnect(); socket.connect(); }
@@ -272,7 +278,8 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     if (!myName || !myRoom) return;
     var sig = myName + " " + myRoom;
     if (sig === savedSig) return; // state arrives often; skip redundant writes
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ name: myName, room: myRoom })); savedSig = sig; } catch (e) {}
+    savedSig = sig;               // set first so a throwing store (private mode) isn't retried every frame
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ name: myName, room: myRoom })); } catch (e) {}
   }
   function clearSession() {
     savedSig = "";
@@ -334,19 +341,20 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (!saved) return;
       if (!$("name").value.trim()) $("name").value = saved.name;
       var urlCode = ($("code").value || "").trim().toUpperCase();
-      if (!urlCode || urlCode === saved.room) { myName = saved.name; myRoom = saved.room; sessionRestoring = true; }
+      if (!urlCode || urlCode === saved.room) { myName = saved.name; myRoom = saved.room; }
     })();
     $("createBtn").onclick = function () {
       var n = $("name").value.trim();
       if (!n) { $("joinError").textContent = "Entre un pseudo"; return; }
-      myName = n.substring(0, 16); send({ t: "create", name: myName });
+      // A deliberate create supersedes any in-flight auto-rejoin (see error_msg).
+      rejoining = false; myName = n.substring(0, 16); send({ t: "create", name: myName });
     };
     $("joinBtn").onclick = function () {
       var n = $("name").value.trim();
       var c = ($("code").value || "").trim().toUpperCase();
       if (!n) { $("joinError").textContent = "Entre un pseudo"; return; }
       if (!c) { $("joinError").textContent = "Entre un code de partie"; return; }
-      myName = n.substring(0, 16); myRoom = c; send({ t: "join", name: myName, room: c });
+      rejoining = false; myName = n.substring(0, 16); myRoom = c; send({ t: "join", name: myName, room: c });
     };
     $("startBtn").onclick = function () { send({ t: "next" }); };
     $("backToHubBtn").onclick = function () { send({ t: "select_game", id: "" }); };
