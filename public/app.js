@@ -112,13 +112,16 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     });
   }
 
-  function renderHelp() {
+  function showGameRules(id) { $("ov-help").classList.add("on"); renderHelp(id); }
+
+  function renderHelp(forceId) {
     var html = '<ol class="steps">' +
       '<li><span class="num">1</span> <b>Crée</b> une partie ou <b>rejoins</b>-en une avec le code à 4 lettres (ou le lien) de l\'hôte.</li>' +
       '<li><span class="num">2</span> L\'<b>hôte</b> 👑 (le 1er arrivé) choisit une <b>épreuve</b> dans le menu 🏠.</li>' +
       '<li><span class="num">3</span> Tout le monde joue depuis son téléphone. Le <b>classement</b> 🏆 se met à jour en direct.</li>' +
       '</ol>';
-    var g = state && state.game && window.Apero.games[state.game];
+    var gid = forceId || (state && state.game);
+    var g = gid && window.Apero.games[gid];
     if (g && g.rules) {
       html += '<div class="rules"><h4>' + (g.emoji || '🎮') + ' ' + escapeHtml(g.name) + ' — règles</h4>' + g.rules + '</div>';
     } else {
@@ -146,11 +149,14 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       card.innerHTML = '<div class="icon">' + g.emoji + '</div>' +
         '<div class="gc-body"><div class="name">' + escapeHtml(g.name) + '</div>' +
         '<div class="muted">' + escapeHtml(g.desc || "") + '</div></div>' +
-        (iAmHost ? '<div class="gc-go">Jouer ›</div>' : '');
+        (iAmHost ? '<div class="gc-go">Jouer ›</div>' : '') +
+        '<button type="button" class="info gc-info" title="Voir les règles">?</button>';
       if (iAmHost) card.onclick = function () { send({ t: "select_game", id: id }); };
+      (function (gid) { card.querySelector(".gc-info").onclick = function (e) { e.stopPropagation(); showGameRules(gid); }; })(id);
       list.appendChild(card);
     });
-    $("hubHint").textContent = iAmHost ? "Tu es l'hôte 👑 — touche une épreuve pour la lancer." : "En attente que l'hôte choisisse une épreuve…";
+    var hn = (state && state.hostId) || "l'hôte";
+    $("hubHint").textContent = iAmHost ? "Tu es l'hôte 👑 — touche une épreuve pour la lancer. (? = règles)" : ("En attente que 👑 " + hn + " choisisse une épreuve… (? pour lire les règles)");
     renderPlayerChips("hubPlayers");
     setStatus("Salle " + ((state && state.room) || myRoom) + " — " + myName);
   }
@@ -163,9 +169,16 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     if ($("lobbyRules")) $("lobbyRules").innerHTML = (g && g.rules) ? '<h4>📖 Comment jouer</h4>' + g.rules : '';
     renderPlayerChips("lobbyPlayers");
     var iAmHost = amHost();
+    var connected = state.players.filter(function (p) { return p.connected; }).length;
+    var min = (g && g.minPlayers) || 1;
+    var enough = connected >= min;
+    var need = "Il faut au moins " + min + " joueurs connectés (actuellement " + connected + ").";
+    var hn = (state && state.hostId) || "l'hôte";
     $("startBtn").style.display = iAmHost ? "block" : "none";
+    $("startBtn").disabled = !enough;
     $("backToHubBtn").style.display = iAmHost ? "block" : "none";
-    $("lobbyHint").textContent = iAmHost ? "Quand tout le monde est là, clique Démarrer." : "En attente du maître du jeu…";
+    $("lobbyHint").textContent = !enough ? need
+      : (iAmHost ? "Quand tout le monde est là, clique Démarrer." : ("En attente de 👑 " + hn + "…"));
     setStatus("Lobby — " + myName);
   }
 

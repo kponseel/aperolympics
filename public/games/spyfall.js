@@ -108,6 +108,7 @@
     name:   "Spyfall",
     emoji:  "🕶️",
     desc:   "Tous connaissent le lieu, sauf l'espion. (3 joueurs min)",
+    minPlayers: 3,
     rules:  "<b>3+ joueurs.</b> Tous les tels affichent le <b>meme lieu secret</b> (aeroport, plage, casino...), <b>sauf 1</b> : l'espion 🕶️.<br>" +
             "<b>1.</b> A l'oral, posez-vous des questions sur le lieu (\"Y'a-t-il du bruit ?\", \"On peut s'y asseoir ?\").<br>" +
             "<b>2.</b> Civils : repondre sans trop reveler. Espion : bluffer pour rester discret.<br>" +

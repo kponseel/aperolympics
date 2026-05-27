@@ -107,6 +107,7 @@
     name:   "Undercover",
     emoji:  "🕵️",
     desc:   "Mot secret different pour l'intrus. Trouvez-le ! (3 joueurs min)",
+    minPlayers: 3,
     rules:  "<b>3+ joueurs.</b> Chacun recoit un <b>mot prive</b> sur son tel.<br>" +
             "La <b>majorite</b> partage le meme mot, mais <b>1-2 undercover</b> (selon la taille du groupe) ont un mot <b>proche mais different</b>.<br>" +
             "<b>1.</b> A l'oral, chacun decrit son mot en <b>quelques mots</b> (sans le dire direct).<br>" +

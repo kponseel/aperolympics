@@ -73,6 +73,7 @@ function recordHistory(room) {
 
 function broadcast(room) {
   if (room.game && room.game.phase() === "finished") recordHistory(room);
+  else room.histRecorded = false; // re-arm: a replayed/new game can be logged again when it ends
   io.to(room.code).emit("state", buildState(room));
   if (room.game && room.game.serializePrivate) {
     room.players.forEach((p) => {
