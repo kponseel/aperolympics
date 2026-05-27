@@ -4,10 +4,39 @@
 // public/games/<id>.js included from index.html.
 
 const quiz = require("./quiz");
+const most_likely = require("./most_likely");
+const superlatives = require("./superlatives");
+const would_rather = require("./would_rather");
+const never = require("./never");
+const bluff = require("./bluff");
+const quips = require("./quips");
+const picolo = require("./picolo");
+const truth_dare = require("./truth_dare");
+const dares = require("./dares");
+const kings = require("./kings");
+const bomb = require("./bomb");
+const paranoia = require("./paranoia");
+const spyfall = require("./spyfall");
+const undercover = require("./undercover");
+const wolves = require("./wolves");
 
 const GAMES = [
   quiz,
-  // ... port the other 15 from esp32-hub/src/games/ here.
+  most_likely,
+  superlatives,
+  would_rather,
+  never,
+  bluff,
+  quips,
+  picolo,
+  truth_dare,
+  dares,
+  kings,
+  bomb,
+  paranoia,
+  spyfall,
+  undercover,
+  wolves,
 ];
 
 module.exports = {

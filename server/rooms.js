@@ -15,6 +15,8 @@ class Room {
     this.game = null;         // game instance (from module.create())
     this.createdAt = Date.now();
     this.emptySince = null;
+    this.history = [];        // past games' standings (for the 📜 review overlay)
+    this.histRecorded = false; // whether the current game instance is already logged
   }
 
   activePlayers() {
