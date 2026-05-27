@@ -51,7 +51,7 @@
       if (iAmAsker) {
         h.$("paTitle").textContent = "🤫 C'est ton tour";
         showSubScreen(h, "paAsk");
-        h.$("paPrompt").textContent = priv.prompt || "(question privee — recharge si vide)";
+        h.$("paPrompt").textContent = priv.prompt || "Chargement…";
         var targets = h.$("paTargets");
         targets.innerHTML = "";
         state.players.filter(function (p) { return p.connected; }).forEach(function (p) {

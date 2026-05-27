@@ -104,6 +104,20 @@
     </div>
   </div>
 
+  <!-- Reconnecting overlay: shown while a saved session is being restored, so the
+       landing form (and its "Créer" button) can't be mis-tapped mid-reconnect. -->
+  <div class="overlay" id="ov-reconnect">
+    <div class="sheet reconnect-card">
+      <div class="spinner"></div>
+      <h2>Reconnexion…</h2>
+      <p class="muted center">On te remet dans la salle <b id="reconnectRoom"></b>.</p>
+      <button type="button" id="reconnectFreshBtn">Recommencer à zéro</button>
+    </div>
+  </div>
+
+  <!-- Transient toast (e.g. "you're the host now"). -->
+  <div class="toast" id="toast"></div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/app.js"></script>
   <!-- One <script> per game renderer. Add the other 15 here. -->

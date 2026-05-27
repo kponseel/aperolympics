@@ -5,7 +5,7 @@
 // (name-based reconnect, same idea as the ESP32 firmware).
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous I/O/0/1
-const EMPTY_TTL_MS = 10 * 60 * 1000; // delete a room 10 min after it goes empty
+const EMPTY_TTL_MS = 30 * 60 * 1000; // delete a room 30 min after it goes empty (survives a dinner/break)
 
 class Room {
   constructor(code) {

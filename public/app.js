@@ -19,7 +19,7 @@ window.Apero.register = function (id, def) { this.games[id] = def; };
 window.GamesHub = window.Apero; // compat alias: ported renderers can keep window.GamesHub.register
 
 (function () {
-  var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false;
+  var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null;
 
   function $(id) { return document.getElementById(id); }
   function setStatus(t) { $("status").textContent = t; }
@@ -44,6 +44,18 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function openOverlay(id) { $(id).classList.add("on"); if (id === "ov-board") renderBoard(); if (id === "ov-help") renderHelp(); if (id === "ov-history") renderHistory(); }
   function closeOverlay(id) { $(id).classList.remove("on"); }
   function boardOpen() { return $("ov-board").classList.contains("on"); }
+
+  // While a saved session is being restored, cover the landing form with a
+  // "reconnecting" card so its "Créer" button can't be mis-tapped (which would
+  // spawn a new room and abandon the game). Hidden as soon as we're back in.
+  function showReconnecting(room) { $("reconnectRoom").textContent = room || ""; $("ov-reconnect").classList.add("on"); }
+  function hideReconnecting() { $("ov-reconnect").classList.remove("on"); }
+
+  // Brief auto-dismissing notice (e.g. host hand-off).
+  function toast(msg) {
+    var el = $("toast"); el.textContent = msg; el.classList.add("on");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove("on"); }, 4000);
+  }
 
   function renderHistory() {
     var body = $("historyBody"); body.innerHTML = "";
@@ -200,6 +212,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function updateChrome() {
     var roomed = inRoom();
     var inGame = roomed && !!(state && state.game);
+    // Tell a player when the crown lands on them (e.g. the host left), since
+    // turn-based games otherwise stall waiting on a host who doesn't know.
+    if (roomed) {
+      var nowHost = amHost();
+      if (wasHost !== null && nowHost && !wasHost) toast("👑 Tu es l'hôte maintenant — à toi de continuer !");
+      wasHost = nowHost;
+    } else { wasHost = null; }
     $("navLeaveBtn").style.display = roomed ? "" : "none";
     $("navBoardBtn").style.display = roomed ? "" : "none";
     $("navMenuBtn").style.display = (inGame && amHost()) ? "" : "none";
@@ -227,6 +246,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function connect() {
     socket = io({ transports: ["polling", "websocket"] });
     socket.on("connect", function () {
+      document.body.classList.remove("offline");
       // Auto-rejoin the same room under the same pseudo (score kept). Covers a
       // dropped socket AND a full page refresh (session restored from
       // localStorage before we connect). `rejoining` lets error_msg below tell
@@ -234,21 +254,32 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (myName && myRoom) { rejoining = true; send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnexion — " + myName + "…"); }
       else setStatus("Choisis ton pseudo");
     });
-    socket.on("disconnect", function () { setStatus("Déconnecté, reconnexion…"); });
+    socket.on("disconnect", function () {
+      // Make the drop visible (loud status + dimmed board) so taps aren't
+      // silently swallowed; Socket.IO auto-reconnects and we re-join above.
+      document.body.classList.add("offline");
+      setStatus("Connexion perdue — reconnexion…");
+    });
     socket.on("state", function (m) {
+      // Keep the private role payload across a reconnect re-render (same game +
+      // phase) so hidden-role games don't flash "(privé)" before `private` lands.
+      var keepPriv = (state && state._private && state.game === m.game && state.phase === m.phase) ? state._private : null;
       state = m; myRoom = m.room || myRoom;
-      if (findMe()) { rejoining = false; saveSession(); }
+      if (keepPriv && !state._private) state._private = keepPriv;
+      if (findMe()) { rejoining = false; hideReconnecting(); saveSession(); }
       render();
     });
     socket.on("private", function (m) { if (state) { state._private = m.round || {}; render(); } });
     socket.on("error_msg", function (m) {
       // An auto-rejoin failed: the room was swept after inactivity, or the
       // server restarted and lost all rooms. Clear the dead session and drop to
-      // the landing screen cleanly instead of freezing on a now-defunct room.
+      // the landing screen with a gentle explanation instead of a blank reset.
       if (rejoining) {
         rejoining = false; clearSession(); myName = ""; myRoom = ""; state = null;
         if (currentRendererId) switchTo(null);
-        render(); setStatus("Choisis ton pseudo"); return;
+        hideReconnecting(); render();
+        $("joinError").textContent = "La partie n'existe plus — crée une nouvelle partie ou rejoins avec un code.";
+        setStatus("Choisis ton pseudo"); return;
       }
       var e = $("joinError"); if (e) e.textContent = (m && m.msg) ? m.msg : "Erreur";
     });
@@ -259,6 +290,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function leaveRoom() {
     myName = ""; myRoom = ""; state = null; rejoining = false; clearSession();
     if (currentRendererId) switchTo(null);
+    hideReconnecting();
     closeOverlay("ov-board"); closeOverlay("ov-help"); closeOverlay("ov-history");
     if (socket) { socket.disconnect(); socket.connect(); }
     $("code").value = ""; $("joinError").textContent = ""; syncCreateJoin();
@@ -341,7 +373,11 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (!saved) return;
       if (!$("name").value.trim()) $("name").value = saved.name;
       var urlCode = ($("code").value || "").trim().toUpperCase();
-      if (!urlCode || urlCode === saved.room) { myName = saved.name; myRoom = saved.room; }
+      if (!urlCode || urlCode === saved.room) {
+        myName = saved.name; myRoom = saved.room;
+        // Cover the landing form until the rejoin resolves (or the user opts out).
+        showReconnecting(myRoom);
+      }
     })();
     $("createBtn").onclick = function () {
       var n = $("name").value.trim();
@@ -363,6 +399,8 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("navHistoryBtn").onclick = function () { openOverlay("ov-history"); };
     $("navHelpBtn").onclick = function () { openOverlay("ov-help"); };
     $("navLeaveBtn").onclick = function () { if (!inRoom() || window.confirm("Quitter la partie ?")) leaveRoom(); };
+    // Escape hatch from the reconnecting overlay: abandon the restore and start fresh.
+    $("reconnectFreshBtn").onclick = function () { leaveRoom(); };
     // Desktop affordance: Enter in the landing inputs submits (join if a code is typed, else create).
     function landingSubmit() { (($("code").value || "").trim() ? $("joinBtn") : $("createBtn")).click(); }
     ["name", "code"].forEach(function (id) {
