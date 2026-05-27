@@ -244,13 +244,23 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     if (currentRendererId) switchTo(null);
     closeOverlay("ov-board"); closeOverlay("ov-help"); closeOverlay("ov-history");
     if (socket) { socket.disconnect(); socket.connect(); }
-    $("code").value = ""; $("joinError").textContent = "";
+    $("code").value = ""; $("joinError").textContent = ""; syncCreateJoin();
     show("s-join"); updateChrome(); setStatus("Choisis ton pseudo");
   }
 
   function prefillFromUrl() {
     var m = location.pathname.match(/^\/r\/([A-Za-z0-9]{3,8})/);
     if (m) $("code").value = m[1].toUpperCase();
+  }
+
+  // Landing CTA reflects intent: an empty code means "create a room", a typed
+  // code means "join one". Emphasize the matching button and block create while
+  // a code is present, so a typed code can't accidentally spawn a new room.
+  function syncCreateJoin() {
+    var hasCode = !!($("code").value || "").trim();
+    $("createBtn").classList.toggle("primary", !hasCode);
+    $("createBtn").disabled = hasCode;
+    $("joinBtn").classList.toggle("primary", hasCode);
   }
 
   // One delegated click handler for: closing overlays, copy-to-clipboard,
@@ -286,6 +296,8 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
 
   document.addEventListener("DOMContentLoaded", function () {
     prefillFromUrl();
+    syncCreateJoin();
+    $("code").addEventListener("input", syncCreateJoin);
     $("createBtn").onclick = function () {
       var n = $("name").value.trim();
       if (!n) { $("joinError").textContent = "Entre un pseudo"; return; }
