@@ -8,6 +8,7 @@ function create() {
   let deadlineMs = 0;
   let roundN = 0;
   let boomCount = {}; // name -> times exploded
+  let lastTick = 0;
 
   function randomActive(room, exclude) {
     const pool = room.activePlayers().filter((p) => exclude == null || p.name !== exclude);
@@ -60,7 +61,13 @@ function create() {
       return r;
     },
     tick: (room, now) => {
+      const prev = lastTick; lastTick = now;
       if (phase !== "playing") return false;
+      // Pause the hidden fuse while the holder is mid-disconnect (grace window),
+      // so the bomb never explodes on someone who just dropped. It resumes on
+      // reconnect, or when onPlayerLeave reassigns it after the grace.
+      const h = holderName && room.players.get(holderName.toLowerCase());
+      if (h && h.disconnectedAt) { if (prev) deadlineMs += (now - prev); return false; }
       if (now < deadlineMs) return false;
       if (holderName) boomCount[holderName] = (boomCount[holderName] || 0) + 1;
       phase = "reveal";

@@ -3,7 +3,11 @@ html, body { height: 100%; }
 body {
   background: radial-gradient(1100px 560px at 50% -8%, #1c2150 0%, #0f1020 55%), #0f1020;
   color: #fff; display: flex; flex-direction: column; min-height: 100vh; padding: 12px 16px 22px;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
+/* App-like feel: UI text never selects on tap/long-press — except the editable
+   inputs and the room code you may want to copy. */
+input, .rb-code { -webkit-user-select: text; user-select: text; }
 
 /* top app-bar */
 .topbar { width: 100%; max-width: 560px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -36,7 +40,7 @@ input { padding: 16px; font-size: 1.15rem; border: 2px solid transparent; border
 input:focus { outline: none; border-color: #5b6cff; }
 input::placeholder { color: #7a7e9a; }
 
-button { padding: 16px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 12px; color: #fff; cursor: pointer; background: #2a2d4a; width: 100%; transition: transform .05s ease, filter .15s ease; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+button { padding: 16px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 12px; color: #fff; cursor: pointer; background: #2a2d4a; width: 100%; transition: transform .05s ease, filter .15s ease; }
 button:active { transform: scale(.985); }
 button:disabled { opacity: .4; }
 .primary { background: linear-gradient(90deg, #5b6cff, #7a5bff); }
@@ -67,7 +71,7 @@ button:disabled { opacity: .4; }
 
 /* game cards */
 .game-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
-.game-card { display: flex; align-items: center; gap: 14px; background: #161830; border: 1px solid #262a52; border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color .15s, transform .05s; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.game-card { display: flex; align-items: center; gap: 14px; background: #161830; border: 1px solid #262a52; border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color .15s, transform .05s; }
 .game-card:not(.disabled):hover { border-color: #5b6cff; }
 .game-card:not(.disabled):active { transform: scale(.99); }
 .game-card .icon { font-size: 2rem; }
@@ -128,6 +132,23 @@ ol { list-style: none; padding: 0; }
 
 /* tap tooltip */
 .tipbubble { position: fixed; z-index: 60; max-width: 260px; background: #20254d; color: #e9ecff; border: 1px solid #3a3f72; border-radius: 10px; padding: 10px 12px; font-size: .88rem; line-height: 1.4; box-shadow: 0 10px 28px rgba(0, 0, 0, .45); }
+
+/* reconnecting overlay: a centered card (not a bottom sheet) with a spinner */
+#ov-reconnect { align-items: center; }
+.reconnect-card { max-width: 360px; border-radius: 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.reconnect-card button { margin-top: 4px; background: #1b1d35; width: auto; padding: 12px 18px; }
+.spinner { width: 40px; height: 40px; border-radius: 50%; border: 4px solid #2a2f5c; border-top-color: #5b6cff; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* connection-lost treatment: loud status + a dimmed, non-tappable game area so
+   dead taps aren't silently swallowed during a reconnect */
+body.offline #status { color: #ffce6b; font-weight: 700; }
+body.offline #status::before { content: "⚠ "; }
+body.offline #game-area, body.offline #startBtn, body.offline .game-card { opacity: .5; pointer-events: none; }
+
+/* transient toast (host hand-off, etc.) */
+.toast { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 70; max-width: 90%; background: #20254d; color: #fff; border: 1px solid #3a3f72; border-radius: 12px; padding: 12px 16px; font-weight: 700; text-align: center; box-shadow: 0 10px 28px rgba(0, 0, 0, .45); display: none; }
+.toast.on { display: block; animation: fade .2s ease; }
 
 @media (min-width: 600px) {
   .overlay { align-items: center; }

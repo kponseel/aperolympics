@@ -59,7 +59,7 @@
         h.$("spHint").textContent = "Tu as rejoint en cours, attends le prochain tour.";
       } else {
         h.$("spRoleHeader").textContent = "Lieu secret :";
-        h.$("spRoleBox").innerHTML = '<div style="font-size:1.6rem;font-weight:700">' + h.escapeHtml(priv.location || "(privé)") + '</div>';
+        h.$("spRoleBox").innerHTML = '<div style="font-size:1.6rem;font-weight:700">' + h.escapeHtml(priv.location || "Chargement…") + '</div>';
         h.$("spHint").textContent = "Reponds aux questions sans donner trop d\'indices a l'espion.";
       }
 

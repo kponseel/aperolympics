@@ -15,6 +15,12 @@ const rooms = require("./rooms");
 const registry = require("./games/registry");
 
 const PORT = process.env.PORT || 3000;
+// A dropped socket isn't treated as "left" until this grace elapses, so a
+// transient blip (wifi handoff, tab backgrounded, page refresh) doesn't thrash
+// the host crown or reassign turns. Kept short so a *real* mid-round departure
+// only freezes the round briefly before the game reacts. A reconnect within the
+// window is seamless.
+const DISCONNECT_GRACE_MS = 3000;
 
 const app = express();
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
@@ -100,12 +106,13 @@ function joinRoom(socket, room, rawName) {
   const key = name.toLowerCase();
   let p = room.players.get(key);
   if (!p) {
-    p = { name, score: 0, answered: false, answer: -1, answerMs: 0, joinedAt: Date.now(), active: true, socketId: socket.id };
+    p = { name, score: 0, answered: false, answer: -1, answerMs: 0, joinedAt: Date.now(), active: true, socketId: socket.id, disconnectedAt: 0 };
     room.players.set(key, p);
   } else {
     p.active = true;
     p.socketId = socket.id;
     p.name = name;
+    p.disconnectedAt = 0; // a reconnect cancels any pending soft-disconnect
   }
   socket.join(room.code);
   socket.data.roomCode = room.code;
@@ -159,11 +166,10 @@ io.on("connection", (socket) => {
     const room = rooms.get(socket.data.roomCode);
     if (!room) return;
     const p = playerOf(socket, room);
-    if (p && p.socketId === socket.id) {
-      p.active = false;
-      if (room.game && room.game.onPlayerLeave) room.game.onPlayerLeave(room, p);
-    }
-    broadcast(room);
+    // Soft-disconnect: keep the player active and just stamp the time. The tick
+    // promotes it to a real leave once the grace elapses; a reconnect before
+    // then clears the stamp (joinRoom), so a blip/refresh is seamless.
+    if (p && p.socketId === socket.id) p.disconnectedAt = Date.now();
   });
 });
 
@@ -171,7 +177,19 @@ io.on("connection", (socket) => {
 setInterval(() => {
   const now = Date.now();
   for (const room of rooms.all()) {
-    if (room.game && room.game.tick && room.game.tick(room, now)) broadcast(room);
+    let dirty = false;
+    // Promote expired soft-disconnects to real leaves. Mark them ALL inactive
+    // first, then fire onPlayerLeave — so a turn/host reassignment never lands
+    // on a player who is also leaving in this same tick.
+    var left = [];
+    room.players.forEach((p) => {
+      if (p.active && p.disconnectedAt && now - p.disconnectedAt >= DISCONNECT_GRACE_MS) {
+        p.active = false; p.disconnectedAt = 0; left.push(p); dirty = true;
+      }
+    });
+    left.forEach((p) => { if (room.game && room.game.onPlayerLeave) room.game.onPlayerLeave(room, p); });
+    if (room.game && room.game.tick && room.game.tick(room, now)) dirty = true;
+    if (dirty) broadcast(room);
   }
   rooms.sweep();
 }, 500);

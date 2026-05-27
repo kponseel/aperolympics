@@ -50,7 +50,7 @@
 
     if (state.phase === "playing") {
       showScreen(h, "uc-play");
-      h.$("ucWord").textContent = priv.word || "(privé, rafraîchis si vide)";
+      h.$("ucWord").textContent = priv.word || "Chargement…";
       var role = priv.role || "civilian";
       h.$("ucRole").textContent = role === "spectator"
         ? "Tu as rejoint en cours de tour, tu es spectateur·rice ce round."

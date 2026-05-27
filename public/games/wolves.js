@@ -44,7 +44,7 @@
       role === "villager"  ? '<div style="font-size:1.6rem">🧑‍🌾 Tu es VILLAGEOIS</div><div class="muted">Demasque les loups.</div>' :
       role === "eliminated"? '<div style="font-size:1.4rem">💀 Tu es ELIMINE</div><div class="muted">Observe la suite.</div>' :
       role === "spectator" ? '<div style="font-size:1.2rem">🍿 Spectateur</div><div class="muted">Pas dans ce match.</div>' :
-                             '<div class="muted">(rôle privé en attente)</div>';
+                             '<div class="muted">Chargement de ton rôle…</div>';
     setRoleBox(h, roleHtml);
 
     if (role === "wolf" && priv.allies && priv.allies.length > 1) {
