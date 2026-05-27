@@ -125,6 +125,7 @@
     name:   "Loups",
     emoji:  "🐺",
     desc:   "Werewolf simplifie. 4 joueurs min. 7+ = 2 loups.",
+    minPlayers: 4,
     rules:  "<b>Loup-Garou simplifie.</b> 4 joueurs min. 1 loup si &lt;7, <b>2 loups</b> si 7+.<br>" +
             "<b>🌙 Nuit :</b> les loups voient qui sont leurs allies et choisissent une victime (vote prive).<br>" +
             "<b>☀️ Jour :</b> tout le village discute (a l'oral) puis vote qui eliminer.<br>" +
