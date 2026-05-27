@@ -19,7 +19,7 @@ window.Apero.register = function (id, def) { this.games[id] = def; };
 window.GamesHub = window.Apero; // compat alias: ported renderers can keep window.GamesHub.register
 
 (function () {
-  var socket, myName = "", myRoom = "", state = null, currentRendererId = null;
+  var socket, myName = "", myRoom = "", state = null, currentRendererId = null, sessionRestoring = false;
 
   function $(id) { return document.getElementById(id); }
   function setStatus(t) { $("status").textContent = t; }
@@ -227,20 +227,31 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function connect() {
     socket = io({ transports: ["polling", "websocket"] });
     socket.on("connect", function () {
-      // Reconnect: rejoin the same room under the same pseudo (score kept).
-      if (myName && myRoom) { send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnecté — " + myName); }
+      // (Re)connect: rejoin the same room under the same pseudo (score kept).
+      // Covers both a dropped socket and a full page refresh — the session is
+      // restored from localStorage before we connect.
+      if (myName && myRoom) { send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnexion — " + myName + "…"); }
       else setStatus("Choisis ton pseudo");
     });
     socket.on("disconnect", function () { setStatus("Déconnecté, reconnexion…"); });
-    socket.on("state", function (m) { state = m; myRoom = m.room || myRoom; render(); });
+    socket.on("state", function (m) {
+      state = m; myRoom = m.room || myRoom;
+      if (findMe()) { sessionRestoring = false; saveSession(); }
+      render();
+    });
     socket.on("private", function (m) { if (state) { state._private = m.round || {}; render(); } });
-    socket.on("error_msg", function (m) { var e = $("joinError"); if (e) e.textContent = (m && m.msg) ? m.msg : "Erreur"; });
+    socket.on("error_msg", function (m) {
+      // A failed auto-restore (room swept/gone) clears the stale session quietly
+      // and drops to the landing screen instead of flashing an error.
+      if (sessionRestoring) { sessionRestoring = false; clearSession(); myName = ""; myRoom = ""; render(); setStatus("Choisis ton pseudo"); return; }
+      var e = $("joinError"); if (e) e.textContent = (m && m.msg) ? m.msg : "Erreur";
+    });
   }
 
   // Leave the room: drop our session (server marks us offline) and reset to the
   // landing screen with a fresh socket that won't auto-rejoin.
   function leaveRoom() {
-    myName = ""; myRoom = ""; state = null;
+    myName = ""; myRoom = ""; state = null; sessionRestoring = false; clearSession();
     if (currentRendererId) switchTo(null);
     closeOverlay("ov-board"); closeOverlay("ov-help"); closeOverlay("ov-history");
     if (socket) { socket.disconnect(); socket.connect(); }
@@ -251,6 +262,24 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function prefillFromUrl() {
     var m = location.pathname.match(/^\/r\/([A-Za-z0-9]{3,8})/);
     if (m) $("code").value = m[1].toUpperCase();
+  }
+
+  // Session persistence: remember {pseudo, room} so a page refresh silently
+  // rejoins the same room. The server keeps each player by lowercased pseudo
+  // (score and all), so re-sending "join" with the same name+code restores us.
+  var SESSION_KEY = "apero.session", savedSig = "";
+  function saveSession() {
+    if (!myName || !myRoom) return;
+    var sig = myName + " " + myRoom;
+    if (sig === savedSig) return; // state arrives often; skip redundant writes
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ name: myName, room: myRoom })); savedSig = sig; } catch (e) {}
+  }
+  function clearSession() {
+    savedSig = "";
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+  function loadSession() {
+    try { var s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); return (s && s.name && s.room) ? s : null; } catch (e) { return null; }
   }
 
   // Landing CTA reflects intent: an empty code means "create a room", a typed
@@ -298,6 +327,15 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     prefillFromUrl();
     syncCreateJoin();
     $("code").addEventListener("input", syncCreateJoin);
+    // Restore a saved session so refreshing rejoins the same room. A /r/CODE
+    // link for a *different* room wins over the saved one.
+    (function () {
+      var saved = loadSession();
+      if (!saved) return;
+      if (!$("name").value.trim()) $("name").value = saved.name;
+      var urlCode = ($("code").value || "").trim().toUpperCase();
+      if (!urlCode || urlCode === saved.room) { myName = saved.name; myRoom = saved.room; sessionRestoring = true; }
+    })();
     $("createBtn").onclick = function () {
       var n = $("name").value.trim();
       if (!n) { $("joinError").textContent = "Entre un pseudo"; return; }
