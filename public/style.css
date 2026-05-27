@@ -33,8 +33,8 @@ main { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 5
 .hero-emoji { font-size: 3.2rem; line-height: 1; }
 .hero p { margin-top: 4px; }
 .steps { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.steps li { display: flex; align-items: center; gap: 10px; background: #161830; border-radius: 12px; padding: 10px 12px; font-size: .95rem; }
-.steps .num { flex: none; width: 26px; height: 26px; border-radius: 50%; background: #5b6cff; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: .9rem; }
+.steps li { position: relative; padding: 10px 12px 10px 46px; background: #161830; border-radius: 12px; font-size: .95rem; line-height: 1.4; }
+.steps .num { position: absolute; left: 10px; top: 9px; width: 26px; height: 26px; border-radius: 50%; background: #5b6cff; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: .9rem; }
 
 input { padding: 16px; font-size: 1.15rem; border: 2px solid transparent; border-radius: 12px; width: 100%; background: #1b1d35; color: #fff; }
 input:focus { outline: none; border-color: #5b6cff; }
