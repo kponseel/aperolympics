@@ -36,7 +36,7 @@ input { padding: 16px; font-size: 1.15rem; border: 2px solid transparent; border
 input:focus { outline: none; border-color: #5b6cff; }
 input::placeholder { color: #7a7e9a; }
 
-button { padding: 16px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 12px; color: #fff; cursor: pointer; background: #2a2d4a; width: 100%; transition: transform .05s ease, filter .15s ease; }
+button { padding: 16px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 12px; color: #fff; cursor: pointer; background: #2a2d4a; width: 100%; transition: transform .05s ease, filter .15s ease; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 button:active { transform: scale(.985); }
 button:disabled { opacity: .4; }
 .primary { background: linear-gradient(90deg, #5b6cff, #7a5bff); }
@@ -67,7 +67,7 @@ button:disabled { opacity: .4; }
 
 /* game cards */
 .game-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
-.game-card { display: flex; align-items: center; gap: 14px; background: #161830; border: 1px solid #262a52; border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color .15s, transform .05s; }
+.game-card { display: flex; align-items: center; gap: 14px; background: #161830; border: 1px solid #262a52; border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color .15s, transform .05s; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .game-card:not(.disabled):hover { border-color: #5b6cff; }
 .game-card:not(.disabled):active { transform: scale(.99); }
 .game-card .icon { font-size: 2rem; }
