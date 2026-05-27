@@ -17,8 +17,10 @@ const registry = require("./games/registry");
 const PORT = process.env.PORT || 3000;
 // A dropped socket isn't treated as "left" until this grace elapses, so a
 // transient blip (wifi handoff, tab backgrounded, page refresh) doesn't thrash
-// the host crown or reassign turns. A reconnect within the window is seamless.
-const DISCONNECT_GRACE_MS = 8000;
+// the host crown or reassign turns. Kept short so a *real* mid-round departure
+// only freezes the round briefly before the game reacts. A reconnect within the
+// window is seamless.
+const DISCONNECT_GRACE_MS = 3000;
 
 const app = express();
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
@@ -176,16 +178,16 @@ setInterval(() => {
   const now = Date.now();
   for (const room of rooms.all()) {
     let dirty = false;
-    // Promote expired soft-disconnects to real leaves: mark inactive + let the
-    // game react (turn/host reassignment), then broadcast the change.
+    // Promote expired soft-disconnects to real leaves. Mark them ALL inactive
+    // first, then fire onPlayerLeave — so a turn/host reassignment never lands
+    // on a player who is also leaving in this same tick.
+    var left = [];
     room.players.forEach((p) => {
       if (p.active && p.disconnectedAt && now - p.disconnectedAt >= DISCONNECT_GRACE_MS) {
-        p.active = false;
-        p.disconnectedAt = 0;
-        if (room.game && room.game.onPlayerLeave) room.game.onPlayerLeave(room, p);
-        dirty = true;
+        p.active = false; p.disconnectedAt = 0; left.push(p); dirty = true;
       }
     });
+    left.forEach((p) => { if (room.game && room.game.onPlayerLeave) room.game.onPlayerLeave(room, p); });
     if (room.game && room.game.tick && room.game.tick(room, now)) dirty = true;
     if (dirty) broadcast(room);
   }

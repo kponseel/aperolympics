@@ -255,8 +255,10 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       else setStatus("Choisis ton pseudo");
     });
     socket.on("disconnect", function () {
-      // Make the drop visible (loud status + dimmed board) so taps aren't
-      // silently swallowed; Socket.IO auto-reconnects and we re-join above.
+      // Only flag a real in-game drop (loud status + dimmed board) so taps
+      // aren't silently swallowed. On the landing screen / right after leaving,
+      // stay quiet. Socket.IO auto-reconnects and we re-join above.
+      if (!inRoom()) return;
       document.body.classList.add("offline");
       setStatus("Connexion perdue — reconnexion…");
     });
@@ -290,7 +292,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function leaveRoom() {
     myName = ""; myRoom = ""; state = null; rejoining = false; clearSession();
     if (currentRendererId) switchTo(null);
-    hideReconnecting();
+    hideReconnecting(); document.body.classList.remove("offline");
     closeOverlay("ov-board"); closeOverlay("ov-help"); closeOverlay("ov-history");
     if (socket) { socket.disconnect(); socket.connect(); }
     $("code").value = ""; $("joinError").textContent = ""; syncCreateJoin();
