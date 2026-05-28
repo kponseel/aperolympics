@@ -103,6 +103,24 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 .game-card.below-min .gc-min { color: #ffce6b; border-color: #5b4828; background: rgba(255, 206, 107, .08); }
 
 .lobby-head { display: flex; align-items: center; gap: 12px; justify-content: center; }
+/* Lobby room badge is the share CTA — beef it up vs. the in-game variant. */
+.lobby-roombadge { padding: 18px 14px; }
+.lobby-roombadge .rb-code { font-size: 2.4rem; }
+.lobby-roombadge .rb-share .mini { background: linear-gradient(90deg, #5b6cff, #7a5bff); font-weight: 700; }
+/* Live ready-state card: progress + count + status line. Two flavours via
+   .waiting (amber) / .ready (green) on the wrapper. Solid background-color
+   tints (not gradients) so the colour swap actually animates — `transition`
+   does not interpolate linear-gradient values. */
+.lobby-ready { background-color: #161830; border: 2px solid #262a52; border-radius: 14px; padding: 14px; transition: border-color .25s, background-color .25s; }
+.lobby-ready.waiting { border-color: #5b4828; background-color: rgba(255, 206, 107, .08); }
+.lobby-ready.ready { border-color: #26890c; background-color: rgba(38, 137, 12, .10); }
+.lr-progress { height: 8px; background: #2a2d4a; border-radius: 999px; overflow: hidden; margin-bottom: 10px; }
+.lr-progress > i { display: block; height: 100%; width: 0; background: #ffce6b; transition: width .35s ease, background-color .25s; }
+.lobby-ready.ready .lr-progress > i { background: #26890c; }
+.lr-count { font-weight: 800; font-size: 1.1rem; text-align: center; font-variant-numeric: tabular-nums; }
+.lr-status { text-align: center; margin-top: 6px; font-size: .9rem; line-height: 1.4; }
+.lobby-ready.waiting .lr-status { color: #ffce6b; }
+.lobby-ready.ready .lr-status { color: #b8e8a8; }
 .rules { background: #161830; border: 1px solid #262a52; border-radius: 12px; padding: 14px; font-size: .95rem; line-height: 1.5; color: #cdd; }
 .rules h4 { margin-bottom: 6px; color: #fff; }
 .bullets { padding-left: 18px; }
@@ -194,7 +212,7 @@ ol { list-style: none; padding: 0; }
    dead taps aren't silently swallowed during a reconnect */
 body.offline #status { color: #ffce6b; font-weight: 700; }
 body.offline #status::before { content: "⚠ "; }
-body.offline #game-area, body.offline #startBtn, body.offline .game-card { opacity: .5; pointer-events: none; }
+body.offline #game-area, body.offline #startBtn, body.offline .game-card, body.offline #lobbyReady { opacity: .5; pointer-events: none; }
 
 /* transient toast (host hand-off, etc.) */
 .toast { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 70; max-width: 90%; background: #20254d; color: #fff; border: 1px solid #3a3f72; border-radius: 12px; padding: 12px 16px; font-weight: 700; text-align: center; box-shadow: 0 10px 28px rgba(0, 0, 0, .45); display: none; }

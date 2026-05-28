@@ -66,13 +66,20 @@
 
     <!-- Lobby: waiting room for the chosen game -->
     <section class="screen" id="s-lobby">
-      <div class="roombadge" id="lobbyRoom"></div>
+      <div class="roombadge lobby-roombadge" id="lobbyRoom"></div>
       <div class="lobby-head"><span class="big" id="lobbyEmoji"></span><h2 id="lobbyName"></h2></div>
-      <div class="rules" id="lobbyRules"></div>
+      <!-- Live ready-state card: progress bar + count + status line. Amber
+           when below minPlayers, green when ready. The whole vibe of the
+           card switches with .waiting / .ready class on this wrapper. -->
+      <div class="lobby-ready waiting" id="lobbyReady">
+        <div class="lr-progress" id="lrProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progression vers le seuil de joueurs"><i id="lrFill"></i></div>
+        <div class="lr-count" id="lrCount">0 / 0 joueurs</div>
+        <div class="lr-status" id="lrStatus"></div>
+      </div>
       <div class="players" id="lobbyPlayers"></div>
-      <div class="center muted" id="lobbyHint"></div>
       <button class="primary" id="startBtn" style="display:none">Démarrer</button>
       <button id="backToHubBtn" style="display:none">← Changer d'épreuve</button>
+      <div class="rules" id="lobbyRules"></div>
     </section>
 
     <!-- Active game renderer mounts here -->

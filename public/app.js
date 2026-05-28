@@ -301,13 +301,25 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     var connected = state.players.filter(function (p) { return p.connected; }).length;
     var min = (g && g.minPlayers) || 1;
     var enough = connected >= min;
-    var need = "Il faut au moins " + min + " joueurs connectés (actuellement " + connected + ").";
     var hn = (state && state.hostId) || "l'hôte";
+    // Ready-state card: progress bar + count + status. Class toggle drives the
+    // amber→green colour swap; bar caps at 100% so an over-subscribed lobby
+    // (10/4) doesn't overflow its track.
+    var lr = $("lobbyReady");
+    lr.classList.toggle("ready", enough);
+    lr.classList.toggle("waiting", !enough);
+    var pct = Math.min(100, min ? Math.round(connected / min * 100) : 100);
+    $("lrFill").style.width = pct + "%";
+    $("lrProgress").setAttribute("aria-valuenow", String(pct));
+    $("lrCount").textContent = connected + " / " + min + " joueur" + (min > 1 ? "s" : "") + (enough && connected > min ? " (+" + (connected - min) + ")" : "");
+    $("lrStatus").innerHTML = enough
+      ? (iAmHost
+          ? "✅ Prêt à démarrer — clique <b>Démarrer</b> quand tout le monde est là"
+          : "✅ Prêt — en attente de 👑 " + escapeHtml(hn))
+      : "⏳ Il manque <b>" + (min - connected) + "</b> joueur" + (min - connected > 1 ? "s" : "") + " — partage le code ci-dessus";
     $("startBtn").style.display = iAmHost ? "block" : "none";
     $("startBtn").disabled = !enough;
     $("backToHubBtn").style.display = iAmHost ? "block" : "none";
-    $("lobbyHint").textContent = !enough ? need
-      : (iAmHost ? "Quand tout le monde est là, clique Démarrer." : ("En attente de 👑 " + hn + "…"));
     setStatus("Lobby — " + myName);
   }
 
