@@ -57,25 +57,75 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove("on"); }, 4000);
   }
 
+  // Match history overlay. Reverse-chronological list of past games, each
+  // showing the rich end-of-game payoff (winner banner + MVP + top-3 podium
+  // or "Partie jouée — N joueurs"). A session recap at the top surfaces the
+  // overall champ (most #1 finishes in scored games) + MVP of the soirée
+  // (most distinct MVP labels collected), but only once at least 2 games
+  // have been played — single-game sessions don't need a recap.
   function renderHistory() {
     var body = $("historyBody"); body.innerHTML = "";
     var h = (state && state.history) ? state.history.slice().reverse() : [];
     $("historyEmpty").style.display = h.length ? "none" : "block";
+
+    if (h.length >= 2) {
+      var trophies = {}, mvps = {};
+      h.forEach(function (e) {
+        if (e.standings && e.standings.length && e.standings[0].score > 0) {
+          var champ = e.standings[0].name;
+          trophies[champ] = (trophies[champ] || 0) + 1;
+        }
+        if (e.mvp && e.mvp.name) mvps[e.mvp.name] = (mvps[e.mvp.name] || 0) + 1;
+      });
+      function topOf(o) {
+        var best = null;
+        Object.keys(o).forEach(function (k) { if (!best || o[k] > o[best]) best = k; });
+        return best;
+      }
+      var champ = topOf(trophies), mvp = topOf(mvps);
+      var bits = [];
+      if (champ) bits.push('<div>🥇 <b>Champion·ne :</b> ' + escapeHtml(champ) +
+        ' <span class="muted">(' + trophies[champ] + ' trophée' + (trophies[champ] > 1 ? 's' : '') + ')</span></div>');
+      if (mvp) bits.push('<div>⭐ <b>MVP de la soirée :</b> ' + escapeHtml(mvp) +
+        ' <span class="muted">(' + mvps[mvp] + ' distinction' + (mvps[mvp] > 1 ? 's' : '') + ')</span></div>');
+      if (bits.length) {
+        var recap = document.createElement("div");
+        recap.className = "hist-recap";
+        recap.innerHTML = '<div class="hist-recap-head">Récap de la session — ' + h.length + ' parties</div>' + bits.join("");
+        body.appendChild(recap);
+      }
+    }
+
     var medals = ["🥇", "🥈", "🥉"];
     h.forEach(function (e) {
       var g = window.Apero.games[e.game] || {};
       var scored = (e.standings || []).some(function (s) { return s.score > 0; });
       var rows;
       if (scored) {
-        rows = (e.standings || []).slice(0, 5).map(function (s, i) {
+        rows = (e.standings || []).slice(0, 3).map(function (s, i) {
           return '<li><span>' + (medals[i] || (i + 1) + ".") + ' ' + escapeHtml(s.name) + '</span><b>' + s.score + '</b></li>';
         }).join("");
       } else {
         rows = '<li><span class="muted">Partie jouée — ' + (e.standings || []).length + ' joueur(s)</span></li>';
       }
+      var banner = "";
+      if (e.winner_banner && e.winner_banner.text) {
+        banner = '<div class="hist-banner">' +
+          (e.winner_banner.emoji ? escapeHtml(e.winner_banner.emoji) + ' ' : '') +
+          escapeHtml(e.winner_banner.text) + '</div>';
+      }
+      var mvpLine = "";
+      if (e.mvp && e.mvp.label) {
+        mvpLine = '<div class="hist-mvp">' +
+          (e.mvp.emoji ? escapeHtml(e.mvp.emoji) + ' ' : '') +
+          '<b>' + escapeHtml(e.mvp.name || '') + '</b> <span class="muted">— ' + escapeHtml(e.mvp.label) +
+          (e.mvp.value != null && e.mvp.value !== '' ? ' · ' + escapeHtml(String(e.mvp.value)) : '') +
+          '</span></div>';
+      }
       var div = document.createElement("div");
       div.className = "hist-entry";
-      div.innerHTML = '<div class="hist-head">' + (g.emoji || "🎮") + ' <b>' + escapeHtml(g.name || e.game) + '</b></div><ol>' + rows + '</ol>';
+      div.innerHTML = '<div class="hist-head">' + (g.emoji || "🎮") + ' <b>' + escapeHtml(g.name || e.game) + '</b></div>' +
+        banner + mvpLine + '<ol>' + rows + '</ol>';
       body.appendChild(div);
     });
   }
