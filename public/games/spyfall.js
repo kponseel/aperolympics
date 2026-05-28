@@ -57,10 +57,16 @@
         h.$("spRoleHeader").textContent = "Tu observes ce tour :";
         h.$("spRoleBox").innerHTML = '<div style="font-size:1.2rem">🍿 Spectateur</div>';
         h.$("spHint").textContent = "Tu as rejoint en cours, attends le prochain tour.";
-      } else {
+      } else if (role === "civilian") {
         h.$("spRoleHeader").textContent = "Lieu secret :";
         h.$("spRoleBox").innerHTML = '<div style="font-size:1.6rem;font-weight:700">' + h.escapeHtml(priv.location || "Chargement…") + '</div>';
         h.$("spHint").textContent = "Reponds aux questions sans donner trop d\'indices a l'espion.";
+      } else {
+        // Role not yet known (private payload hasn't arrived): show a neutral
+        // "loading" message instead of misclaiming the player is a civilian.
+        h.$("spRoleHeader").textContent = "Ton role :";
+        h.$("spRoleBox").innerHTML = '<div class="muted">Chargement de ton rôle…</div>';
+        h.$("spHint").textContent = "";
       }
 
       var locked = !!(me && me.answered);

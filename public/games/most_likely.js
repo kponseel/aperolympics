@@ -41,7 +41,8 @@
       var locked  = !!(me && me.answered);
       var targets = h.$("mlTargets");
       targets.innerHTML = "";
-      var voteable = state.players.filter(function (p) { return p.connected; });
+      // Exclude self — "qui est le plus susceptible…" with you as an option is awkward.
+      var voteable = state.players.filter(function (p) { return p.connected && (!me || p.name !== me.name); });
       voteable.forEach(function (p) {
         var btn = document.createElement("button");
         btn.className = "ghost";
@@ -58,9 +59,10 @@
         };
         targets.appendChild(btn);
       });
+      var nConn = state.players.filter(function (p) { return p.connected; }).length;
       h.$("mlStatus").textContent = locked
         ? "Vote envoye, attends les autres..."
-        : (r.answered !== undefined ? (r.answered + " / " + state.players.length + " vote(s)") : "");
+        : (r.answered !== undefined ? (r.answered + " / " + nConn + " vote(s)") : "");
     } else if (state.phase === "reveal") {
       showScreen(h, "ml-reveal");
       h.$("mlPromptR").textContent = r.prompt || "";

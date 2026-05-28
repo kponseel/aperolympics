@@ -60,9 +60,10 @@
       var locked = !!(me && me.answered);
       h.$("nvHave").disabled  = locked;
       h.$("nvNever").disabled = locked;
+      var nConnN = state.players.filter(function (p) { return p.connected; }).length;
       h.$("nvStatus").textContent = locked
         ? "Reponse envoyee, attends les autres..."
-        : (r.answered !== undefined ? (r.answered + " / " + state.players.length + " repondu(s)") : "");
+        : (r.answered !== undefined ? (r.answered + " / " + nConnN + " repondu(s)") : "");
     } else if (state.phase === "reveal") {
       showScreen(h, "nv-reveal");
       h.$("nvPromptR").textContent = r.prompt || "";

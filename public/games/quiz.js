@@ -96,7 +96,9 @@
       var ok = !!(me && me.answered && me.answer === correct);
       h.$("myScore").textContent = me ? me.score : 0;
       h.$("revealMark").innerHTML = ok ? "&#9989;" : (me && me.answered ? "&#10060;" : "&#10067;");
-      h.$("revealMsg").textContent = "Bonne réponse : " + ["A", "B", "C", "D"][correct];
+      // Show this question's payoff for the player ("+850 pts") if they got it.
+      var myGain = (r.gains || []).find(function (g) { return me && g.name === me.name; });
+      h.$("revealMsg").textContent = "Bonne réponse : " + ["A", "B", "C", "D"][correct] + (myGain ? "   — +" + myGain.gain + " pts" : "");
       h.$("quizNextBtn").style.display = h.amHost() ? "block" : "none";
     } else if (state.phase === "finished") {
       showScreen(h, "q-end");
@@ -123,6 +125,7 @@
            "<b>10 secondes</b> et les points <b>fondent avec le temps</b> (de <b>1000</b> à <b>500</b>).<br>" +
            "L'hôte 👑 peut <b>mettre en pause</b> (tout est masqué pour tout le monde) et avance entre les questions.",
     scored: true,
+    endable: true,
     mount: build,
     render: render,
   });

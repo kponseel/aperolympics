@@ -43,6 +43,7 @@ function create() {
   let votesA = 0, votesB = 0;
   let roundN = 0;
   let roundWins = {}; // name -> rounds won (used for MVP at end)
+  let lastGain = {};  // name -> points earned in the most recent round (for the reveal screen)
 
   function isContestant(name) { return name && (name === contestantA || name === contestantB); }
 
@@ -75,6 +76,7 @@ function create() {
   function resetAll(room) {
     phase = "lobby"; promptIdx = -1; contestantA = null; contestantB = null; step = 0; roundN = 0;
     roundWins = {};
+    lastGain = {};
     clearRound(room);
     room.players.forEach((p) => { p.score = 0; });
   }
@@ -97,9 +99,17 @@ function create() {
   function awardWinner(room) {
     const a = contestantA && room.players.get(contestantA.toLowerCase());
     const b = contestantB && room.players.get(contestantB.toLowerCase());
-    if (votesA === votesB) { if (a) a.score += 100; if (b) b.score += 100; }
-    else if (votesA > votesB) { if (a) a.score += 300; if (contestantA) roundWins[contestantA] = (roundWins[contestantA] || 0) + 1; }
-    else { if (b) b.score += 300; if (contestantB) roundWins[contestantB] = (roundWins[contestantB] || 0) + 1; }
+    lastGain = {};
+    if (votesA === votesB) {
+      if (a) { a.score += 100; lastGain[contestantA] = 100; }
+      if (b) { b.score += 100; lastGain[contestantB] = 100; }
+    } else if (votesA > votesB) {
+      if (a) { a.score += 300; lastGain[contestantA] = 300; }
+      if (contestantA) roundWins[contestantA] = (roundWins[contestantA] || 0) + 1;
+    } else {
+      if (b) { b.score += 300; lastGain[contestantB] = 300; }
+      if (contestantB) roundWins[contestantB] = (roundWins[contestantB] || 0) + 1;
+    }
   }
 
   function advance(room) {
@@ -173,6 +183,7 @@ function create() {
         r.votes_a = votesA;
         r.votes_b = votesB;
         r.winner = votesA === votesB ? "tie" : (votesA > votesB ? "a" : "b");
+        r.gains = Object.keys(lastGain).map((n) => ({ name: n, gain: lastGain[n] }));
       }
       if (phase === "finished") {
         const t = topComic(room);

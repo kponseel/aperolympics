@@ -63,9 +63,10 @@
       var locked = !!(me && me.answered);
       h.$("wrA").disabled = locked;
       h.$("wrB").disabled = locked;
+      var nConnW = state.players.filter(function (p) { return p.connected; }).length;
       h.$("wrStatus").textContent = locked
         ? "Vote envoye, attends les autres..."
-        : (r.answered !== undefined ? (r.answered + " / " + state.players.length + " vote(s)") : "");
+        : (r.answered !== undefined ? (r.answered + " / " + nConnW + " vote(s)") : "");
     } else if (state.phase === "reveal") {
       showScreen(h, "wr-reveal");
       h.$("wrAR").textContent = r.a || "A";
@@ -86,7 +87,8 @@
     minPlayers: 2,
     rules:  "Un dilemme entre <b>A</b> ou <b>B</b> (\"Pizza pour la vie\" vs \"Plus jamais de fromage\"...).<br>" +
             "Vote pour ton option preferee, en meme temps que tout le monde.<br>" +
-            "Le reveal affiche les <b>compteurs par cote</b> dans des cards colorees.",
+            "Le reveal affiche les <b>compteurs par cote</b> dans des cards colorees.<br>" +
+            "<b>Stat de la partie :</b> à la fin, le titre <b>« Le plus aligné avec la majorité »</b> va au joueur qui a le plus souvent voté du côté gagnant.",
     mount:  build,
     render: render
   });

@@ -39,7 +39,8 @@
       var locked  = !!(me && me.answered);
       var targets = h.$("slTargets");
       targets.innerHTML = "";
-      state.players.filter(function (p) { return p.connected; }).forEach(function (p) {
+      // Exclude self — voting yourself "le/la plus X du groupe" is awkward.
+      state.players.filter(function (p) { return p.connected && (!me || p.name !== me.name); }).forEach(function (p) {
         var btn = document.createElement("button");
         btn.className = "ghost";
         btn.style.margin = "4px 0";
@@ -54,9 +55,10 @@
         };
         targets.appendChild(btn);
       });
+      var nConn = state.players.filter(function (p) { return p.connected; }).length;
       h.$("slStatus").textContent = locked
         ? "Vote envoye, attends les autres..."
-        : (r.answered !== undefined ? (r.answered + " / " + state.players.length + " vote(s)") : "");
+        : (r.answered !== undefined ? (r.answered + " / " + nConn + " vote(s)") : "");
     } else if (state.phase === "reveal") {
       showScreen(h, "sl-reveal");
       h.$("slPromptR").textContent = r.prompt || "";

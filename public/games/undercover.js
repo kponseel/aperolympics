@@ -51,10 +51,14 @@
     if (state.phase === "playing") {
       showScreen(h, "uc-play");
       h.$("ucWord").textContent = priv.word || "Chargement…";
-      var role = priv.role || "civilian";
-      h.$("ucRole").textContent = role === "spectator"
-        ? "Tu as rejoint en cours de tour, tu es spectateur·rice ce round."
-        : (role === "undercover" ? "🕵️ Tu es UNDERCOVER. Sois discret·e !" : "👥 Tu es civil·e.");
+      // Don't default to "civilian" before private arrives — an undercover
+      // would briefly see the wrong role label. Show neutral until known.
+      var role = priv.role || "";
+      h.$("ucRole").textContent =
+        role === "undercover" ? "🕵️ Tu es UNDERCOVER. Sois discret·e !" :
+        role === "civilian"   ? "👥 Tu es civil·e." :
+        role === "spectator"  ? "Tu as rejoint en cours de tour, tu es spectateur·rice ce round." :
+                                "Chargement de ton rôle…";
 
       var locked = !!(me && me.answered);
       var targets = h.$("ucTargets");
