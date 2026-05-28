@@ -89,7 +89,10 @@ function create() {
         r.rule = RULES[rank].rule;
         r.is_king = rank === 12;
       }
-      if (phase === "finished") r.royal_cup = (lastCard >= 0 && currentName) ? currentName : "";
+      if (phase === "finished") {
+        r.royal_cup = (lastCard >= 0 && currentName) ? currentName : "";
+        if (r.royal_cup) r.winner_banner = { emoji: "👑", text: "Coupe Royale pour " + r.royal_cup + " !" };
+      }
       return r;
     },
     tick: () => false,

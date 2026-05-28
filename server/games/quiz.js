@@ -54,6 +54,8 @@ function create() {
   let questionStart = 0;
   let paused = false; // host pause: timer frozen, question hidden for everyone
   let pausedAt = 0;
+  let streakNow = {};   // name -> current consecutive correct count
+  let bestStreak = {};  // name -> longest correct streak achieved this session
 
   function startQuestion(room, idx) {
     currentQ = idx;
@@ -80,9 +82,19 @@ function create() {
         let frac = 1 - p.answerMs / QUESTION_TIME_MS;
         if (frac < 0) frac = 0;
         p.score += 500 + Math.round(500 * frac);
+        streakNow[p.name] = (streakNow[p.name] || 0) + 1;
+        if (streakNow[p.name] > (bestStreak[p.name] || 0)) bestStreak[p.name] = streakNow[p.name];
+      } else {
+        streakNow[p.name] = 0;
       }
     });
     phase = "reveal";
+  }
+
+  function topStreak() {
+    let best = null;
+    for (const name in bestStreak) { if (!best || bestStreak[name] > bestStreak[best]) best = name; }
+    return (best && bestStreak[best] >= 2) ? { name: best, count: bestStreak[best] } : null;
   }
 
   function resetAll(room) {
@@ -90,6 +102,8 @@ function create() {
     currentQ = -1;
     paused = false;
     pausedAt = 0;
+    streakNow = {};
+    bestStreak = {};
     room.players.forEach((p) => {
       p.score = 0;
       p.answered = false;
@@ -155,6 +169,10 @@ function create() {
         r.answered = room.activePlayers().filter((p) => p.answered).length;
       } else if (phase === "reveal") {
         r.correct = q.correct;
+      }
+      if (phase === "finished") {
+        const s = topStreak();
+        if (s) r.mvp = { label: "Meilleure série de bonnes réponses", emoji: "🔥", name: s.name, value: s.count + " d'affilée" };
       }
       return r;
     },

@@ -40,6 +40,7 @@ function create() {
   let promptIdx = -1;
   let rendered = "";
   let roundN = 0;
+  let mentions = {}; // name -> times the prompt template actually named this player
 
   function pick(names, exclude) {
     const pool = names.filter((n) => exclude.indexOf(n) < 0);
@@ -53,12 +54,18 @@ function create() {
     const p1 = names[Math.floor(Math.random() * names.length)];
     const p2 = pick(names, [p1]);
     const p3 = pick(names, [p1, p2]);
-    rendered = PROMPTS[idx]
-      .split("{p1}").join(p1)
-      .split("{p2}").join(p2)
-      .split("{p3}").join(p3);
+    const tmpl = PROMPTS[idx];
+    if (tmpl.indexOf("{p1}") >= 0) mentions[p1] = (mentions[p1] || 0) + 1;
+    if (tmpl.indexOf("{p2}") >= 0) mentions[p2] = (mentions[p2] || 0) + 1;
+    if (tmpl.indexOf("{p3}") >= 0) mentions[p3] = (mentions[p3] || 0) + 1;
+    rendered = tmpl.split("{p1}").join(p1).split("{p2}").join(p2).split("{p3}").join(p3);
   }
-  function resetAll() { phase = "lobby"; promptIdx = -1; roundN = 0; rendered = ""; }
+  function topMentioned() {
+    let best = null;
+    for (const name in mentions) { if (!best || mentions[name] > mentions[best]) best = name; }
+    return best ? { name: best, count: mentions[best] } : null;
+  }
+  function resetAll() { phase = "lobby"; promptIdx = -1; roundN = 0; rendered = ""; mentions = {}; }
 
   return {
     phase: () => phase,
@@ -77,6 +84,10 @@ function create() {
     serializeRound: () => {
       const r = { round_n: roundN, total: PROMPTS.length };
       if (phase === "playing") { r.idx = promptIdx; r.prompt = rendered; }
+      if (phase === "finished") {
+        const m = topMentioned();
+        if (m) r.mvp = { label: "Le plus interpellé", emoji: "🍻", name: m.name, value: m.count + " fois" };
+      }
       return r;
     },
     tick: () => false,

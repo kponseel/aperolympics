@@ -227,10 +227,75 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     if ($("ov-history").classList.contains("on")) renderHistory();
   }
 
+  // Shared "fin de partie" screen — shown whenever a game ends. Reads optional
+  // `round.mvp` (a per-game stat) and `round.winner_banner` (role games) from
+  // the server, so every game gets a consistent payoff without per-renderer code.
+  function renderResults() {
+    var area = $("game-area");
+    var def = (state && state.game) ? window.Apero.games[state.game] : null;
+    var round = (state && state.round) || {};
+    var emoji = (def && def.emoji) || "🏁";
+    var name = (def && def.name) || "";
+
+    var ps = sortedPlayers();
+    var anyScore = ps.some(function (p) { return (p.score || 0) > 0; });
+    var medals = ["🥇", "🥈", "🥉"];
+    var podiumHtml = anyScore
+      ? '<ol class="podium">' +
+          ps.slice(0, 3).map(function (p, i) {
+            return '<li><span class="rank">' + medals[i] + '</span>' +
+              '<span class="who">' + (p.host ? '<span class="crown">&#x1F451;</span> ' : '') + escapeHtml(p.name) + '</span>' +
+              '<b class="pts">' + (p.score || 0) + '</b></li>';
+          }).join("") +
+        '</ol>'
+      : '<div class="muted center">Partie jouée — ' + ps.length + ' joueur(s)</div>';
+
+    var w = round.winner_banner;
+    var winnerHtml = (w && w.text)
+      ? '<div class="winner-banner">' + (w.emoji ? w.emoji + ' ' : '') + escapeHtml(w.text) + '</div>'
+      : '';
+
+    var s = round.mvp;
+    var mvpHtml = (s && s.label)
+      ? '<div class="mvp">' +
+          '<div class="mvp-label">' + escapeHtml(s.label) + '</div>' +
+          '<div class="mvp-name">' + (s.emoji ? s.emoji + ' ' : '') + escapeHtml(s.name || '') +
+            (s.value != null && s.value !== '' ? ' <span class="mvp-value">' + escapeHtml(String(s.value)) + '</span>' : '') +
+          '</div>' +
+        '</div>'
+      : '';
+
+    var iAmHost = amHost();
+    var actions = iAmHost
+      ? '<button class="primary" id="resReplayBtn">Rejouer</button>' +
+        '<button id="resMenuBtn">← Choisir une autre épreuve</button>'
+      : '<div class="muted center">En attente de l\'hôte 👑…</div>';
+
+    area.innerHTML =
+      '<section class="results">' +
+        '<div class="results-head">' +
+          '<div class="results-emoji">' + emoji + '</div>' +
+          '<h2>Partie terminée</h2>' +
+          '<div class="muted">' + escapeHtml(name) + '</div>' +
+        '</div>' +
+        winnerHtml + podiumHtml + mvpHtml +
+        '<div class="results-actions">' + actions + '</div>' +
+      '</section>';
+
+    if (iAmHost) {
+      $("resReplayBtn").onclick = function () { send({ t: "reset" }); };
+      $("resMenuBtn").onclick = function () { send({ t: "select_game", id: "" }); };
+    }
+  }
+
   function render() {
     if (!state || !findMe()) { show("s-join"); updateChrome(); return; }
     if (state.game) {
       if (state.phase === "lobby") { if (currentRendererId) switchTo(null); renderLobby(); updateChrome(); return; }
+      if (state.phase === "finished") {
+        if (currentRendererId) switchTo(null);
+        show("game-area"); renderResults(); updateChrome(); return;
+      }
       if (state.game !== currentRendererId) switchTo(state.game);
       show("game-area");
       var def = window.Apero.games[state.game];
