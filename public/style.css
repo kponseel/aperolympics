@@ -123,9 +123,15 @@ ol { list-style: none; padding: 0; }
 #game-area ol li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; background: #1b1d35; border-radius: 10px; margin-bottom: 8px; }
 .board li { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #1b1d35; border-radius: 10px; margin-bottom: 8px; }
 .board .rank { width: 1.8em; text-align: center; font-weight: 800; font-size: 1.05rem; }
-.board .who { flex: 1; }
+.board .who { flex: 1; min-width: 0; }
 .board .pts { color: #ffd23f; font-weight: 800; font-variant-numeric: tabular-nums; }
 .board li.off { opacity: .5; }
+/* 🏆 overlay tab strip: switch between current-game scores and session totals */
+.board-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.board-tab { flex: 1; padding: 10px 8px; font-size: .9rem; font-weight: 700; background: #1b1d35; border: 1px solid transparent; border-radius: 10px; color: #cdd; }
+.board-tab.on { background: linear-gradient(90deg, #5b6cff, #7a5bff); color: #fff; }
+/* Inline trophy/MVP badges next to the name on the session-totals tab */
+.bd-stats { display: inline-block; margin-left: 6px; font-size: .78rem; color: #aab; white-space: nowrap; }
 
 /* secondary / option buttons used by game renderers (e.g. vote targets) */
 .ghost { background: #1b1d35; border: 1px solid #2a2f5c; }

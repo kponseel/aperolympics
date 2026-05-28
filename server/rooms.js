@@ -17,6 +17,11 @@ class Room {
     this.emptySince = null;
     this.history = [];        // past games' standings (for the 📜 review overlay)
     this.histRecorded = false; // whether the current game instance is already logged
+    // Cross-game session totals (powers the 🏆 "Soirée" leaderboard tab).
+    // Keyed by display name; accumulated in recordHistory whenever a game closes.
+    // Never reset within a session — the whole point is to surface "qui domine
+    // sur l'ensemble de la soirée" beyond a single round-zeroed scoreboard.
+    this.sessionTotals = {}; // name -> { wins, podiums, mvps, points }
   }
 
   activePlayers() {

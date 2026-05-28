@@ -159,7 +159,21 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     });
   }
 
+  // The 🏆 overlay has two tabs:
+  //   "round"   → live scores of the current game (zeroed when a new game is picked)
+  //   "session" → cumulative wins / podiums / MVPs / points across every game
+  //              played in this room since it was created
+  // Switching tabs swaps which <ol> is visible; the corresponding "empty" hint
+  // shows when its source data is empty (no players / no games finished yet).
+  var boardTab = "round";
   function renderBoard() {
+    if (boardTab === "session") { renderBoardSession(); return; }
+    renderBoardRound();
+  }
+  function renderBoardRound() {
+    $("boardList").style.display = "";
+    $("boardSessionList").style.display = "none";
+    $("boardSessionEmpty").style.display = "none";
     var ol = $("boardList"); var ps = sortedPlayers();
     ol.innerHTML = "";
     $("boardEmpty").style.display = ps.length ? "none" : "block";
@@ -170,6 +184,40 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       li.innerHTML = '<span class="rank">' + (medals[i] || (i + 1)) + '</span>' +
         '<span class="who">' + (p.host ? '<span class="crown">&#x1F451;</span> ' : '') + escapeHtml(p.name) + '</span>' +
         '<b class="pts">' + (p.score || 0) + '</b>';
+      ol.appendChild(li);
+    });
+  }
+  function renderBoardSession() {
+    $("boardList").style.display = "none";
+    $("boardEmpty").style.display = "none";
+    $("boardSessionList").style.display = "";
+    var ol = $("boardSessionList"); ol.innerHTML = "";
+    var totals = (state && state.sessionTotals) || {};
+    var names = Object.keys(totals);
+    if (!names.length) { $("boardSessionEmpty").style.display = "block"; return; }
+    $("boardSessionEmpty").style.display = "none";
+    // Ranked by: wins desc, mvps desc, podiums desc, points desc, name asc.
+    // Wins beat everything else so the player who actually won most games sits
+    // on top even if a quiz savant has higher raw points without any wins.
+    names.sort(function (a, b) {
+      var ta = totals[a], tb = totals[b];
+      return (tb.wins - ta.wins) || (tb.mvps - ta.mvps) || (tb.podiums - ta.podiums) || (tb.points - ta.points) || (a < b ? -1 : 1);
+    });
+    var connectedSet = {};
+    (state && state.players || []).forEach(function (p) { if (p.connected) connectedSet[p.name] = true; });
+    var medals = ["🥇", "🥈", "🥉"];
+    names.forEach(function (n, i) {
+      var t = totals[n];
+      var bits = [];
+      if (t.wins) bits.push('🏆×' + t.wins);
+      if (t.mvps) bits.push('⭐×' + t.mvps);
+      if (t.podiums) bits.push('🥉×' + t.podiums);
+      var stats = bits.length ? '<span class="bd-stats">' + bits.join(' · ') + '</span>' : '';
+      var li = document.createElement("li");
+      li.className = connectedSet[n] ? "" : "off";
+      li.innerHTML = '<span class="rank">' + (medals[i] || (i + 1)) + '</span>' +
+        '<span class="who">' + escapeHtml(n) + ' ' + stats + '</span>' +
+        '<b class="pts">' + (t.points || 0) + '</b>';
       ol.appendChild(li);
     });
   }
@@ -486,6 +534,17 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (tip) { tip.parentNode && tip.parentNode.removeChild(tip); tip = null; }
       var close = e.target.closest && e.target.closest("[data-close]");
       if (close) { closeOverlay(close.getAttribute("data-close")); return; }
+      // 🏆 overlay tab switch (round vs session totals)
+      var bt = e.target.closest && e.target.closest("[data-bt]");
+      if (bt) {
+        var name = bt.getAttribute("data-bt");
+        if (name !== boardTab) {
+          boardTab = name;
+          document.querySelectorAll(".board-tab").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-bt") === name); });
+          renderBoard();
+        }
+        return;
+      }
       var copy = e.target.closest && e.target.closest("[data-copy]");
       if (copy) {
         var url = copy.getAttribute("data-copy");
