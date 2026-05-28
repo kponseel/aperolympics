@@ -156,6 +156,11 @@
   <!-- Transient toast (e.g. "you're the host now"). -->
   <div class="toast" id="toast"></div>
 
+  <!-- Discreet build tag (bottom corner). Useful to confirm which version is
+       deployed when reporting a bug; sits at very low opacity so a regular
+       player won't notice it. -->
+  <div class="version-tag" id="versionTag" aria-hidden="true"></div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="/app.js"></script>
   <!-- One <script> per game renderer. Add the other 15 here. -->

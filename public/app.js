@@ -19,6 +19,12 @@ window.Apero.register = function (id, def) { this.games[id] = def; };
 window.GamesHub = window.Apero; // compat alias: ported renderers can keep window.GamesHub.register
 
 (function () {
+  // Build tag — single source of truth for the version badge in the corner.
+  // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
+  // at the bottom-right so a tester can quickly confirm which build is live.
+  var APP_VERSION = "v21";
+  var APP_BUILD = "2026-05-28";
+
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
   // Visibility chosen on the Create card; toggled by the .vis-btn group.
   var createVisibility = "public";
@@ -776,6 +782,9 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("reconnectFreshBtn").onclick = function () { leaveRoom(); };
 
     initDelegated();
+    // Populate the discreet version badge in the corner from the build
+    // constants above. Updated once at boot; never re-rendered.
+    $("versionTag").textContent = APP_VERSION + " · " + APP_BUILD;
     connect();
     // Initial screen choice: if we have a pseudo (and no auto-rejoin in flight),
     // skip stage 1 and land on the choice screen immediately.
