@@ -154,12 +154,18 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     show("s-hub"); renderRoomBadge("hubRoom");
     var list = $("gameList"); list.innerHTML = "";
     var iAmHost = amHost();
+    var connected = (state ? state.players.filter(function (p) { return p.connected; }).length : 0);
     Object.keys(window.Apero.games).forEach(function (id) {
       var g = window.Apero.games[id];
+      var min = g.minPlayers || 1;
+      var enough = connected >= min;
       var card = document.createElement("div");
-      card.className = "game-card" + (iAmHost ? "" : " disabled");
+      // .below-min recolours the "👥 N+" badge so the host sees at-a-glance
+      // which games can't start with the current player count.
+      card.className = "game-card" + (iAmHost ? "" : " disabled") + (enough ? "" : " below-min");
+      var minBadge = '<span class="gc-min" title="' + min + '+ joueurs requis">👥 ' + min + '+</span>';
       card.innerHTML = '<div class="icon">' + g.emoji + '</div>' +
-        '<div class="gc-body"><div class="name">' + escapeHtml(g.name) + '</div>' +
+        '<div class="gc-body"><div class="name">' + escapeHtml(g.name) + ' ' + minBadge + '</div>' +
         '<div class="muted">' + escapeHtml(g.desc || "") + '</div></div>' +
         (iAmHost ? '<div class="gc-go">Jouer ›</div>' : '') +
         '<button type="button" class="info gc-info" title="Voir les règles">?</button>';
