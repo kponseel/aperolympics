@@ -691,9 +691,16 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
 
     // Stage 1 → Stage 2 promotion: validate the pseudo, persist it, switch
     // to the choice screen, and ask the server for the public-rooms list.
+    // A blank submit is treated as "forget the saved pseudo" (keeps memory and
+    // localStorage in sync — otherwise the next visit would pre-fill a stale name).
     function commitPseudo() {
       var n = ($("name").value || "").trim();
-      if (!n) { $("pseudoError").textContent = "Entre un pseudo pour continuer"; return; }
+      if (!n) {
+        myName = "";
+        clearPseudo();
+        $("pseudoError").textContent = "Entre un pseudo pour continuer";
+        return;
+      }
       myName = n.substring(0, 16);
       savePseudo(myName);
       $("pseudoError").textContent = "";
@@ -713,6 +720,16 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       myName = "";
       $("pseudoError").textContent = "";
       stopPublicPoll();
+      // Also reset the create-visibility toggle to its default so a stale
+      // "Cachée" choice from a previous round-trip can't silently apply on
+      // the next Créer click (DOM may have re-rendered but the module var
+      // would otherwise survive).
+      createVisibility = "public";
+      document.querySelectorAll(".vis-btn").forEach(function (x) {
+        var on = x.getAttribute("data-vis") === "public";
+        x.classList.toggle("on", on);
+        x.setAttribute("aria-checked", on ? "true" : "false");
+      });
       render();
       setTimeout(function () { try { $("name").focus(); } catch (e) {} }, 0);
     };
