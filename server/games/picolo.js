@@ -113,7 +113,7 @@ function create() {
       } else { resetAll(); }
     },
     onReset: resetAll,
-    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     serializeRound: (room) => {
       const r = { round_n: roundN, total: PROMPTS.length };
       if (phase === "playing") { r.idx = promptIdx; r.prompt = rendered; }
@@ -131,6 +131,6 @@ module.exports = {
   id: "picolo",
   name: "Picolo",
   emoji: "🍻",
-  desc: "Prompts escalades avec les prenoms du groupe.",
+  desc: "Prompts pour ambiance soirée, avec les prénoms du groupe.",
   create,
 };

@@ -107,7 +107,7 @@ button:disabled { opacity: .4; }
 .grid button { font-size: 1.3rem; min-height: 92px; }
 .a { background: #e6394a; } .b { background: #1368ce; } .c { background: #d89e00; } .d { background: #26890c; }
 
-/* ranked lists: quiz podium (#board) + leaderboard overlay (.board) */
+/* ranked lists: per-game reveal ols + leaderboard overlay (.board) */
 ol { list-style: none; padding: 0; }
 #game-area ol li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; background: #1b1d35; border-radius: 10px; margin-bottom: 8px; }
 .board li { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #1b1d35; border-radius: 10px; margin-bottom: 8px; }

@@ -23,10 +23,6 @@
           '</div>' +
         '</div>' +
         '<button class="primary" id="nvNextBtn" style="display:none;margin-top:14px">Question suivante</button>' +
-      '</div>' +
-      '<div class="screen" id="nv-end">' +
-        '<h2 class="center">Termine !</h2>' +
-        '<button class="primary" id="nvResetBtn" style="display:none">Recommencer</button>' +
       '</div>';
 
     h.$("nvHave").onclick = function () {
@@ -41,12 +37,11 @@
       h.$("nvStatus").textContent = "Reponse envoyee...";
       h.send({ t: "answer", value: 1 });
     };
-    h.$("nvNextBtn").onclick  = function () { h.send({ t: "next"  }); };
-    h.$("nvResetBtn").onclick = function () { h.send({ t: "reset" }); };
+    h.$("nvNextBtn").onclick = function () { h.send({ t: "next" }); };
   }
 
   function showScreen(h, id) {
-    ["nv-vote", "nv-reveal", "nv-end"].forEach(function (s) {
+    ["nv-vote", "nv-reveal"].forEach(function (s) {
       h.$(s).classList.toggle("on", s === id);
     });
   }
@@ -70,10 +65,8 @@
       h.$("nvHaveCnt").textContent  = r.have  || 0;
       h.$("nvNeverCnt").textContent = r.never || 0;
       h.$("nvNextBtn").style.display = h.amHost() ? "block" : "none";
-    } else if (state.phase === "finished") {
-      showScreen(h, "nv-end");
-      h.$("nvResetBtn").style.display = h.amHost() ? "block" : "none";
     }
+    // phase==="finished" is handled by the shared fin-de-partie screen in the SPA shell.
   }
 
   window.GamesHub.register("never", {

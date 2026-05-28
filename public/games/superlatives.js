@@ -14,18 +14,13 @@
         '<div class="center muted" id="slPromptR" style="margin-bottom:14px"></div>' +
         '<ol id="slVotes"></ol>' +
         '<button class="primary" id="slNextBtn" style="display:none">Categorie suivante</button>' +
-      '</div>' +
-      '<div class="screen" id="sl-end">' +
-        '<h2 class="center">Termine !</h2>' +
-        '<button class="primary" id="slResetBtn" style="display:none">Recommencer</button>' +
       '</div>';
 
-    h.$("slNextBtn").onclick  = function () { h.send({ t: "next"  }); };
-    h.$("slResetBtn").onclick = function () { h.send({ t: "reset" }); };
+    h.$("slNextBtn").onclick = function () { h.send({ t: "next" }); };
   }
 
   function showScreen(h, id) {
-    ["sl-vote", "sl-reveal", "sl-end"].forEach(function (s) {
+    ["sl-vote", "sl-reveal"].forEach(function (s) {
       h.$(s).classList.toggle("on", s === id);
     });
   }
@@ -77,10 +72,8 @@
         });
       }
       h.$("slNextBtn").style.display = h.amHost() ? "block" : "none";
-    } else if (state.phase === "finished") {
-      showScreen(h, "sl-end");
-      h.$("slResetBtn").style.display = h.amHost() ? "block" : "none";
     }
+    // phase==="finished" is handled by the shared fin-de-partie screen in the SPA shell.
   }
 
   window.GamesHub.register("superlatives", {

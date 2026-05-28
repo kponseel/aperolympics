@@ -72,7 +72,7 @@ function create() {
       startRound(room);
     },
     onReset: resetAll,
-    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room, p) => { if (phase === "playing" && p && p.name === pickedName) startRound(room); },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.name !== pickedName) return;

@@ -77,7 +77,7 @@ function create() {
       else resetAll();
     },
     onReset: resetAll,
-    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room, p) => { if (phase === "playing" && p && p.name === whispererName) nextTurn(room); },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.name !== whispererName) return;

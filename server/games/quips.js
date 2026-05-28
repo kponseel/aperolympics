@@ -5,30 +5,30 @@
 
 const PROMPTS = [
   "La pire excuse possible pour annuler un rendez-vous",
-  "Le slogan d'un fast-food trop honnete",
-  "Une devise de famille genante",
-  "La replique d'un mauvais film d'action",
+  "Le slogan d'un fast-food trop honnête",
+  "Une devise de famille gênante",
+  "La réplique d'un mauvais film d'action",
   "Le pire surnom pour un chat",
   "Le titre d'une autobiographie de ton voisin",
   "Une chanson qui passerait dans un ascenseur",
-  "Le pire conseil que tu as recu",
-  "Une publicite des annees 80",
-  "Une regle de jeu de societe absurde",
+  "Le pire conseil que tu as reçu",
+  "Une publicité des années 80",
+  "Une règle de jeu de société absurde",
   "Le nom d'un parfum vraiment improbable",
-  "Le motto secret d'un super-mechant timide",
+  "Le motto secret d'un super-méchant timide",
   "Un slogan pour une marque de chaussettes",
   "Une excuse pour ne pas faire la vaisselle",
-  "Le titre d'un film qui ferait fuir au cinema",
+  "Le titre d'un film qui ferait fuir au cinéma",
   "Un cri de guerre pour des enfants en colo",
-  "La premiere phrase d'un journal apocalyptique",
+  "La première phrase d'un journal apocalyptique",
   "Le nom d'un groupe de musique improbable",
-  "La devise d'une ecole de cuisine en deroute",
-  "Le titre d'une theorie du complot ridicule",
+  "La devise d'une école de cuisine en déroute",
+  "Le titre d'une théorie du complot ridicule",
   "Une phrase entendue dans une pub pharmaceutique",
-  "Le pire compliment a faire en speed dating",
+  "Le pire compliment à faire en speed dating",
   "Le nom d'un nouveau parfum Yankee Candle",
   "Une excuse de retard pour un Premier Ministre",
-  "La premiere ligne d'un poeme ecrit par une IA defaillante",
+  "La première ligne d'un poème écrit par une IA défaillante",
 ];
 const ANS_LEN = 47;
 
@@ -132,7 +132,7 @@ function create() {
     onStart: (room) => { startRound(room); },
     onAdvance: advance,
     onReset: resetAll,
-    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room, p) => {
       if (phase !== "playing") return;
       if (p && isContestant(p.name)) { if (step === 0) advance(room); }

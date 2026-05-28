@@ -61,7 +61,7 @@ function create() {
       else resetAll(room);
     },
     onReset: resetAll,
-    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     // Mid-round joiners stay spectators — auto-promoting them would leak the
     // location/role to anyone who joins after the round starts.
     onPlayerLeave: (room) => { if (phase === "playing" && allVoted(room)) phase = "reveal"; },
