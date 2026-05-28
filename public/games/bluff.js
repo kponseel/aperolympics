@@ -143,6 +143,7 @@
     name:   "Le Bluff",
     emoji:  "🤥",
     desc:   "Question difficile : ecris une fausse reponse, vote la vraie.",
+    minPlayers: 3,
     rules:  "Une question <b>difficile</b> s'affiche (\"Quelle est la capitale du Kazakhstan ?\").<br>" +
             "<b>1.</b> Chacun tape une <b>fausse reponse plausible</b> (max 31 char).<br>" +
             "<b>2.</b> Toutes les fausses + la VRAIE sont melangees et affichees.<br>" +

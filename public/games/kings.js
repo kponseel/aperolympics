@@ -79,6 +79,7 @@
     name:   "Roi des Bieres",
     emoji:  "👑",
     desc:   "Tire une carte, applique la regle, passe au suivant.",
+    minPlayers: 2,
     rules:  "Un <b>deck de 52 cartes</b> partage par le groupe. Chacun pioche a son tour.<br>" +
             "Chaque carte declenche une <b>regle a appliquer</b> : As=Cascade, 2=Tu choisis qui bois, 3=Bois toi, " +
             "5=Pouce, Valet=Regle, Reine=Question, Roi=Coupe royale...<br>" +
