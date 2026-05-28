@@ -50,10 +50,12 @@
 
     if (state.phase === "playing") {
       showScreen(h, "uc-play");
-      h.$("ucWord").textContent = priv.word || "Chargement…";
       // Don't default to "civilian" before private arrives — an undercover
       // would briefly see the wrong role label. Show neutral until known.
       var role = priv.role || "";
+      // Spectators never receive a word; show a dash instead of an endless
+      // "Chargement…" placeholder that will never resolve.
+      h.$("ucWord").textContent = role === "spectator" ? "—" : (priv.word || "Chargement…");
       h.$("ucRole").textContent =
         role === "undercover" ? "🕵️ Tu es UNDERCOVER. Sois discret·e !" :
         role === "civilian"   ? "👥 Tu es civil·e." :

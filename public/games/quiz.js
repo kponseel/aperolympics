@@ -93,7 +93,8 @@
     } else if (state.phase === "reveal") {
       showScreen(h, "q-reveal");
       var correct = r.correct;
-      var ok = !!(me && me.answered && me.answer === correct);
+      // `answer` is no longer in the public state; the server whispers `my_correct`.
+      var ok = !!(state._private && state._private.my_correct);
       h.$("myScore").textContent = me ? me.score : 0;
       h.$("revealMark").innerHTML = ok ? "&#9989;" : (me && me.answered ? "&#10060;" : "&#10067;");
       // Show this question's payoff for the player ("+850 pts") if they got it.

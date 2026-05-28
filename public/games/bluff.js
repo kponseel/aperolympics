@@ -114,7 +114,6 @@
 
     if (state.phase === "reveal") {
       showScreen(h, "bl-reveal");
-      h.$("blReal").textContent = r.real_answer || "?";
       var ol = h.$("blOptionsR"); ol.innerHTML = "";
       // Per-player score delta this round (for the owner-badge "+250 / +500").
       var gainsByName = {};
@@ -127,10 +126,11 @@
         li.innerHTML = '<span>' + label + '</span>' + owner;
         ol.appendChild(li);
       });
-      // Personal "+500" badge for the correct-answerer.
-      var myGain = me && gainsByName[me.name];
-      var mark = h.$("blReal");
-      if (mark) mark.innerHTML = h.escapeHtml(r.real_answer || "?") + (myGain ? ' <span style="color:#ffd23f">+' + myGain + '</span>' : '');
+      // Personal "+500" badge: only the correct-answerer (server-whispered).
+      // Without this gate the badge would fire for bluffers who scored via
+      // lures but voted wrong themselves.
+      var myCorrect = !!(state._private && state._private.my_correct);
+      h.$("blReal").innerHTML = h.escapeHtml(r.real_answer || "?") + (myCorrect ? ' <span style="color:#ffd23f">+500</span>' : '');
       h.$("blNextBtn").style.display = h.amHost() ? "block" : "none";
       return;
     }

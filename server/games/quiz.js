@@ -198,6 +198,14 @@ function create() {
       }
       return r;
     },
+    // Per-player: tell each player at reveal whether they got the question
+    // right. `answer` is no longer in the public state (privacy), so the
+    // ✅/❌ badge needs this whisper to know.
+    serializePrivate: (room, viewer) => {
+      if (!viewer || phase !== "reveal" || currentQ < 0) return {};
+      const correct = QUESTIONS[currentQ].correct;
+      return { my_correct: !!(viewer.answered && viewer.answer === correct) };
+    },
     tick: (room, now) => {
       if (phase !== "playing" || paused) return false;
       if (now - questionStart >= QUESTION_TIME_MS) { doReveal(room); return true; }

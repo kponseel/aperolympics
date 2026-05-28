@@ -42,6 +42,10 @@ function buildState(room) {
   const players = [];
   room.players.forEach((p) => {
     if (!p.name) return;
+    // Public per-player payload: deliberately does NOT include `answer` —
+    // anonymous vote games (never.js) would otherwise leak per-prompt choices
+    // to anyone listening on the socket. Games that need to show a player
+    // THEIR OWN answer expose it via serializePrivate (e.g. quiz's my_correct).
     players.push({
       id: p.name,
       name: p.name,
@@ -49,7 +53,6 @@ function buildState(room) {
       connected: p.active,
       host: p.active && p.name === hostName,
       answered: p.answered,
-      answer: p.answer,
     });
   });
   return {

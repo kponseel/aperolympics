@@ -164,13 +164,23 @@ function create() {
       }
       return r;
     },
-    // Tell each player which option is their own fake, so the client can
-    // disable it (voting your own fake is rejected server-side and otherwise
-    // silently no-ops, which can hang the round).
+    // Per-player whispers:
+    //   - vote step: which option is the viewer's own fake (so the client can
+    //     grey it out — voting your own is rejected server-side and would
+    //     otherwise silently stall the round).
+    //   - reveal:    whether the viewer voted the truth (so the +500 personal
+    //     badge fires only for correct guessers, not for incidental bluff
+    //     scorers; needed because `answer` no longer ships in the public state).
     serializePrivate: (room, viewer) => {
-      if (!viewer || !viewer.name || phase !== "playing" || step !== 1) return {};
-      const idx = options.findIndex((o) => o.owner === viewer.name);
-      return idx >= 0 ? { my_option_idx: idx } : {};
+      if (!viewer || !viewer.name) return {};
+      if (phase === "playing" && step === 1) {
+        const idx = options.findIndex((o) => o.owner === viewer.name);
+        return idx >= 0 ? { my_option_idx: idx } : {};
+      }
+      if (phase === "reveal" && realOptionIdx >= 0) {
+        return { my_correct: !!(viewer.answered && viewer.answer === realOptionIdx) };
+      }
+      return {};
     },
     tick: () => false,
   };

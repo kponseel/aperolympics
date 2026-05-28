@@ -83,8 +83,9 @@
     minPlayers: 2,
     rules:  "Une phrase \"Je n'ai jamais...\" s'affiche.<br>" +
             "Chacun choisit <b>J'ai deja</b> ou <b>Jamais</b>.<br>" +
-            "Le reveal montre uniquement les <b>compteurs</b> (totalement anonyme, sans nom).<br>" +
-            "Le but : ambiance, decouvertes, et tu bois quand t'as deja fait 😉.",
+            "Le reveal montre uniquement les <b>compteurs</b> par question (qui a repondu quoi reste secret).<br>" +
+            "Le but : ambiance, decouvertes, et tu bois quand t'as deja fait 😉.<br>" +
+            "<b>Stat de la partie :</b> a la fin, le titre <b>« Le plus experimente »</b> va au joueur qui a cumule le plus de <b>« J'ai deja »</b> sur toute la session (l'agregat est public, pas le detail par question).",
     mount:  build,
     render: render
   });
