@@ -43,7 +43,10 @@
           btn.className = "a";
           btn.style.margin = "4px 0";
           btn.style.width  = "100%";
-          btn.textContent  = "Passer a " + p.name;
+          btn.textContent  = "→ " + p.name;
+          btn.style.overflow = "hidden";
+          btn.style.textOverflow = "ellipsis";
+          btn.style.whiteSpace = "nowrap";
           btn.onclick = function () { h.send({ t: "pass", target_id: p.id }); };
           targets.appendChild(btn);
         });
