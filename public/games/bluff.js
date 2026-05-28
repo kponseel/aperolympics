@@ -87,6 +87,7 @@
       h.$("blIdxV").textContent = "(" + ((r.idx || 0) + 1) + "/" + (r.total || "?") + ")";
       h.$("blQV").textContent   = r.q;
       var locked = !!(me && me.answered);
+      var myOptionIdx = (state._private && typeof state._private.my_option_idx === "number") ? state._private.my_option_idx : -1;
       var ul = h.$("blOptions");
       ul.innerHTML = "";
       (r.options || []).forEach(function (text, i) {
@@ -94,10 +95,11 @@
         btn.className = "ghost";
         btn.style.margin = "4px 0";
         btn.style.width  = "100%";
-        btn.disabled = locked;
-        btn.textContent = text;
+        var isMine = (i === myOptionIdx);
+        btn.disabled = locked || isMine;
+        btn.textContent = isMine ? text + "  (ta proposition)" : text;
         btn.onclick = function () {
-          if (locked) return;
+          if (locked || isMine) return;
           ul.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
           h.$("blVoteStatus").textContent = "Vote envoyé...";
           h.send({ t: "vote", option: i });

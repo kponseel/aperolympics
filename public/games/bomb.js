@@ -82,6 +82,7 @@
     emoji:  "💣",
     desc:   "Patate chaude avec timer cache. Refile-la !",
     minPlayers: 2,
+    endable: true,
     rules:  "Une <b>bombe virtuelle</b> circule entre les tels.<br>" +
             "<b>Timer cache</b> de 20 a 60 secondes — personne ne sait quand ca explose.<br>" +
             "Si tu as la bombe : tape sur le nom d'un autre joueur pour <b>la lui passer</b>.<br>" +

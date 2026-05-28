@@ -42,6 +42,7 @@ function create() {
   let step = 0; // 0 = submit, 1 = vote
   let votesA = 0, votesB = 0;
   let roundN = 0;
+  let roundWins = {}; // name -> rounds won (used for MVP at end)
 
   function isContestant(name) { return name && (name === contestantA || name === contestantB); }
 
@@ -73,8 +74,19 @@ function create() {
 
   function resetAll(room) {
     phase = "lobby"; promptIdx = -1; contestantA = null; contestantB = null; step = 0; roundN = 0;
+    roundWins = {};
     clearRound(room);
     room.players.forEach((p) => { p.score = 0; });
+  }
+  function topComic(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
+    let best = null;
+    for (const n in roundWins) {
+      if (!present.has(n)) continue;
+      if (!best || roundWins[n] > roundWins[best]) best = n;
+    }
+    return (best && roundWins[best] > 0) ? { name: best, count: roundWins[best] } : null;
   }
 
   function bothSubmitted() { return !!answerA && !!answerB; }
@@ -86,8 +98,8 @@ function create() {
     const a = contestantA && room.players.get(contestantA.toLowerCase());
     const b = contestantB && room.players.get(contestantB.toLowerCase());
     if (votesA === votesB) { if (a) a.score += 100; if (b) b.score += 100; }
-    else if (votesA > votesB) { if (a) a.score += 300; }
-    else { if (b) b.score += 300; }
+    else if (votesA > votesB) { if (a) a.score += 300; if (contestantA) roundWins[contestantA] = (roundWins[contestantA] || 0) + 1; }
+    else { if (b) b.score += 300; if (contestantB) roundWins[contestantB] = (roundWins[contestantB] || 0) + 1; }
   }
 
   function advance(room) {
@@ -110,6 +122,7 @@ function create() {
     onStart: (room) => { startRound(room); },
     onAdvance: advance,
     onReset: resetAll,
+    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
     onPlayerLeave: (room, p) => {
       if (phase !== "playing") return;
       if (p && isContestant(p.name)) { if (step === 0) advance(room); }
@@ -160,6 +173,10 @@ function create() {
         r.votes_a = votesA;
         r.votes_b = votesB;
         r.winner = votesA === votesB ? "tie" : (votesA > votesB ? "a" : "b");
+      }
+      if (phase === "finished") {
+        const t = topComic(room);
+        if (t) r.mvp = { label: "Meilleur vanneur", emoji: "🎤", name: t.name, value: t.count + " round" + (t.count > 1 ? "s" : "") + " gagné" + (t.count > 1 ? "s" : "") };
       }
       return r;
     },

@@ -158,6 +158,14 @@ function create() {
       }
       return r;
     },
+    // Tell each player which option is their own fake, so the client can
+    // disable it (voting your own fake is rejected server-side and otherwise
+    // silently no-ops, which can hang the round).
+    serializePrivate: (room, viewer) => {
+      if (!viewer || !viewer.name || phase !== "playing" || step !== 1) return {};
+      const idx = options.findIndex((o) => o.owner === viewer.name);
+      return idx >= 0 ? { my_option_idx: idx } : {};
+    },
     tick: () => false,
   };
 }

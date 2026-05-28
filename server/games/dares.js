@@ -33,35 +33,62 @@ function create() {
   let phase = "lobby";
   let pickedName = null;
   let dareIdx = -1;
+  let lastDareIdx = -1; // avoid immediate repeats
   let roundN = 0;
+  let victimCount = {}; // name -> times picked this session
 
   function startRound(room) {
     const a = room.activePlayers();
     if (!a.length) return;
     pickedName = a[Math.floor(Math.random() * a.length)].name;
-    dareIdx = DARES.length ? Math.floor(Math.random() * DARES.length) : -1;
+    victimCount[pickedName] = (victimCount[pickedName] || 0) + 1;
+    if (DARES.length) {
+      let i;
+      do { i = Math.floor(Math.random() * DARES.length); } while (DARES.length > 1 && i === lastDareIdx);
+      dareIdx = i; lastDareIdx = i;
+    } else { dareIdx = -1; }
     phase = "playing";
     roundN++;
   }
-  function resetAll() { phase = "lobby"; pickedName = null; dareIdx = -1; roundN = 0; }
+  function resetAll() { phase = "lobby"; pickedName = null; dareIdx = -1; lastDareIdx = -1; roundN = 0; victimCount = {}; }
+  function topVictim(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
+    let best = null;
+    for (const n in victimCount) {
+      if (!present.has(n)) continue;
+      if (!best || victimCount[n] > victimCount[best]) best = n;
+    }
+    return best ? { name: best, count: victimCount[best] } : null;
+  }
 
   return {
     phase: () => phase,
     onSelect: resetAll,
     onStart: (room) => { startRound(room); },
-    onAdvance: (room) => { startRound(room); }, // always reroll a new victim + dare
+    onAdvance: (room) => {
+      // No silent restart after the host ended the session via 🏁.
+      if (phase === "finished") return;
+      startRound(room);
+    },
     onReset: resetAll,
+    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
     onPlayerLeave: (room, p) => { if (phase === "playing" && p && p.name === pickedName) startRound(room); },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.name !== pickedName) return;
       if (msg.t === "done") startRound(room);
     },
-    serializeRound: () => {
+    serializeRound: (room) => {
       const r = { round_n: roundN };
-      if (phase !== "playing" || !pickedName) return r;
-      r.picked_id = pickedName;
-      r.picked_name = pickedName;
-      if (dareIdx >= 0) r.dare = DARES[dareIdx];
+      if (phase === "playing" && pickedName) {
+        r.picked_id = pickedName;
+        r.picked_name = pickedName;
+        if (dareIdx >= 0) r.dare = DARES[dareIdx];
+      }
+      if (phase === "finished") {
+        const t = topVictim(room);
+        if (t) r.mvp = { label: "Le plus mis au défi", emoji: "🎯", name: t.name, value: t.count + " fois" };
+      }
       return r;
     },
     tick: () => false,

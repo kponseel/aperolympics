@@ -52,6 +52,7 @@
     emoji:  "🎲",
     desc:   "Gage aleatoire pour un joueur aleatoire.",
     minPlayers: 2,
+    endable: true,
     rules:  "Une <b>roulette de gages</b> simple.<br>" +
             "Un joueur + un gage sont tires au hasard et affiches a tout le groupe.<br>" +
             "Le joueur fait le gage <b>en personne</b>, puis clique <b>Fait !</b> pour piocher le suivant.<br>" +

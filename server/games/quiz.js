@@ -11,12 +11,18 @@
 //   onStart(room)            -> explicit start (optional)
 //   onAdvance(room)          -> NEXT pressed (host / admin)
 //   onReset(room)            -> full reset
+//   onEndSession(room)       -> host pressed 🏁 (loop-only games; flip to "finished")
 //   onPlayerJoin(room, p)    -> optional
 //   onPlayerLeave(room, p)   -> optional
 //   onMessage(room, p, msg)  -> game-specific intent (server decides outcomes)
 //   serializeRound(room)     -> object put in state.round
 //   serializePrivate(room,p) -> per-player whisper, or null (optional)
 //   tick(room, nowMs)        -> return true if state changed (timers)
+//
+// Reserved keys on `state.round` at phase==="finished" — consumed by the
+// shared fin-de-partie screen in public/app.js (renderResults):
+//   mvp:           { label, name, value, emoji? }   per-game session stat
+//   winner_banner: { text, emoji? }                 role/cup games' headline
 
 const QUESTION_TIME_MS = 10000; // max answer time per question (10 s)
 

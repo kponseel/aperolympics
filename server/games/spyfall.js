@@ -18,13 +18,24 @@ function create() {
   let spyName = null;
   let roles = {};  // name -> "civilian" | "spy"  (absent = spectator)
   let votes = {};  // name -> count
+  let detectiveCount = {}; // name -> rounds where they cast a vote on the actual spy
 
   const roleOf = (name) => roles[name] || "spectator";
   function clearRound(room) {
     location = ""; spyName = null; roles = {}; votes = {};
     room.players.forEach((p) => { p.answered = false; p.answer = -1; });
   }
-  function resetAll(room) { phase = "lobby"; clearRound(room); }
+  function resetAll(room) { phase = "lobby"; detectiveCount = {}; clearRound(room); }
+  function topDetective(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
+    let best = null;
+    for (const n in detectiveCount) {
+      if (!present.has(n)) continue;
+      if (!best || detectiveCount[n] > detectiveCount[best]) best = n;
+    }
+    return (best && detectiveCount[best] > 0) ? { name: best, count: detectiveCount[best] } : null;
+  }
   function startRound(room) {
     const active = room.activePlayers();
     if (active.length < 3) return; // need 3+
@@ -50,15 +61,22 @@ function create() {
       else resetAll(room);
     },
     onReset: resetAll,
-    onPlayerJoin: (room, p) => { if (phase !== "lobby" && p && roleOf(p.name) === "spectator") roles[p.name] = "civilian"; },
+    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    // Mid-round joiners stay spectators — auto-promoting them would leak the
+    // location/role to anyone who joins after the round starts.
     onPlayerLeave: (room) => { if (phase === "playing" && allVoted(room)) phase = "reveal"; },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.answered) return;
       if (msg.t !== "vote") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
-      if (!target || roleOf(target.name) === "spectator") return;
+      // Reject spectators (joined mid-round) and players who already left.
+      if (!target || roleOf(target.name) === "spectator" || !target.active) return;
       p.answered = true;
       votes[target.name] = (votes[target.name] || 0) + 1;
+      // A correct accusation (voted the actual spy) counts as detective work.
+      if (spyName && target.name === spyName && roleOf(p.name) === "civilian") {
+        detectiveCount[p.name] = (detectiveCount[p.name] || 0) + 1;
+      }
       if (allVoted(room)) phase = "reveal";
     },
     serializeRound: (room) => {
@@ -83,6 +101,10 @@ function create() {
         } else {
           r.winner = "spy";
         }
+      }
+      if (phase === "finished") {
+        const t = topDetective(room);
+        if (t) r.mvp = { label: "Meilleur détective", emoji: "🕵️", name: t.name, value: t.count + " espion" + (t.count > 1 ? "s" : "") + " démasqué" + (t.count > 1 ? "s" : "") };
       }
       return r;
     },

@@ -15,6 +15,13 @@ input, .rb-code { -webkit-user-select: text; user-select: text; }
 .brand span { background: linear-gradient(90deg, #ffd23f, #ff7a7a, #8aa0ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .bar-actions { display: flex; gap: 8px; }
 .iconbtn { width: auto; min-width: 42px; height: 42px; padding: 0 12px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 12px; background: #1b1d35; color: #fff; cursor: pointer; }
+/* On narrow phones the topbar now carries up to 6 icons + the brand; shrink
+   the icon buttons so they all fit instead of pushing ✕ Quitter off-screen. */
+@media (max-width: 420px) {
+  .iconbtn { min-width: 36px; padding: 0 6px; font-size: 1rem; }
+  .topbar { gap: 6px; }
+  .bar-actions { gap: 6px; }
+}
 .iconbtn.danger { background: #3a1d2a; color: #ff9a9a; }
 
 .sub { color: #9aa; font-size: .9rem; margin: 6px auto 8px; width: 100%; max-width: 560px; }

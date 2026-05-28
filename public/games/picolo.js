@@ -41,6 +41,7 @@
     emoji:  "🍻",
     desc:   "Prompts escalades avec les prenoms du groupe.",
     minPlayers: 2,
+    endable: true,
     rules:  "L'hote <b>avance dans une liste de prompts</b> qui montent en intensite.<br>" +
             "Les <b>prenoms du groupe</b> sont injectes automatiquement (\"{p1} mime un metier...\" devient \"Kevin mime un metier...\").<br>" +
             "Suis simplement les instructions a l'oral. Ambiance soiree garantie 🍻.",
