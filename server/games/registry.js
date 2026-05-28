@@ -11,7 +11,6 @@ const never = require("./never");
 const bluff = require("./bluff");
 const quips = require("./quips");
 const picolo = require("./picolo");
-const truth_dare = require("./truth_dare");
 const dares = require("./dares");
 const kings = require("./kings");
 const bomb = require("./bomb");
@@ -29,7 +28,6 @@ const GAMES = [
   bluff,
   quips,
   picolo,
-  truth_dare,
   dares,
   kings,
   bomb,
