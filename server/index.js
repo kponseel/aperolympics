@@ -70,12 +70,20 @@ function buildState(room) {
 // Match history: snapshot a game's standings once, when it ends or when the
 // host moves on from it. Lets players review past games (📜). histRecorded is
 // reset whenever a new game instance is selected.
+//
+// We also snapshot the per-game session payoff (`mvp`, `winner_banner`) so
+// the overlay can replay the rich end-of-game info, not just the scores —
+// crucial for the 8 non-scored games where the headline IS the MVP.
 function recordHistory(room) {
   if (!room.game || !room.gameId || room.histRecorded) return;
   const standings = [];
   room.players.forEach((p) => { if (p.name) standings.push({ name: p.name, score: p.score || 0 }); });
   standings.sort((a, b) => (b.score - a.score) || (a.name < b.name ? -1 : 1));
-  room.history.push({ game: room.gameId, at: Date.now(), standings });
+  const round = room.game.serializeRound ? room.game.serializeRound(room) : {};
+  const entry = { game: room.gameId, at: Date.now(), standings };
+  if (round && round.mvp) entry.mvp = round.mvp;
+  if (round && round.winner_banner) entry.winner_banner = round.winner_banner;
+  room.history.push(entry);
   if (room.history.length > 30) room.history.shift();
   room.histRecorded = true;
 }
