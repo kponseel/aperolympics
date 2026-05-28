@@ -108,6 +108,13 @@ function joinRoom(socket, room, rawName) {
   const name = String(rawName || "Joueur").trim().slice(0, 16) || "Joueur";
   const key = name.toLowerCase();
   let p = room.players.get(key);
+  // Pseudo collision: an active player with no pending disconnect is already
+  // holding this name from a different socket. Silently overwriting them would
+  // orphan their tab; reject and let the joiner pick another name.
+  if (p && p.active && !p.disconnectedAt && p.socketId !== socket.id) {
+    socket.emit("error_msg", { msg: "Ce pseudo est déjà pris dans cette salle." });
+    return;
+  }
   if (!p) {
     p = { name, score: 0, answered: false, answer: -1, answerMs: 0, joinedAt: Date.now(), active: true, socketId: socket.id, disconnectedAt: 0 };
     room.players.set(key, p);
