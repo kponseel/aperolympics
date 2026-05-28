@@ -154,8 +154,8 @@ ol { list-style: none; padding: 0; }
 .hist-recap-head { color: #9aa; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
 /* per-entry headline strip + MVP line. Banner mirrors fin-de-partie gradient
    so a player recognises the moment they're recalling. */
-.hist-banner { background: linear-gradient(90deg, #5b6cff, #7a5bff); color: #fff; border-radius: 8px; padding: 6px 10px; margin: 2px 0 8px; font-weight: 700; font-size: .92rem; text-align: center; }
-.hist-mvp { font-size: .88rem; margin: 4px 0 8px; padding: 0 4px; }
+.hist-banner { background: linear-gradient(90deg, #5b6cff, #7a5bff); color: #fff; border-radius: 8px; padding: 6px 10px; margin: 2px 0 8px; font-weight: 700; font-size: .92rem; text-align: center; word-break: break-word; }
+.hist-mvp { font-size: .88rem; margin: 4px 0 8px; padding: 0 4px; word-break: break-word; }
 
 /* end-of-game "fin de partie" screen: podium + per-game MVP/winner */
 .results { display: flex; flex-direction: column; gap: 14px; }
