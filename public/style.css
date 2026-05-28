@@ -103,6 +103,22 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 .game-card.below-min .gc-min { color: #ffce6b; border-color: #5b4828; background: rgba(255, 206, 107, .08); }
 
 .lobby-head { display: flex; align-items: center; gap: 12px; justify-content: center; }
+/* Lobby room badge is the share CTA — beef it up vs. the in-game variant. */
+.lobby-roombadge { padding: 18px 14px; }
+.lobby-roombadge .rb-code { font-size: 2.4rem; }
+.lobby-roombadge .rb-share .mini { background: linear-gradient(90deg, #5b6cff, #7a5bff); font-weight: 700; }
+/* Live ready-state card: progress + count + status line. Two flavours via
+   .waiting (amber) / .ready (green) on the wrapper. */
+.lobby-ready { background: #161830; border: 2px solid #262a52; border-radius: 14px; padding: 14px; transition: border-color .25s, background-color .25s; }
+.lobby-ready.waiting { border-color: #5b4828; background: linear-gradient(180deg, rgba(255, 206, 107, .10), rgba(255, 206, 107, .02)); }
+.lobby-ready.ready { border-color: #26890c; background: linear-gradient(180deg, rgba(38, 137, 12, .12), rgba(38, 137, 12, .02)); }
+.lr-progress { height: 8px; background: #2a2d4a; border-radius: 999px; overflow: hidden; margin-bottom: 10px; }
+.lr-progress > i { display: block; height: 100%; width: 0; background: #ffce6b; transition: width .35s ease, background-color .25s; }
+.lobby-ready.ready .lr-progress > i { background: #26890c; }
+.lr-count { font-weight: 800; font-size: 1.1rem; text-align: center; font-variant-numeric: tabular-nums; }
+.lr-status { text-align: center; margin-top: 6px; font-size: .9rem; line-height: 1.4; }
+.lobby-ready.waiting .lr-status { color: #ffce6b; }
+.lobby-ready.ready .lr-status { color: #b8e8a8; }
 .rules { background: #161830; border: 1px solid #262a52; border-radius: 12px; padding: 14px; font-size: .95rem; line-height: 1.5; color: #cdd; }
 .rules h4 { margin-bottom: 6px; color: #fff; }
 .bullets { padding-left: 18px; }
