@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v23";
+  var APP_VERSION = "v24";
   var APP_BUILD = "2026-05-28";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -670,6 +670,17 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (tip) { tip.parentNode && tip.parentNode.removeChild(tip); tip = null; }
       var close = e.target.closest && e.target.closest("[data-close]");
       if (close) { closeOverlay(close.getAttribute("data-close")); return; }
+      // Backdrop click → close the overlay. The .overlay sits behind the
+      // .sheet; if the user tapped the overlay element itself (not its
+      // children), it's a backdrop tap and we dismiss. Common mobile-sheet
+      // expectation; without this users have to find the tiny ✕ button.
+      // The reconnect overlay is excluded (modal, must be dismissed via
+      // its own "Recommencer à zéro" button).
+      if (e.target.classList && e.target.classList.contains("overlay") &&
+          e.target.id !== "ov-reconnect" && e.target.classList.contains("on")) {
+        closeOverlay(e.target.id);
+        return;
+      }
       // 🏆 overlay tab switch (round vs session totals)
       var bt = e.target.closest && e.target.closest("[data-bt]");
       if (bt) {
@@ -701,6 +712,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
         tip.style.left = left + "px";
         tip.style.top = (r.bottom + 8) + "px";
       }
+    });
+    // Escape key closes any open dismissable overlay (board / history / help).
+    // The reconnect overlay is excluded — same reason as the backdrop guard.
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      var open = document.querySelector(".overlay.on:not(#ov-reconnect)");
+      if (open) closeOverlay(open.id);
     });
   }
 
