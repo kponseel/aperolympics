@@ -22,6 +22,10 @@ class Room {
     // Never reset within a session — the whole point is to surface "qui domine
     // sur l'ensemble de la soirée" beyond a single round-zeroed scoreboard.
     this.sessionTotals = {}; // name -> { wins, podiums, mvps, points }
+    // Lobby browsing: "public" rooms appear in the landing page list; "private"
+    // is invisible to the list and only reachable via code / share link.
+    // Privacy is about discovery only — anyone with the code can still join.
+    this.visibility = "public";
   }
 
   activePlayers() {

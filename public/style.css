@@ -77,6 +77,40 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 
 .or { text-align: center; color: #7a7e9a; }
 .error { color: #ff7a7a; min-height: 1.2em; text-align: center; }
+.field-label { color: #cdd; font-size: .9rem; font-weight: 600; }
+.small { font-size: .85rem; }
+
+/* --- Choice screen (post-pseudo) ---------------------------------------- */
+.choice-head { display: flex; flex-direction: column; gap: 6px; align-items: center; margin-bottom: 4px; }
+.choice-who { font-size: 1.05rem; color: #cdd; }
+.choice-who b { color: #fff; }
+.link { display: inline; background: transparent; padding: 0; color: #8aa0ff; font-size: .9rem; font-weight: 600; text-decoration: underline; width: auto; vertical-align: baseline; }
+/* Live "N parties publiques en cours" badge with a pulsing dot to convey
+   "real-time list". */
+.choice-counter { background: #1b1d35; border: 1px solid #2a2f5c; border-radius: 999px; padding: 6px 14px; font-size: .9rem; font-weight: 600; color: #cdd; display: inline-flex; align-items: center; gap: 8px; }
+.cc-dot { width: 8px; height: 8px; border-radius: 50%; background: #26890c; animation: cc-pulse 1.6s ease-in-out infinite; }
+@keyframes cc-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+.choice-card { background: #161830; border: 1px solid #262a52; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.choice-card h3 { font-size: 1rem; font-weight: 800; color: #e9ecff; }
+.choice-sep { text-align: center; color: #7a7e9a; font-size: .85rem; margin: 2px 0; }
+.pub-list-head { display: flex; justify-content: space-between; align-items: center; font-size: .8rem; }
+.pub-list { display: flex; flex-direction: column; gap: 8px; }
+/* Public room row: emoji + game name + meta (code · players · phase) + CTA. */
+.pub-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #1b1d35; border: 1px solid #2a2f5c; border-radius: 12px; cursor: pointer; transition: border-color .15s, transform .05s; text-align: left; }
+.pub-item:hover { border-color: #5b6cff; }
+.pub-item:active { transform: scale(.99); }
+.pi-emoji { font-size: 1.6rem; flex: none; }
+.pi-body { flex: 1; min-width: 0; }
+.pi-game { font-weight: 700; font-size: 1rem; }
+.pi-meta { font-size: .82rem; color: #9aa; margin-top: 2px; }
+.pi-code { font-weight: 700; color: #ffd23f; letter-spacing: .12em; }
+.pi-go { color: #8aa0ff; font-weight: 800; white-space: nowrap; font-size: .9rem; }
+/* Visibility toggle: 2 large radio-button cards, .on receives the gradient. */
+.vis-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vis-btn { padding: 12px 10px; background: #1b1d35; border: 2px solid #2a2f5c; border-radius: 12px; color: #cdd; text-align: center; transition: background .2s, border-color .2s; }
+.vis-btn.on { background: linear-gradient(135deg, #5b6cff, #7a5bff); color: #fff; border-color: #5b6cff; }
+.vis-label { font-weight: 800; font-size: 1rem; }
+.vis-sub { font-size: .75rem; opacity: .85; margin-top: 2px; }
 
 .section-label { font-weight: 700; color: #cdd; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .section-label .info { width: 28px; height: 28px; padding: 0; font-size: .85rem; }
@@ -227,6 +261,11 @@ body.offline #game-area, body.offline #startBtn, body.offline .game-card, body.o
 /* transient toast (host hand-off, etc.) */
 .toast { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 70; max-width: 90%; background: #20254d; color: #fff; border: 1px solid #3a3f72; border-radius: 12px; padding: 12px 16px; font-weight: 700; text-align: center; box-shadow: 0 10px 28px rgba(0, 0, 0, .45); display: none; }
 .toast.on { display: block; animation: fade .2s ease; }
+
+/* Build badge: tiny, low-contrast version + date in the bottom-right corner.
+   Visible everywhere so a tester can spot the running build without digging
+   into devtools, but low-opacity enough that it doesn't distract a player. */
+.version-tag { position: fixed; bottom: 4px; right: 8px; z-index: 5; font-size: .65rem; color: rgba(233, 236, 255, .22); font-variant-numeric: tabular-nums; letter-spacing: .04em; pointer-events: none; user-select: none; }
 
 @media (min-width: 600px) {
   .overlay { align-items: center; }
