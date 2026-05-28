@@ -219,7 +219,7 @@ ol { list-style: none; padding: 0; }
 /* overlays (leaderboard / help) as bottom sheets on mobile */
 .overlay { position: fixed; inset: 0; background: rgba(8, 9, 20, .72); display: none; align-items: flex-end; justify-content: center; z-index: 50; }
 .overlay.on { display: flex; animation: fade .2s ease; }
-.sheet { width: 100%; max-width: 560px; max-height: 86vh; overflow: auto; background: #14162e; border: 1px solid #2a2f5c; border-radius: 18px 18px 0 0; padding: 16px 16px 24px; }
+.sheet { width: 100%; max-width: 560px; max-height: 86vh; overflow: auto; background: #14162e; border: 1px solid #2a2f5c; border-radius: 18px 18px 0 0; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .sheet-head .iconbtn { background: #22264a; }
 
@@ -276,7 +276,7 @@ body.offline #game-area, body.offline #startBtn, body.offline .game-card, body.o
 /* Build badge: tiny, low-contrast version + date in the bottom-right corner.
    Visible everywhere so a tester can spot the running build without digging
    into devtools, but low-opacity enough that it doesn't distract a player. */
-.version-tag { position: fixed; bottom: 4px; right: 8px; z-index: 5; font-size: .65rem; color: rgba(233, 236, 255, .22); font-variant-numeric: tabular-nums; letter-spacing: .04em; pointer-events: none; user-select: none; }
+.version-tag { position: fixed; bottom: calc(4px + env(safe-area-inset-bottom)); right: calc(8px + env(safe-area-inset-right)); z-index: 5; font-size: .65rem; color: rgba(233, 236, 255, .22); font-variant-numeric: tabular-nums; letter-spacing: .04em; pointer-events: none; user-select: none; }
 
 @media (min-width: 600px) {
   .overlay { align-items: center; }
