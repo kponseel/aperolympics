@@ -41,7 +41,18 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   var helpers = { $: $, send: send, setStatus: setStatus, escapeHtml: escapeHtml, findMe: findMe, amHost: amHost };
 
   // --- overlays (leaderboard / help) -----------------------------------------
-  function openOverlay(id) { $(id).classList.add("on"); if (id === "ov-board") renderBoard(); if (id === "ov-help") renderHelp(); if (id === "ov-history") renderHistory(); }
+  function openOverlay(id) {
+    $(id).classList.add("on");
+    // Re-sync the 🏆 tab strip .on class to the persisted boardTab var on every
+    // open — otherwise closing on "Soirée" and reopening shows session data
+    // under a still-highlighted "Manche" button.
+    if (id === "ov-board") {
+      document.querySelectorAll(".board-tab").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-bt") === boardTab); });
+      renderBoard();
+    }
+    if (id === "ov-help") renderHelp();
+    if (id === "ov-history") renderHistory();
+  }
   function closeOverlay(id) { $(id).classList.remove("on"); }
   function boardOpen() { return $("ov-board").classList.contains("on"); }
 
@@ -193,30 +204,32 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("boardSessionList").style.display = "";
     var ol = $("boardSessionList"); ol.innerHTML = "";
     var totals = (state && state.sessionTotals) || {};
-    var names = Object.keys(totals);
-    if (!names.length) { $("boardSessionEmpty").style.display = "block"; return; }
+    // Server keys by lowercased name; each entry carries its display `name`.
+    // Build a flat list of entries for sorting (the key itself is throwaway).
+    var entries = Object.keys(totals).map(function (k) {
+      var t = totals[k]; return { name: (t && t.name) || k, wins: (t && t.wins) || 0, mvps: (t && t.mvps) || 0, podiums: (t && t.podiums) || 0, points: (t && t.points) || 0 };
+    });
+    if (!entries.length) { $("boardSessionEmpty").style.display = "block"; return; }
     $("boardSessionEmpty").style.display = "none";
     // Ranked by: wins desc, mvps desc, podiums desc, points desc, name asc.
     // Wins beat everything else so the player who actually won most games sits
     // on top even if a quiz savant has higher raw points without any wins.
-    names.sort(function (a, b) {
-      var ta = totals[a], tb = totals[b];
-      return (tb.wins - ta.wins) || (tb.mvps - ta.mvps) || (tb.podiums - ta.podiums) || (tb.points - ta.points) || (a < b ? -1 : 1);
+    entries.sort(function (a, b) {
+      return (b.wins - a.wins) || (b.mvps - a.mvps) || (b.podiums - a.podiums) || (b.points - a.points) || (a.name < b.name ? -1 : 1);
     });
     var connectedSet = {};
     (state && state.players || []).forEach(function (p) { if (p.connected) connectedSet[p.name] = true; });
     var medals = ["🥇", "🥈", "🥉"];
-    names.forEach(function (n, i) {
-      var t = totals[n];
+    entries.forEach(function (t, i) {
       var bits = [];
       if (t.wins) bits.push('🏆×' + t.wins);
       if (t.mvps) bits.push('⭐×' + t.mvps);
       if (t.podiums) bits.push('🥉×' + t.podiums);
       var stats = bits.length ? '<span class="bd-stats">' + bits.join(' · ') + '</span>' : '';
       var li = document.createElement("li");
-      li.className = connectedSet[n] ? "" : "off";
+      li.className = connectedSet[t.name] ? "" : "off";
       li.innerHTML = '<span class="rank">' + (medals[i] || (i + 1)) + '</span>' +
-        '<span class="who">' + escapeHtml(n) + ' ' + stats + '</span>' +
+        '<span class="who">' + escapeHtml(t.name) + ' ' + stats + '</span>' +
         '<b class="pts">' + (t.points || 0) + '</b>';
       ol.appendChild(li);
     });

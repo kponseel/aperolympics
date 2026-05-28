@@ -93,9 +93,21 @@ function recordHistory(room) {
   //   points  — cumulative score across scored games
   // Role/coop games (wolves, spyfall, undercover) contribute MVPs but no wins
   // — the "victory" there is a team outcome, not a single-player trophy.
+  // Keyed by lowercased name (same convention as room.players) so a player
+  // who rejoins with different display case ("Alice" → "alice") stays the
+  // SAME totals entry. `name` is stored on the entry so the client renders
+  // the most recent canonical casing.
+  function getTotal(displayName) {
+    if (!displayName) return null;
+    const k = displayName.toLowerCase();
+    let t = room.sessionTotals[k];
+    if (!t) t = room.sessionTotals[k] = { name: displayName, wins: 0, podiums: 0, mvps: 0, points: 0 };
+    else t.name = displayName;
+    return t;
+  }
   standings.forEach((s, i) => {
-    if (!s.name) return;
-    const t = room.sessionTotals[s.name] || (room.sessionTotals[s.name] = { wins: 0, podiums: 0, mvps: 0, points: 0 });
+    const t = getTotal(s.name);
+    if (!t) return;
     if (s.score > 0) {
       t.points += s.score;
       if (i === 0) t.wins++;
@@ -103,8 +115,8 @@ function recordHistory(room) {
     }
   });
   if (entry.mvp && entry.mvp.name) {
-    const t = room.sessionTotals[entry.mvp.name] || (room.sessionTotals[entry.mvp.name] = { wins: 0, podiums: 0, mvps: 0, points: 0 });
-    t.mvps++;
+    const t = getTotal(entry.mvp.name);
+    if (t) t.mvps++;
   }
   room.histRecorded = true;
 }
