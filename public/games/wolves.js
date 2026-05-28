@@ -106,19 +106,8 @@
       return;
     }
 
-    if (state.phase === "finished") {
-      h.$("woPhaseTitle").textContent = (r.winner === "villagers") ? "🎉 Le village gagne !" : "🐺 Les loups gagnent !";
-      var roster = r.roster || [];
-      var html = '<div class="muted">Roster final :</div><ol>';
-      roster.forEach(function (p) {
-        var em = (p.role === "loup") ? "🐺" : "🧑‍🌾";
-        html += '<li><span>' + em + ' ' + h.escapeHtml(p.name) + '</span><b>' + (p.alive ? '✅ survit' : '💀 mort') + '</b></li>';
-      });
-      html += '</ol>';
-      h.$("woResult").innerHTML = html;
-      h.$("woNextBtn").style.display = h.amHost() ? "block" : "none";
-      h.$("woNextBtn").textContent = "Nouvelle partie";
-    }
+    // phase==="finished" is handled by the shared fin-de-partie screen, which
+    // calls renderFinishedExtras (below) to layer the role roster on top.
   }
 
   // Fin de partie: roster reveal (role + alive/dead) for every participant —

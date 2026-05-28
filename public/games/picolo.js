@@ -44,9 +44,11 @@
     desc:   "Prompts escalades avec les prenoms du groupe.",
     minPlayers: 2,
     endable: true,
-    rules:  "L'hote <b>avance dans une liste de prompts</b> qui montent en intensite.<br>" +
+    rules:  "L'hote <b>avance dans une liste de prompts</b> du groupe.<br>" +
             "Les <b>prenoms du groupe</b> sont injectes automatiquement (\"{p1} mime un metier...\" devient \"Kevin mime un metier...\").<br>" +
-            "Suis simplement les instructions a l'oral. Ambiance soiree garantie 🍻.",
+            "Les prompts qui nomment plusieurs joueurs sont <b>sautes</b> dans les petites salles (pour eviter \"Kevin et Kevin echangent place\").<br>" +
+            "Suis simplement les instructions a l'oral. Ambiance soiree garantie 🍻.<br>" +
+            "<b>Stat de la partie :</b> a la fin, le titre <b>« Le plus interpelle »</b> va au joueur le plus souvent nomme par les prompts.",
     mount:  build,
     render: render
   });

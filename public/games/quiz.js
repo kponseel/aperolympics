@@ -32,11 +32,6 @@
         '<div class="center" id="revealMsg"></div>' +
         '<div class="center muted">Score : <span id="myScore">0</span></div>' +
         '<button class="primary" id="quizNextBtn" style="display:none">Question suivante</button>' +
-      '</div>' +
-      '<div class="screen" id="q-end">' +
-        '<h2>🏅 Podium</h2>' +
-        '<ol id="board"></ol>' +
-        '<button class="primary" id="quizResetBtn" style="display:none">Recommencer</button>' +
       '</div>';
 
     for (var i = 0; i < 4; i++) {
@@ -51,13 +46,12 @@
       })(i);
     }
     h.$("quizNextBtn").onclick = function () { h.send({ t: "next" }); };
-    h.$("quizResetBtn").onclick = function () { h.send({ t: "reset" }); };
     h.$("qPauseBtn").onclick = function () { h.send({ t: "pause" }); };
     h.$("qResumeBtn").onclick = function () { h.send({ t: "resume" }); };
   }
 
   function showScreen(h, id) {
-    ["q-question", "q-paused", "q-reveal", "q-end"].forEach(function (s) { h.$(s).classList.toggle("on", s === id); });
+    ["q-question", "q-paused", "q-reveal"].forEach(function (s) { h.$(s).classList.toggle("on", s === id); });
   }
 
   function render(state, h) {
@@ -101,20 +95,8 @@
       var myGain = (r.gains || []).find(function (g) { return me && g.name === me.name; });
       h.$("revealMsg").textContent = "Bonne réponse : " + ["A", "B", "C", "D"][correct] + (myGain ? "   — +" + myGain.gain + " pts" : "");
       h.$("quizNextBtn").style.display = h.amHost() ? "block" : "none";
-    } else if (state.phase === "finished") {
-      showScreen(h, "q-end");
-      var ol = h.$("board"); ol.innerHTML = "";
-      var sorted = state.players.slice().sort(function (a, b) { return b.score - a.score; });
-      var medals = ["🥇", "🥈", "🥉"];
-      sorted.forEach(function (p, i) {
-        var li = document.createElement("li");
-        li.innerHTML = "<span>" + (medals[i] || (i + 1) + ".") + " " +
-          (p.host ? "<span class=crown>&#x1F451;</span> " : "") +
-          h.escapeHtml(p.name) + "</span><b>" + p.score + "</b>";
-        ol.appendChild(li);
-      });
-      h.$("quizResetBtn").style.display = h.amHost() ? "block" : "none";
     }
+    // phase==="finished" is handled by the shared fin-de-partie screen in the SPA shell.
   }
 
   window.Apero.register("quiz", {

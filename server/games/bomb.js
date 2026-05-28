@@ -51,7 +51,7 @@ function create() {
       if (!target || !target.name || target.name === holderName || !target.active || target.disconnectedAt) return;
       holderName = target.name;
     },
-    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     serializeRound: (room) => {
       const r = { round_n: roundN };
       if (phase === "lobby") return r;

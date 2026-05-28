@@ -14,19 +14,13 @@
         '<div class="center muted" id="mlPromptR" style="margin-bottom:14px"></div>' +
         '<ol id="mlVotes"></ol>' +
         '<button class="primary" id="mlNextBtn" style="display:none">Question suivante</button>' +
-      '</div>' +
-      '<div class="screen" id="ml-end">' +
-        '<h2 class="center">Termine !</h2>' +
-        '<div class="center muted">Merci d\'avoir joue.</div>' +
-        '<button class="primary" id="mlResetBtn" style="display:none">Recommencer</button>' +
       '</div>';
 
-    h.$("mlNextBtn").onclick  = function () { h.send({ t: "next"  }); };
-    h.$("mlResetBtn").onclick = function () { h.send({ t: "reset" }); };
+    h.$("mlNextBtn").onclick = function () { h.send({ t: "next" }); };
   }
 
   function showScreen(h, id) {
-    ["ml-vote", "ml-reveal", "ml-end"].forEach(function (s) {
+    ["ml-vote", "ml-reveal"].forEach(function (s) {
       h.$(s).classList.toggle("on", s === id);
     });
   }
@@ -80,10 +74,8 @@
         });
       }
       h.$("mlNextBtn").style.display = h.amHost() ? "block" : "none";
-    } else if (state.phase === "finished") {
-      showScreen(h, "ml-end");
-      h.$("mlResetBtn").style.display = h.amHost() ? "block" : "none";
     }
+    // phase==="finished" is handled by the shared fin-de-partie screen in the SPA shell.
   }
 
   window.GamesHub.register("most_likely", {

@@ -24,10 +24,6 @@
           '</div>' +
         '</div>' +
         '<button class="primary" id="wrNextBtn" style="display:none;margin-top:14px">Question suivante</button>' +
-      '</div>' +
-      '<div class="screen" id="wr-end">' +
-        '<h2 class="center">Termine !</h2>' +
-        '<button class="primary" id="wrResetBtn" style="display:none">Recommencer</button>' +
       '</div>';
 
     h.$("wrA").onclick = function () {
@@ -42,12 +38,11 @@
       h.$("wrStatus").textContent = "Vote envoye, attends les autres...";
       h.send({ t: "answer", value: 1 });
     };
-    h.$("wrNextBtn").onclick  = function () { h.send({ t: "next"  }); };
-    h.$("wrResetBtn").onclick = function () { h.send({ t: "reset" }); };
+    h.$("wrNextBtn").onclick = function () { h.send({ t: "next" }); };
   }
 
   function showScreen(h, id) {
-    ["wr-vote", "wr-reveal", "wr-end"].forEach(function (s) {
+    ["wr-vote", "wr-reveal"].forEach(function (s) {
       h.$(s).classList.toggle("on", s === id);
     });
   }
@@ -74,10 +69,8 @@
       h.$("wrCntA").textContent = r.count_a || 0;
       h.$("wrCntB").textContent = r.count_b || 0;
       h.$("wrNextBtn").style.display = h.amHost() ? "block" : "none";
-    } else if (state.phase === "finished") {
-      showScreen(h, "wr-end");
-      h.$("wrResetBtn").style.display = h.amHost() ? "block" : "none";
     }
+    // phase==="finished" is handled by the shared fin-de-partie screen in the SPA shell.
   }
 
   window.GamesHub.register("would_rather", {

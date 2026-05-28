@@ -113,7 +113,7 @@ function create() {
       } else { resetAll(); }
     },
     onReset: resetAll,
-    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     serializeRound: (room) => {
       const r = { round_n: roundN, total: PROMPTS.length };
       if (phase === "playing") { r.idx = promptIdx; r.prompt = rendered; }
