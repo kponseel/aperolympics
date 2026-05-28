@@ -49,12 +49,13 @@ function create() {
     return a.length > 0 && a.every((p) => p.answered);
   }
   function tallyAndKill(room) {
-    // Find every alive player at the max vote count. A tie at the top means
-    // nobody dies (canonical werewolf rule). Picking the first-joined silently
-    // would just feel like a bug.
+    // Find every alive AND currently-connected player at the max vote count.
+    // A tie at the top means nobody dies (canonical werewolf rule).
+    // Disconnected (`!p.active`) players shouldn't be eligible to die — they
+    // aren't in the room to defend themselves and would skew checkEnd.
     let max = 0, tiedAtMax = [];
     [...room.players.values()].forEach((p) => {
-      if (!p.name || !alive[p.name]) return;
+      if (!p.name || !alive[p.name] || !p.active) return;
       const c = votes[p.name] || 0;
       if (c > max) { max = c; tiedAtMax = [p.name]; }
       else if (c === max && max > 0) { tiedAtMax.push(p.name); }
@@ -99,7 +100,9 @@ function create() {
       if (msg.t !== "vote") return;
       if (step === 0 && roles[p.name] !== "wolf") return; // night: wolves only
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
-      if (!target || !alive[target.name]) return;
+      // Reject votes on a player who is dead OR has disconnected — eliminating
+      // someone who isn't in the room would distort checkEnd.
+      if (!target || !alive[target.name] || !target.active) return;
       if (step === 0 && roles[target.name] === "wolf") return; // wolves don't eat wolves
       p.answered = true;
       votes[target.name] = (votes[target.name] || 0) + 1;

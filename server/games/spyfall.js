@@ -26,9 +26,14 @@ function create() {
     room.players.forEach((p) => { p.answered = false; p.answer = -1; });
   }
   function resetAll(room) { phase = "lobby"; detectiveCount = {}; clearRound(room); }
-  function topDetective() {
+  function topDetective(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const n in detectiveCount) { if (!best || detectiveCount[n] > detectiveCount[best]) best = n; }
+    for (const n in detectiveCount) {
+      if (!present.has(n)) continue;
+      if (!best || detectiveCount[n] > detectiveCount[best]) best = n;
+    }
     return (best && detectiveCount[best] > 0) ? { name: best, count: detectiveCount[best] } : null;
   }
   function startRound(room) {
@@ -64,7 +69,8 @@ function create() {
       if (!p || phase !== "playing" || p.answered) return;
       if (msg.t !== "vote") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
-      if (!target || roleOf(target.name) === "spectator") return;
+      // Reject spectators (joined mid-round) and players who already left.
+      if (!target || roleOf(target.name) === "spectator" || !target.active) return;
       p.answered = true;
       votes[target.name] = (votes[target.name] || 0) + 1;
       // A correct accusation (voted the actual spy) counts as detective work.
@@ -97,7 +103,7 @@ function create() {
         }
       }
       if (phase === "finished") {
-        const t = topDetective();
+        const t = topDetective(room);
         if (t) r.mvp = { label: "Meilleur détective", emoji: "🕵️", name: t.name, value: t.count + " espion" + (t.count > 1 ? "s" : "") + " démasqué" + (t.count > 1 ? "s" : "") };
       }
       return r;

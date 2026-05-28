@@ -54,9 +54,14 @@ function create() {
     whispererName = a[(idx + 1) % a.length].name;
     accusedName = null; revealPrompt = false; pickPrompt(); phase = "playing"; turn++;
   }
-  function topAccused() {
+  function topAccused(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const n in pointedAt) { if (!best || pointedAt[n] > pointedAt[best]) best = n; }
+    for (const n in pointedAt) {
+      if (!present.has(n)) continue;
+      if (!best || pointedAt[n] > pointedAt[best]) best = n;
+    }
     return best ? { name: best, count: pointedAt[best] } : null;
   }
 
@@ -78,14 +83,15 @@ function create() {
       if (!p || phase !== "playing" || p.name !== whispererName) return;
       if (msg.t !== "point") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
-      // The whisperer can't point at themselves — produces a nonsense reveal.
-      if (!target || !target.name || target.name === whispererName) return;
+      // No self-point (nonsense reveal) and no targeting a player who has left
+      // (or is mid-disconnect) — would accuse someone not in the room.
+      if (!target || !target.name || target.name === whispererName || !target.active) return;
       accusedName = target.name;
       pointedAt[target.name] = (pointedAt[target.name] || 0) + 1;
       revealPrompt = Math.random() < 0.5; // 50/50 coin
       phase = "reveal";
     },
-    serializeRound: () => {
+    serializeRound: (room) => {
       const r = { turn: turn };
       if (phase === "lobby") return r;
       if (whispererName) { r.whisperer_id = whispererName; r.whisperer_name = whispererName; }
@@ -96,7 +102,7 @@ function create() {
         if (revealPrompt) r.prompt = currentPrompt;
       }
       if (phase === "finished") {
-        const t = topAccused();
+        const t = topAccused(room);
         if (t) r.mvp = { label: "Le plus accusé", emoji: "👀", name: t.name, value: t.count + " fois" };
       }
       return r;

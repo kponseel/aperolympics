@@ -78,9 +78,14 @@ function create() {
     clearRound(room);
     room.players.forEach((p) => { p.score = 0; });
   }
-  function topComic() {
+  function topComic(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const n in roundWins) { if (!best || roundWins[n] > roundWins[best]) best = n; }
+    for (const n in roundWins) {
+      if (!present.has(n)) continue;
+      if (!best || roundWins[n] > roundWins[best]) best = n;
+    }
     return (best && roundWins[best] > 0) ? { name: best, count: roundWins[best] } : null;
   }
 
@@ -170,7 +175,7 @@ function create() {
         r.winner = votesA === votesB ? "tie" : (votesA > votesB ? "a" : "b");
       }
       if (phase === "finished") {
-        const t = topComic();
+        const t = topComic(room);
         if (t) r.mvp = { label: "Meilleur vanneur", emoji: "🎤", name: t.name, value: t.count + " round" + (t.count > 1 ? "s" : "") + " gagné" + (t.count > 1 ? "s" : "") };
       }
       return r;

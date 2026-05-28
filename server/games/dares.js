@@ -51,9 +51,14 @@ function create() {
     roundN++;
   }
   function resetAll() { phase = "lobby"; pickedName = null; dareIdx = -1; lastDareIdx = -1; roundN = 0; victimCount = {}; }
-  function topVictim() {
+  function topVictim(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const n in victimCount) { if (!best || victimCount[n] > victimCount[best]) best = n; }
+    for (const n in victimCount) {
+      if (!present.has(n)) continue;
+      if (!best || victimCount[n] > victimCount[best]) best = n;
+    }
     return best ? { name: best, count: victimCount[best] } : null;
   }
 
@@ -61,7 +66,11 @@ function create() {
     phase: () => phase,
     onSelect: resetAll,
     onStart: (room) => { startRound(room); },
-    onAdvance: (room) => { startRound(room); }, // always reroll a new victim + dare
+    onAdvance: (room) => {
+      // No silent restart after the host ended the session via 🏁.
+      if (phase === "finished") return;
+      startRound(room);
+    },
     onReset: resetAll,
     onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
     onPlayerLeave: (room, p) => { if (phase === "playing" && p && p.name === pickedName) startRound(room); },
@@ -69,7 +78,7 @@ function create() {
       if (!p || phase !== "playing" || p.name !== pickedName) return;
       if (msg.t === "done") startRound(room);
     },
-    serializeRound: () => {
+    serializeRound: (room) => {
       const r = { round_n: roundN };
       if (phase === "playing" && pickedName) {
         r.picked_id = pickedName;
@@ -77,7 +86,7 @@ function create() {
         if (dareIdx >= 0) r.dare = DARES[dareIdx];
       }
       if (phase === "finished") {
-        const t = topVictim();
+        const t = topVictim(room);
         if (t) r.mvp = { label: "Le plus mis au défi", emoji: "🎯", name: t.name, value: t.count + " fois" };
       }
       return r;
