@@ -146,6 +146,10 @@ io.on("connection", (socket) => {
       if (!isHost(socket, room)) return;
       const id = m.id || "";
       recordHistory(room); // snapshot the game we're leaving (if any, not already logged)
+      // A new game starts with a fresh leaderboard: scoring games reset their
+      // own scores in onSelect, but non-scoring games never touch p.score, so
+      // a prior quiz's medals would otherwise leak into the next game's podium.
+      room.players.forEach((p) => { p.score = 0; });
       if (!id) { room.gameId = null; room.game = null; room.histRecorded = false; }
       else {
         const g = registry.get(id);

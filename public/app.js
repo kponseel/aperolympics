@@ -19,7 +19,7 @@ window.Apero.register = function (id, def) { this.games[id] = def; };
 window.GamesHub = window.Apero; // compat alias: ported renderers can keep window.GamesHub.register
 
 (function () {
-  var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null;
+  var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
 
   function $(id) { return document.getElementById(id); }
   function setStatus(t) { $("status").textContent = t; }
@@ -229,18 +229,32 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
 
   // Shared "fin de partie" screen — shown whenever a game ends. Reads optional
   // `round.mvp` (a per-game stat) and `round.winner_banner` (role games) from
-  // the server, so every game gets a consistent payoff without per-renderer code.
+  // the server, so every game gets a consistent payoff without per-renderer
+  // code. Reserved phase==="finished" keys on state.round: `mvp`, `winner_banner`.
+  // A game can also implement `renderFinishedExtras(area, state, helpers)` to
+  // layer game-specific reveal content (e.g. wolves' role roster).
   function renderResults() {
     var area = $("game-area");
     var def = (state && state.game) ? window.Apero.games[state.game] : null;
     var round = (state && state.round) || {};
     var emoji = (def && def.emoji) || "🏁";
     var name = (def && def.name) || "";
-
     var ps = sortedPlayers();
-    var anyScore = ps.some(function (p) { return (p.score || 0) > 0; });
+    var iAmHost = amHost();
+    var hostName = (state && state.hostId) || "l'hôte";
+
+    // Skip identical re-renders so a peer's mid-game broadcast doesn't replace
+    // a button the host has just tapped (the touch would land on a detached node).
+    var sig = JSON.stringify([
+      name, iAmHost, hostName, round.mvp || 0, round.winner_banner || 0,
+      ps.map(function (p) { return [p.name, p.score, p.host, p.connected]; }),
+    ]);
+    if (lastResultsSig === sig) return;
+    lastResultsSig = sig;
+
+    var scored = !!(def && def.scored);
     var medals = ["🥇", "🥈", "🥉"];
-    var podiumHtml = anyScore
+    var podiumHtml = scored
       ? '<ol class="podium">' +
           ps.slice(0, 3).map(function (p, i) {
             return '<li><span class="rank">' + medals[i] + '</span>' +
@@ -248,40 +262,43 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
               '<b class="pts">' + (p.score || 0) + '</b></li>';
           }).join("") +
         '</ol>'
-      : '<div class="muted center">Partie jouée — ' + ps.length + ' joueur(s)</div>';
+      : '<div class="muted center">Partie jouée — ' + ps.length + ' joueur' + (ps.length === 1 ? '' : 's') + '</div>';
 
     var w = round.winner_banner;
     var winnerHtml = (w && w.text)
-      ? '<div class="winner-banner">' + (w.emoji ? w.emoji + ' ' : '') + escapeHtml(w.text) + '</div>'
+      ? '<div class="winner-banner">' + (w.emoji ? escapeHtml(w.emoji) + ' ' : '') + escapeHtml(w.text) + '</div>'
       : '';
 
     var s = round.mvp;
     var mvpHtml = (s && s.label)
       ? '<div class="mvp">' +
           '<div class="mvp-label">' + escapeHtml(s.label) + '</div>' +
-          '<div class="mvp-name">' + (s.emoji ? s.emoji + ' ' : '') + escapeHtml(s.name || '') +
+          '<div class="mvp-name">' + (s.emoji ? escapeHtml(s.emoji) + ' ' : '') + escapeHtml(s.name || '') +
             (s.value != null && s.value !== '' ? ' <span class="mvp-value">' + escapeHtml(String(s.value)) + '</span>' : '') +
           '</div>' +
         '</div>'
       : '';
 
-    var iAmHost = amHost();
     var actions = iAmHost
       ? '<button class="primary" id="resReplayBtn">Rejouer</button>' +
         '<button id="resMenuBtn">← Choisir une autre épreuve</button>'
-      : '<div class="muted center">En attente de l\'hôte 👑…</div>';
+      : '<div class="muted center">En attente de 👑 ' + escapeHtml(hostName) + '…</div>';
 
     area.innerHTML =
       '<section class="results">' +
         '<div class="results-head">' +
-          '<div class="results-emoji">' + emoji + '</div>' +
+          '<div class="results-emoji">' + escapeHtml(emoji) + '</div>' +
           '<h2>Partie terminée</h2>' +
           '<div class="muted">' + escapeHtml(name) + '</div>' +
         '</div>' +
         winnerHtml + podiumHtml + mvpHtml +
+        '<div id="resExtras"></div>' +
         '<div class="results-actions">' + actions + '</div>' +
       '</section>';
 
+    if (def && def.renderFinishedExtras) {
+      try { def.renderFinishedExtras($("resExtras"), state, helpers); } catch (e) {}
+    }
     if (iAmHost) {
       $("resReplayBtn").onclick = function () { send({ t: "reset" }); };
       $("resMenuBtn").onclick = function () { send({ t: "select_game", id: "" }); };
@@ -293,7 +310,9 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     if (state.game) {
       if (state.phase === "lobby") { if (currentRendererId) switchTo(null); renderLobby(); updateChrome(); return; }
       if (state.phase === "finished") {
-        if (currentRendererId) switchTo(null);
+        // Re-entering finished from a different phase: drop the renderer and
+        // force a fresh results paint (clearing the re-render-skip signature).
+        if (currentRendererId) { switchTo(null); lastResultsSig = ""; }
         show("game-area"); renderResults(); updateChrome(); return;
       }
       if (state.game !== currentRendererId) switchTo(state.game);

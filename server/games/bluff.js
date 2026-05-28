@@ -74,8 +74,11 @@ function create() {
 
   function applyScoring(room) {
     if (realOptionIdx < 0) return;
-    room.activePlayers().forEach((p) => {
-      if (!p.answered) return;
+    // Credit everyone who actually voted (not just `activePlayers()`): a voter
+    // who dropped between voting and the reveal still cast their vote, and the
+    // bluffer they fooled deserves the bluffVotes credit (parity with would_rather).
+    room.players.forEach((p) => {
+      if (!p.name || !p.answered) return;
       const pick = p.answer;
       if (typeof pick !== "number" || pick < 0 || pick >= options.length) return;
       if (pick === realOptionIdx) { p.score += 500; return; }

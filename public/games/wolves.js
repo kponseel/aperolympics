@@ -121,6 +121,21 @@
     }
   }
 
+  // Fin de partie: roster reveal (role + alive/dead) for every participant —
+  // the whole payoff of a social-deduction game.
+  function renderFinishedExtras(area, state, h) {
+    var roster = (state.round || {}).roster || [];
+    if (!roster.length) { area.innerHTML = ""; return; }
+    var rows = roster.map(function (r) {
+      var emoji = r.role === "loup" ? "🐺" : "🧑‍🌾";
+      var status = r.alive ? "" : ' <span class="muted">💀</span>';
+      return '<li><span class="rank">' + emoji + '</span>' +
+        '<span class="who">' + h.escapeHtml(r.name) + status + '</span>' +
+        '<b class="pts">' + h.escapeHtml(r.role) + '</b></li>';
+    }).join("");
+    area.innerHTML = '<div class="mvp-label">Récap des rôles</div><ol class="podium">' + rows + '</ol>';
+  }
+
   window.GamesHub.register("wolves", {
     name:   "Loups",
     emoji:  "🐺",
@@ -131,6 +146,7 @@
             "<b>☀️ Jour :</b> tout le village discute (a l'oral) puis vote qui eliminer.<br>" +
             "<b>Fin :</b> les villageois gagnent en eliminant <b>tous les loups</b>. Les loups gagnent quand ils sont <b>aussi nombreux</b> que les villageois.",
     mount:  build,
-    render: render
+    render: render,
+    renderFinishedExtras: renderFinishedExtras
   });
 })();

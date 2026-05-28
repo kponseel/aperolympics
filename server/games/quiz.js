@@ -124,7 +124,12 @@ function create() {
       } else { resetAll(room); }
     },
     onReset: resetAll,
-    onPlayerLeave: (room) => { if (phase === "playing" && allAnswered(room)) doReveal(room); },
+    onPlayerLeave: (room, p) => {
+      // Don't let dropping mid-question preserve (and silently extend) a streak:
+      // a timeout would zero it via doReveal's else-branch, so a disconnect should too.
+      if (p && p.name && phase === "playing" && !p.answered) streakNow[p.name] = 0;
+      if (phase === "playing" && allAnswered(room)) doReveal(room);
+    },
     onMessage: (room, p, msg) => {
       if (!p) return;
       const isHost = room.hostName() === p.name;
