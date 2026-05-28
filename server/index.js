@@ -160,6 +160,10 @@ io.on("connection", (socket) => {
       if (isHost(socket, room) && room.game) { room.game.onAdvance(room); broadcast(room); }
     } else if (m.t === "reset") {
       if (isHost(socket, room) && room.game) { room.game.onReset(room); broadcast(room); }
+    } else if (m.t === "end") {
+      // Host stops a loop-only game and surfaces its session stats: the game
+      // implements `onEndSession` to flip phase to "finished" and emit its MVP.
+      if (isHost(socket, room) && room.game && room.game.onEndSession) { room.game.onEndSession(room); broadcast(room); }
     } else if (room.game && room.game.onMessage && player) {
       room.game.onMessage(room, player, m);
       broadcast(room);

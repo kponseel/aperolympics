@@ -36,13 +36,19 @@ function create() {
   let wordUc = "";
   let roles = {}; // name -> "civilian" | "undercover" (absent = spectator)
   let votes = {};
+  let detectiveCount = {}; // name -> rounds where a civilian correctly voted an actual undercover
 
   const roleOf = (name) => roles[name] || "spectator";
   function clearRound(room) {
     roles = {}; votes = {};
     room.players.forEach((p) => { p.answered = false; p.answer = -1; });
   }
-  function resetAll(room) { phase = "lobby"; wordCiv = ""; wordUc = ""; clearRound(room); }
+  function resetAll(room) { phase = "lobby"; wordCiv = ""; wordUc = ""; detectiveCount = {}; clearRound(room); }
+  function topDetective() {
+    let best = null;
+    for (const n in detectiveCount) { if (!best || detectiveCount[n] > detectiveCount[best]) best = n; }
+    return (best && detectiveCount[best] > 0) ? { name: best, count: detectiveCount[best] } : null;
+  }
   function startRound(room) {
     const active = room.activePlayers();
     if (active.length < 3) return;
@@ -73,7 +79,9 @@ function create() {
       else resetAll(room);
     },
     onReset: resetAll,
-    onPlayerJoin: (room, p) => { if (phase !== "lobby" && p && roleOf(p.name) === "spectator") roles[p.name] = "civilian"; },
+    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
+    // Mid-round joiners stay spectators — auto-promoting them would leak the
+    // secret word to anyone who joins after the round starts.
     onPlayerLeave: (room) => { if (phase === "playing" && allVoted(room)) phase = "reveal"; },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.answered) return;
@@ -82,6 +90,10 @@ function create() {
       if (!target || roleOf(target.name) === "spectator") return;
       p.answered = true;
       votes[target.name] = (votes[target.name] || 0) + 1;
+      // A civilian voting an actual undercover is a correct deduction.
+      if (roleOf(p.name) === "civilian" && roleOf(target.name) === "undercover") {
+        detectiveCount[p.name] = (detectiveCount[p.name] || 0) + 1;
+      }
       if (allVoted(room)) phase = "reveal";
     },
     serializeRound: (room) => {
@@ -105,6 +117,10 @@ function create() {
         r.word_civ = wordCiv;
         r.word_uc = wordUc;
         r.winner = civiliansWin ? "civilians" : "undercover";
+      }
+      if (phase === "finished") {
+        const t = topDetective();
+        if (t) r.mvp = { label: "Meilleur détective", emoji: "🕵️", name: t.name, value: t.count + " intrus démasqué" + (t.count > 1 ? "s" : "") };
       }
       return r;
     },

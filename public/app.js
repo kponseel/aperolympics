@@ -229,6 +229,11 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("navBoardBtn").style.display = roomed ? "" : "none";
     $("navMenuBtn").style.display = (inGame && amHost()) ? "" : "none";
     $("navHistoryBtn").style.display = (roomed && state && state.history && state.history.length) ? "" : "none";
+    // 🏁 "Terminer la session" — only meaningful for loop-only games that
+    // declare `endable: true` and only while playing/reveal (host's call).
+    var endDef = inGame ? window.Apero.games[state.game] : null;
+    var endableNow = !!(endDef && endDef.endable && amHost() && state.phase !== "lobby" && state.phase !== "finished");
+    $("navEndBtn").style.display = endableNow ? "" : "none";
     if (boardOpen()) renderBoard();
     if ($("ov-history").classList.contains("on")) renderHistory();
   }
@@ -491,6 +496,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("navHistoryBtn").onclick = function () { openOverlay("ov-history"); };
     $("navHelpBtn").onclick = function () { openOverlay("ov-help"); };
     $("navLeaveBtn").onclick = function () { if (!inRoom() || window.confirm("Quitter la partie ?")) leaveRoom(); };
+    $("navEndBtn").onclick = function () { if (amHost() && window.confirm("Terminer la session et voir les stats ?")) send({ t: "end" }); };
     // Escape hatch from the reconnecting overlay: abandon the restore and start fresh.
     $("reconnectFreshBtn").onclick = function () { leaveRoom(); };
     // Desktop affordance: Enter in the landing inputs submits (join if a code is typed, else create).

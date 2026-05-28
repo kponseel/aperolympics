@@ -134,6 +134,7 @@
     emoji:  "🎤",
     desc:   "Deux contestants ecrivent la meilleure vanne, la salle vote.",
     minPlayers: 3,
+    endable: true,
     scored: true,
     rules:  "Style Jackbox.<br>" +
             "<b>1.</b> Un prompt s'affiche (\"La pire excuse pour annuler un RDV\"...).<br>" +

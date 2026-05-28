@@ -49,12 +49,18 @@ function create() {
     return a.length > 0 && a.every((p) => p.answered);
   }
   function tallyAndKill(room) {
-    let max = 0, victim = null;
+    // Find every alive player at the max vote count. A tie at the top means
+    // nobody dies (canonical werewolf rule). Picking the first-joined silently
+    // would just feel like a bug.
+    let max = 0, tiedAtMax = [];
     [...room.players.values()].forEach((p) => {
-      if (p.name && alive[p.name] && (votes[p.name] || 0) > max) { max = votes[p.name]; victim = p.name; }
+      if (!p.name || !alive[p.name]) return;
+      const c = votes[p.name] || 0;
+      if (c > max) { max = c; tiedAtMax = [p.name]; }
+      else if (c === max && max > 0) { tiedAtMax.push(p.name); }
     });
-    if (!victim || max === 0) { lastVictimName = null; return; }
-    lastVictimName = victim; alive[victim] = false;
+    if (max === 0 || tiedAtMax.length !== 1) { lastVictimName = null; return; }
+    lastVictimName = tiedAtMax[0]; alive[lastVictimName] = false;
   }
   function checkEnd(room) {
     const wolves = countAlive(room, "wolf");

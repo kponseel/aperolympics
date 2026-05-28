@@ -37,9 +37,10 @@ function create() {
   let currentPrompt = "";
   let revealPrompt = false;
   let turn = 0;
+  let pointedAt = {}; // name -> times this player was the accused
 
   function pickPrompt() { currentPrompt = PROMPTS.length ? PROMPTS[Math.floor(Math.random() * PROMPTS.length)] : ""; }
-  function resetAll() { phase = "lobby"; whispererName = null; accusedName = null; currentPrompt = ""; revealPrompt = false; turn = 0; }
+  function resetAll() { phase = "lobby"; whispererName = null; accusedName = null; currentPrompt = ""; revealPrompt = false; turn = 0; pointedAt = {}; }
   function startTurn(room) {
     const a = room.activePlayers();
     if (!a.length) return;
@@ -53,6 +54,11 @@ function create() {
     whispererName = a[(idx + 1) % a.length].name;
     accusedName = null; revealPrompt = false; pickPrompt(); phase = "playing"; turn++;
   }
+  function topAccused() {
+    let best = null;
+    for (const n in pointedAt) { if (!best || pointedAt[n] > pointedAt[best]) best = n; }
+    return best ? { name: best, count: pointedAt[best] } : null;
+  }
 
   return {
     phase: () => phase,
@@ -60,18 +66,22 @@ function create() {
     onStart: (room) => { startTurn(room); },
     onAdvance: (room) => {
       if (phase === "lobby") startTurn(room);
-      else if (phase === "playing") { phase = "reveal"; revealPrompt = Math.random() < 0.5; }
+      // Host force-advance with no accusation: skip the empty reveal entirely.
+      else if (phase === "playing") { if (accusedName) { phase = "reveal"; revealPrompt = Math.random() < 0.5; } else { nextTurn(room); } }
       else if (phase === "reveal") nextTurn(room);
       else resetAll();
     },
     onReset: resetAll,
+    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
     onPlayerLeave: (room, p) => { if (phase === "playing" && p && p.name === whispererName) nextTurn(room); },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.name !== whispererName) return;
       if (msg.t !== "point") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
-      if (!target || !target.name) return;
+      // The whisperer can't point at themselves — produces a nonsense reveal.
+      if (!target || !target.name || target.name === whispererName) return;
       accusedName = target.name;
+      pointedAt[target.name] = (pointedAt[target.name] || 0) + 1;
       revealPrompt = Math.random() < 0.5; // 50/50 coin
       phase = "reveal";
     },
@@ -84,6 +94,10 @@ function create() {
         r.accused_name = accusedName;
         r.coin = revealPrompt ? "open" : "sealed";
         if (revealPrompt) r.prompt = currentPrompt;
+      }
+      if (phase === "finished") {
+        const t = topAccused();
+        if (t) r.mvp = { label: "Le plus accusé", emoji: "👀", name: t.name, value: t.count + " fois" };
       }
       return r;
     },

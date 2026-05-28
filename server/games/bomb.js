@@ -45,18 +45,29 @@ function create() {
       if (!p || phase !== "playing" || p.name !== holderName) return;
       if (msg.t !== "pass") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
-      if (!target || !target.name || target.name === holderName || !target.active) return;
+      // Reject a target who is mid-disconnect — the bomb would otherwise land on
+      // a phantom whose screen never updates until they either reconnect or the
+      // grace expires.
+      if (!target || !target.name || target.name === holderName || !target.active || target.disconnectedAt) return;
       holderName = target.name;
     },
+    onEndSession: () => { if (phase !== "lobby") phase = "finished"; },
     serializeRound: () => {
       const r = { round_n: roundN };
       if (phase === "lobby") return r;
       if (holderName) { r.holder_id = holderName; r.holder_name = holderName; }
-      if (phase === "reveal") {
-        r.boomed = holderName || "";
-        r.scoreboard = Object.keys(boomCount)
-          .filter((n) => boomCount[n] > 0)
-          .map((n) => ({ name: n, booms: boomCount[n] }));
+      // Always expose the running scoreboard so players can see boom counts during
+      // play, not just on the brief reveal screen.
+      r.scoreboard = Object.keys(boomCount)
+        .filter((n) => boomCount[n] > 0)
+        .map((n) => ({ name: n, booms: boomCount[n] }));
+      if (phase === "reveal") { r.boomed = holderName || ""; }
+      if (phase === "finished") {
+        let best = null;
+        for (const n in boomCount) { if (!best || boomCount[n] > boomCount[best]) best = n; }
+        if (best && boomCount[best] > 0) {
+          r.mvp = { label: "Le plus BOOM-é", emoji: "💥", name: best, value: boomCount[best] + " explosion" + (boomCount[best] > 1 ? "s" : "") };
+        }
       }
       return r;
     },
