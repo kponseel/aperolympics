@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v21";
+  var APP_VERSION = "v22";
   var APP_BUILD = "2026-05-28";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -278,21 +278,55 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     var list = $("gameList"); list.innerHTML = "";
     var iAmHost = amHost();
     var connected = (state ? state.players.filter(function (p) { return p.connected; }).length : 0);
-    Object.keys(window.Apero.games).forEach(function (id) {
+    // Surface what's playable RIGHT NOW: sort games into 2 buckets
+    // (jouable au compteur courant / encore X joueurs manquants), playable
+    // ones go first. Inside each bucket, original definition order is kept.
+    var ids = Object.keys(window.Apero.games);
+    var playable = [], blocked = [];
+    ids.forEach(function (id) {
+      var g = window.Apero.games[id];
+      var min = g.minPlayers || 1;
+      if (connected >= min) playable.push(id); else blocked.push(id);
+    });
+    // A small header at the boundary so users see the "Encore X joueurs"
+    // group as a deliberate section rather than greyed-out chaos.
+    function appendDivider(label) {
+      var div = document.createElement("div");
+      div.className = "gc-divider";
+      div.textContent = label;
+      list.appendChild(div);
+    }
+    if (playable.length && blocked.length) {
+      appendDivider("✨ Jouable maintenant (" + playable.length + ")");
+    }
+    playable.concat(["__sep__"]).concat(blocked).forEach(function (id, idx) {
+      if (id === "__sep__") {
+        if (playable.length && blocked.length) {
+          appendDivider("👥 Encore des joueurs requis (" + blocked.length + ")");
+        }
+        return;
+      }
       var g = window.Apero.games[id];
       var min = g.minPlayers || 1;
       var enough = connected >= min;
       var card = document.createElement("div");
-      // .below-min recolours the "👥 N+" badge so the host sees at-a-glance
-      // which games can't start with the current player count.
-      card.className = "game-card" + (iAmHost ? "" : " disabled") + (enough ? "" : " below-min");
-      var minBadge = '<span class="gc-min" title="' + min + '+ joueurs requis">👥 ' + min + '+</span>';
+      // .ready marks playable cards (bright accent); .below-min dims and
+      // reveals the amber "Need K more" tag. Mutually exclusive.
+      card.className = "game-card" +
+        (iAmHost ? "" : " disabled") +
+        (enough ? " ready" : " below-min");
+      var needMore = enough ? "" : (min - connected);
+      var minBadge = enough
+        ? '<span class="gc-min ok" title="Jouable avec ' + connected + ' joueurs">👥 ' + min + '+ ✓</span>'
+        : '<span class="gc-min" title="' + needMore + ' joueur(s) supplémentaire(s) requis">👥 ' + min + '+ · encore <b>' + needMore + '</b></span>';
       card.innerHTML = '<div class="icon">' + g.emoji + '</div>' +
         '<div class="gc-body"><div class="name">' + escapeHtml(g.name) + ' ' + minBadge + '</div>' +
         '<div class="muted">' + escapeHtml(g.desc || "") + '</div></div>' +
-        (iAmHost ? '<div class="gc-go">Jouer ›</div>' : '') +
+        (iAmHost && enough ? '<div class="gc-go">Jouer ›</div>' : '') +
         '<button type="button" class="info gc-info" title="Voir les règles">?</button>';
-      if (iAmHost) card.onclick = function () { send({ t: "select_game", id: id }); };
+      // Tappable only when host AND enough players (avoids a "tap → nothing
+      // visible" dead-end when the user picks a blocked card).
+      if (iAmHost && enough) card.onclick = function () { send({ t: "select_game", id: id }); };
       (function (gid) { card.querySelector(".gc-info").onclick = function (e) { e.stopPropagation(); showGameRules(gid); }; })(id);
       list.appendChild(card);
     });
