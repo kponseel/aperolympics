@@ -310,6 +310,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     lr.classList.toggle("waiting", !enough);
     var pct = Math.min(100, min ? Math.round(connected / min * 100) : 100);
     $("lrFill").style.width = pct + "%";
+    $("lrProgress").setAttribute("aria-valuenow", String(pct));
     $("lrCount").textContent = connected + " / " + min + " joueur" + (min > 1 ? "s" : "") + (enough && connected > min ? " (+" + (connected - min) + ")" : "");
     $("lrStatus").innerHTML = enough
       ? (iAmHost

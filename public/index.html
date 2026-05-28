@@ -72,7 +72,7 @@
            when below minPlayers, green when ready. The whole vibe of the
            card switches with .waiting / .ready class on this wrapper. -->
       <div class="lobby-ready waiting" id="lobbyReady">
-        <div class="lr-progress"><i id="lrFill"></i></div>
+        <div class="lr-progress" id="lrProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progression vers le seuil de joueurs"><i id="lrFill"></i></div>
         <div class="lr-count" id="lrCount">0 / 0 joueurs</div>
         <div class="lr-status" id="lrStatus"></div>
       </div>
