@@ -130,20 +130,31 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 
 /* game cards */
 .game-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
-.game-card { display: flex; align-items: center; gap: 14px; background: #161830; border: 1px solid #262a52; border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color .15s, transform .05s; }
-.game-card:not(.disabled):hover { border-color: #5b6cff; }
-.game-card:not(.disabled):active { transform: scale(.99); }
+/* Section header above each bucket of cards (jouable / encore-requis). */
+.gc-divider { font-size: .8rem; font-weight: 800; color: #cdd; text-transform: uppercase; letter-spacing: .08em; padding: 6px 4px 2px; }
+.game-card { display: flex; align-items: center; gap: 14px; background: #161830; border: 1px solid #262a52; border-radius: 14px; padding: 14px; cursor: pointer; transition: border-color .15s, transform .05s, opacity .2s; }
+.game-card:not(.disabled):not(.below-min):hover { border-color: #5b6cff; }
+.game-card:not(.disabled):not(.below-min):active { transform: scale(.99); }
 .game-card .icon { font-size: 2rem; }
-.game-card .gc-body { flex: 1; }
+.game-card .gc-body { flex: 1; min-width: 0; }
 .game-card .name { font-weight: 700; font-size: 1.1rem; }
 .game-card .gc-go { color: #8aa0ff; font-weight: 800; white-space: nowrap; }
 .game-card.disabled { opacity: .55; cursor: default; }
 .game-card.disabled .gc-info { opacity: 1; } /* rules stay readable even when you can't pick */
+/* Jouable maintenant: brighter border + faint green tint to draw the eye.
+   Combines with .disabled (non-host) without losing the visual cue. */
+.game-card.ready { border-color: #2f6633; background: linear-gradient(180deg, rgba(38, 137, 12, .10), rgba(38, 137, 12, .02)), #161830; }
+.game-card.ready:not(.disabled):hover { border-color: #5be072; }
+/* Encore X joueurs: dimmed, not tappable, badge shows the missing count. */
+.game-card.below-min { opacity: .5; cursor: default; }
+.game-card.below-min .gc-info { opacity: 1; } /* still let me read the rules */
 .gc-info { width: 36px; height: 36px; padding: 0; flex: none; align-self: center; }
-/* "👥 N+" pill on each game card. Bumped from .7rem/#9aa (barely legible at
-   arm's length on a dark background) to .82rem with a solid tint + brighter
-   text — readable while still secondary to the game name. */
-.gc-min { display: inline-block; font-size: .82rem; color: #e9ecff; font-weight: 700; padding: 3px 10px; background: #22264a; border: 1px solid #3a3f72; border-radius: 999px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* "👥 N+" pill on each game card. Punchier than the previous v20 sizing
+   (.82rem solid tint) — bumped further per user request: bigger digits,
+   inline "encore K" hint in the below-min state, green tick in .ok. */
+.gc-min { display: inline-block; font-size: .85rem; color: #e9ecff; font-weight: 700; padding: 3px 10px; background: #22264a; border: 1px solid #3a3f72; border-radius: 999px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gc-min.ok { color: #b8e8a8; border-color: #2f6633; background: rgba(38, 137, 12, .16); }
+.gc-min b { color: #ffce6b; font-weight: 800; }
 .game-card.below-min .gc-min { color: #ffce6b; border-color: #7a5e2e; background: rgba(255, 206, 107, .14); }
 
 .lobby-head { display: flex; align-items: center; gap: 12px; justify-content: center; }
