@@ -22,6 +22,14 @@ input, .rb-code { -webkit-user-select: text; user-select: text; }
   .topbar { gap: 6px; }
   .bar-actions { gap: 6px; }
 }
+/* Sub-iPhone-SE widths: drop the "Aperolympics" wordmark (the 🍹 stays) and
+   crunch the icons further so all six action buttons still fit. */
+@media (max-width: 380px) {
+  .iconbtn { min-width: 32px; padding: 0 4px; font-size: .95rem; }
+  .topbar, .bar-actions { gap: 4px; }
+  .brand span { display: none; }
+  .brand { font-size: 1.35rem; }
+}
 .iconbtn.danger { background: #3a1d2a; color: #ff9a9a; }
 
 .sub { color: #9aa; font-size: .9rem; margin: 6px auto 8px; width: 100%; max-width: 560px; }
