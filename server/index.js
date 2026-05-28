@@ -64,6 +64,7 @@ function buildState(room) {
     players,
     round: room.game && room.game.serializeRound ? room.game.serializeRound(room) : {},
     history: room.history || [],
+    sessionTotals: room.sessionTotals || {},
   };
 }
 
@@ -85,6 +86,38 @@ function recordHistory(room) {
   if (round && round.winner_banner) entry.winner_banner = round.winner_banner;
   room.history.push(entry);
   if (room.history.length > 30) room.history.shift();
+  // Cross-game session totals (powers the 🏆 "Soirée" tab). Counts:
+  //   wins    — #1 in a scored game (top of standings with score > 0)
+  //   podiums — top-3 in a scored game (score > 0)
+  //   mvps    — MVPs collected (per-game session payoff)
+  //   points  — cumulative score across scored games
+  // Role/coop games (wolves, spyfall, undercover) contribute MVPs but no wins
+  // — the "victory" there is a team outcome, not a single-player trophy.
+  // Keyed by lowercased name (same convention as room.players) so a player
+  // who rejoins with different display case ("Alice" → "alice") stays the
+  // SAME totals entry. `name` is stored on the entry so the client renders
+  // the most recent canonical casing.
+  function getTotal(displayName) {
+    if (!displayName) return null;
+    const k = displayName.toLowerCase();
+    let t = room.sessionTotals[k];
+    if (!t) t = room.sessionTotals[k] = { name: displayName, wins: 0, podiums: 0, mvps: 0, points: 0 };
+    else t.name = displayName;
+    return t;
+  }
+  standings.forEach((s, i) => {
+    const t = getTotal(s.name);
+    if (!t) return;
+    if (s.score > 0) {
+      t.points += s.score;
+      if (i === 0) t.wins++;
+      if (i < 3) t.podiums++;
+    }
+  });
+  if (entry.mvp && entry.mvp.name) {
+    const t = getTotal(entry.mvp.name);
+    if (t) t.mvps++;
+  }
   room.histRecorded = true;
 }
 
