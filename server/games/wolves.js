@@ -131,9 +131,10 @@ function create() {
         r.winner_banner = winner === "wolves"
           ? { emoji: "🐺", text: "Les Loups gagnent !" }
           : { emoji: "🧑‍🌾", text: "Les Villageois gagnent !" };
+        const hn = room.hostName();
         r.roster = [...room.players.values()]
           .filter((p) => p.name && roleOf(p.name) !== "spectator")
-          .map((p) => ({ name: p.name, role: roles[p.name] === "wolf" ? "loup" : "villageois", alive: !!alive[p.name] }));
+          .map((p) => ({ name: p.name, role: roles[p.name] === "wolf" ? "loup" : "villageois", alive: !!alive[p.name], host: p.name === hn }));
       }
       return r;
     },

@@ -35,6 +35,13 @@ const PROMPTS = [
   "Mini-jeu : tour de table, citez un fruit ; premier qui repete ou rate bois",
 ];
 
+// Each prompt's minimum unique-player requirement: 3 if it names {p3}, 2 if it
+// names {p2}, else 1. Computed once so the advance loop can skip prompts that
+// would otherwise read as "Solo et Solo échangent place" in tiny rooms.
+const PROMPT_MIN = PROMPTS.map((p) =>
+  p.indexOf("{p3}") >= 0 ? 3 : p.indexOf("{p2}") >= 0 ? 2 : 1
+);
+
 function create() {
   let phase = "lobby";
   let promptIdx = -1;
@@ -46,6 +53,14 @@ function create() {
     const pool = names.filter((n) => exclude.indexOf(n) < 0);
     const from = pool.length ? pool : names;
     return from[Math.floor(Math.random() * from.length)];
+  }
+  // Next prompt index (strictly after `after`) eligible for the current room
+  // size. -1 if no eligible prompts remain (signals end of session).
+  function nextEligibleIdx(after, activeN) {
+    for (let i = after + 1; i < PROMPTS.length; i++) {
+      if (PROMPT_MIN[i] <= activeN) return i;
+    }
+    return -1;
   }
   function renderPrompt(room, idx) {
     if (idx < 0 || idx >= PROMPTS.length) { rendered = ""; return; }
@@ -81,14 +96,20 @@ function create() {
   return {
     phase: () => phase,
     onSelect: resetAll,
-    onStart: (room) => { if (PROMPTS.length) { promptIdx = 0; renderPrompt(room, 0); phase = "playing"; roundN = 1; } },
+    onStart: (room) => {
+      const first = nextEligibleIdx(-1, room.activePlayers().length);
+      if (first < 0) return;
+      promptIdx = first; renderPrompt(room, promptIdx); phase = "playing"; roundN = 1;
+    },
     onAdvance: (room) => {
-      if (phase === "lobby") { if (PROMPTS.length) { promptIdx = 0; renderPrompt(room, 0); phase = "playing"; roundN = 1; } }
-      else if (phase === "playing") {
-        promptIdx++;
-        if (promptIdx >= PROMPTS.length) { phase = "finished"; return; }
-        renderPrompt(room, promptIdx);
-        roundN++;
+      if (phase === "lobby") {
+        const first = nextEligibleIdx(-1, room.activePlayers().length);
+        if (first < 0) return;
+        promptIdx = first; renderPrompt(room, promptIdx); phase = "playing"; roundN = 1;
+      } else if (phase === "playing") {
+        const next = nextEligibleIdx(promptIdx, room.activePlayers().length);
+        if (next < 0) { phase = "finished"; return; }
+        promptIdx = next; renderPrompt(room, promptIdx); roundN++;
       } else { resetAll(); }
     },
     onReset: resetAll,

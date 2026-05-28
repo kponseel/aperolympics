@@ -13,8 +13,10 @@
 
   function render(state, h) {
     var r = state.round || {};
+    // round_n is sequential (1, 2, 3…) so it doesn't jump when the server
+    // skips prompts that need more unique players than the room has.
     h.$("piMeta").textContent = (state.phase === "playing")
-      ? "Prompt " + ((r.idx || 0) + 1) + " / " + (r.total || "?")
+      ? "Round " + (r.round_n || 1)
       : (state.phase === "finished" ? "Termine 🎉" : "En attente du demarrage");
 
     if (state.phase === "lobby") {

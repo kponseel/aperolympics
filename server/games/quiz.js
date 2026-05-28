@@ -62,6 +62,7 @@ function create() {
   let pausedAt = 0;
   let streakNow = {};   // name -> current consecutive correct count
   let bestStreak = {};  // name -> longest correct streak achieved this session
+  let lastGain = {};    // name -> points awarded on the most recent question (for the reveal screen)
 
   function startQuestion(room, idx) {
     currentQ = idx;
@@ -83,11 +84,14 @@ function create() {
   function doReveal(room) {
     if (phase !== "playing") return; // idempotent: timeout vs all-answered
     const correct = QUESTIONS[currentQ].correct;
+    lastGain = {};
     room.activePlayers().forEach((p) => {
       if (p.answered && p.answer === correct) {
         let frac = 1 - p.answerMs / QUESTION_TIME_MS;
         if (frac < 0) frac = 0;
-        p.score += 500 + Math.round(500 * frac);
+        const gain = 500 + Math.round(500 * frac);
+        p.score += gain;
+        lastGain[p.name] = gain;
         streakNow[p.name] = (streakNow[p.name] || 0) + 1;
         if (streakNow[p.name] > (bestStreak[p.name] || 0)) bestStreak[p.name] = streakNow[p.name];
       } else {
@@ -110,6 +114,7 @@ function create() {
     pausedAt = 0;
     streakNow = {};
     bestStreak = {};
+    lastGain = {};
     room.players.forEach((p) => {
       p.score = 0;
       p.answered = false;
@@ -130,6 +135,9 @@ function create() {
       } else { resetAll(room); }
     },
     onReset: resetAll,
+    // Host can cut a long quiz short — straight to fin de partie with the
+    // current scores. Idempotent (lobby/finished are no-ops).
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room, p) => {
       // Don't let dropping mid-question preserve (and silently extend) a streak:
       // a timeout would zero it via doReveal's else-branch, so a disconnect should too.
@@ -180,12 +188,23 @@ function create() {
         r.answered = room.activePlayers().filter((p) => p.answered).length;
       } else if (phase === "reveal") {
         r.correct = q.correct;
+        // Per-player score deltas for this question so the reveal screen can
+        // show "+X pts" next to each correct answerer.
+        r.gains = Object.keys(lastGain).map((n) => ({ name: n, gain: lastGain[n] }));
       }
       if (phase === "finished") {
         const s = topStreak();
         if (s) r.mvp = { label: "Meilleure série de bonnes réponses", emoji: "🔥", name: s.name, value: s.count + " d'affilée" };
       }
       return r;
+    },
+    // Per-player: tell each player at reveal whether they got the question
+    // right. `answer` is no longer in the public state (privacy), so the
+    // ✅/❌ badge needs this whisper to know.
+    serializePrivate: (room, viewer) => {
+      if (!viewer || phase !== "reveal" || currentQ < 0) return {};
+      const correct = QUESTIONS[currentQ].correct;
+      return { my_correct: !!(viewer.answered && viewer.answer === correct) };
     },
     tick: (room, now) => {
       if (phase !== "playing" || paused) return false;

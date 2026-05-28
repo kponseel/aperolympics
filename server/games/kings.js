@@ -91,7 +91,14 @@ function create() {
       }
       if (phase === "finished") {
         r.royal_cup = (lastCard >= 0 && currentName) ? currentName : "";
-        if (r.royal_cup) r.winner_banner = { emoji: "👑", text: "Coupe Royale pour " + r.royal_cup + " !" };
+        // Only crown a "Coupe Royale" if the 4th king was actually drawn;
+        // a 52-card-exhausted finish should NOT misattribute the cup to
+        // whoever's turn it happened to be when the deck ran dry.
+        if (kingsDrawn >= 4 && r.royal_cup) {
+          r.winner_banner = { emoji: "👑", text: "Coupe Royale pour " + r.royal_cup + " !" };
+        } else if (deckPos >= 52) {
+          r.winner_banner = { emoji: "🃏", text: "Deck épuisé — fin de manche" };
+        }
       }
       return r;
     },

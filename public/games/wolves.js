@@ -127,10 +127,11 @@
     var roster = (state.round || {}).roster || [];
     if (!roster.length) { area.innerHTML = ""; return; }
     var rows = roster.map(function (r) {
-      var emoji = r.role === "loup" ? "🐺" : "🧑‍🌾";
-      var status = r.alive ? "" : ' <span class="muted">💀</span>';
+      var emoji  = r.role === "loup" ? "🐺" : "🧑‍🌾";
+      var crown  = r.host ? '<span class="crown">&#x1F451;</span> ' : '';
+      var status = r.alive ? ' <span style="color:#8aa0ff">✅</span>' : ' <span class="muted">💀</span>';
       return '<li><span class="rank">' + emoji + '</span>' +
-        '<span class="who">' + h.escapeHtml(r.name) + status + '</span>' +
+        '<span class="who">' + crown + h.escapeHtml(r.name) + status + '</span>' +
         '<b class="pts">' + h.escapeHtml(r.role) + '</b></li>';
     }).join("");
     area.innerHTML = '<div class="mvp-label">Récap des rôles</div><ol class="podium">' + rows + '</ol>';

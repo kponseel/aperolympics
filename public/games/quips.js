@@ -123,8 +123,12 @@
         r.winner === "b" ? "🏆 " + (r.contestant_b_name || "B") + " gagne !" :
                            "🤝 Egalite !";
       h.$("qpWinnerHeader").textContent = winnerStr;
-      h.$("qpReA").innerHTML = '<b>' + h.escapeHtml(r.contestant_a_name || "A") + '</b> (' + (r.votes_a || 0) + ') : ' + h.escapeHtml(r.answer_a || "");
-      h.$("qpReB").innerHTML = '<b>' + h.escapeHtml(r.contestant_b_name || "B") + '</b> (' + (r.votes_b || 0) + ') : ' + h.escapeHtml(r.answer_b || "");
+      var gainsByName = {};
+      (r.gains || []).forEach(function (g) { gainsByName[g.name] = g.gain; });
+      var gA = gainsByName[r.contestant_a_name] ? ' <span style="color:#ffd23f">+' + gainsByName[r.contestant_a_name] + '</span>' : '';
+      var gB = gainsByName[r.contestant_b_name] ? ' <span style="color:#ffd23f">+' + gainsByName[r.contestant_b_name] + '</span>' : '';
+      h.$("qpReA").innerHTML = '<b>' + h.escapeHtml(r.contestant_a_name || "A") + '</b>' + gA + ' (' + (r.votes_a || 0) + ') : ' + h.escapeHtml(r.answer_a || "");
+      h.$("qpReB").innerHTML = '<b>' + h.escapeHtml(r.contestant_b_name || "B") + '</b>' + gB + ' (' + (r.votes_b || 0) + ') : ' + h.escapeHtml(r.answer_b || "");
       h.$("qpNextBtn").style.display = h.amHost() ? "block" : "none";
     }
   }

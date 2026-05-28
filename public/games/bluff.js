@@ -114,15 +114,23 @@
 
     if (state.phase === "reveal") {
       showScreen(h, "bl-reveal");
-      h.$("blReal").textContent = r.real_answer || "?";
       var ol = h.$("blOptionsR"); ol.innerHTML = "";
+      // Per-player score delta this round (for the owner-badge "+250 / +500").
+      var gainsByName = {};
+      (r.gains || []).forEach(function (g) { gainsByName[g.name] = g.gain; });
       (r.options || []).forEach(function (o) {
         var li = document.createElement("li");
         var label = o.real ? '<span style="color:#26890c">✅ ' + h.escapeHtml(o.text) + ' (VRAI)</span>' : h.escapeHtml(o.text);
-        var owner = o.owner ? '<b style="color:#d89e00">' + h.escapeHtml(o.owner) + '</b>' : '<b style="color:#5b6cff">officielle</b>';
+        var ownerGain = o.owner && gainsByName[o.owner] ? ' <span style="color:#ffd23f">+' + gainsByName[o.owner] + '</span>' : '';
+        var owner = o.owner ? '<b style="color:#d89e00">' + h.escapeHtml(o.owner) + ownerGain + '</b>' : '<b style="color:#5b6cff">officielle</b>';
         li.innerHTML = '<span>' + label + '</span>' + owner;
         ol.appendChild(li);
       });
+      // Personal "+500" badge: only the correct-answerer (server-whispered).
+      // Without this gate the badge would fire for bluffers who scored via
+      // lures but voted wrong themselves.
+      var myCorrect = !!(state._private && state._private.my_correct);
+      h.$("blReal").innerHTML = h.escapeHtml(r.real_answer || "?") + (myCorrect ? ' <span style="color:#ffd23f">+500</span>' : '');
       h.$("blNextBtn").style.display = h.amHost() ? "block" : "none";
       return;
     }
@@ -152,6 +160,7 @@
             "<b>3.</b> Vote la <b>VRAIE</b> reponse.<br>" +
             "<b>Scoring :</b> +500 si tu trouves la vraie, +250 par joueur que ta fausse a piege.",
     scored: true,
+    endable: true,
     mount:  build,
     render: render
   });

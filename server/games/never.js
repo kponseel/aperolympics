@@ -32,6 +32,7 @@ const PROMPTS = [
 function create() {
   let phase = "lobby";
   let currentIdx = -1;
+  let haveCount = {}; // name -> times the player answered "J'ai déjà" across the session
 
   function clearRound(room) { room.players.forEach((p) => { p.answered = false; p.answer = -1; }); }
   function startRound(room, idx) { currentIdx = idx; phase = "playing"; clearRound(room); }
@@ -41,7 +42,19 @@ function create() {
     room.players.forEach((p) => { if (p.name && p.answered && p.answer === which) n++; });
     return n;
   }
-  function resetAll(room) { phase = "lobby"; currentIdx = -1; clearRound(room); }
+  function resetAll(room) { phase = "lobby"; currentIdx = -1; haveCount = {}; clearRound(room); }
+  // Aggregate-only MVP (not per-prompt): preserves the game's anonymity within
+  // each round while still rewarding the end-of-session payoff.
+  function topExperienced(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
+    let best = null;
+    for (const n in haveCount) {
+      if (!present.has(n)) continue;
+      if (!best || haveCount[n] > haveCount[best]) best = n;
+    }
+    return (best && haveCount[best] > 0) ? { name: best, count: haveCount[best] } : null;
+  }
 
   return {
     phase: () => phase,
@@ -64,6 +77,7 @@ function create() {
       if (v !== 0 && v !== 1) return;
       p.answered = true;
       p.answer = v;
+      if (v === 0) haveCount[p.name] = (haveCount[p.name] || 0) + 1;
       if (allVoted(room)) phase = "reveal";
     },
     serializeRound: (room) => {
@@ -77,6 +91,10 @@ function create() {
       if (phase === "reveal") {
         r.have = countWith(room, 0);
         r.never = countWith(room, 1);
+      }
+      if (phase === "finished") {
+        const t = topExperienced(room);
+        if (t) r.mvp = { label: "Le plus expérimenté", emoji: "🙊", name: t.name, value: t.count + " « j'ai déjà »" };
       }
       return r;
     },

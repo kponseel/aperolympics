@@ -39,6 +39,7 @@ function create() {
   let options = []; // [{ text, owner: name|null }]  (null owner = real answer)
   let realOptionIdx = -1;
   let bluffVotes = {}; // name -> cumulative votes their fake lies have lured
+  let lastGain = {};   // name -> points scored on the most recent question
 
   function clearStepFlags(room) { room.players.forEach((p) => { p.answered = false; p.answer = -1; }); }
   function clearFullRound(room) { clearStepFlags(room); submissions = {}; options = []; realOptionIdx = -1; }
@@ -46,6 +47,7 @@ function create() {
   function resetAll(room) {
     phase = "lobby"; qIdx = -1; step = 0; clearFullRound(room);
     bluffVotes = {};
+    lastGain = {};
     room.players.forEach((p) => { p.score = 0; });
   }
   function topBluffer() {
@@ -74,6 +76,7 @@ function create() {
 
   function applyScoring(room) {
     if (realOptionIdx < 0) return;
+    lastGain = {};
     // Credit everyone who actually voted (not just `activePlayers()`): a voter
     // who dropped between voting and the reveal still cast their vote, and the
     // bluffer they fooled deserves the bluffVotes credit (parity with would_rather).
@@ -81,11 +84,12 @@ function create() {
       if (!p.name || !p.answered) return;
       const pick = p.answer;
       if (typeof pick !== "number" || pick < 0 || pick >= options.length) return;
-      if (pick === realOptionIdx) { p.score += 500; return; }
+      if (pick === realOptionIdx) { p.score += 500; lastGain[p.name] = (lastGain[p.name] || 0) + 500; return; }
       const owner = options[pick].owner;
       if (owner && owner !== p.name) {
         const op = room.players.get(owner.toLowerCase());
         if (op) op.score += 250;
+        lastGain[owner] = (lastGain[owner] || 0) + 250;
         bluffVotes[owner] = (bluffVotes[owner] || 0) + 1;
       }
     });
@@ -109,6 +113,7 @@ function create() {
     onStart: (room) => { if (QUESTIONS.length) startRound(room, 0); },
     onAdvance: advance,
     onReset: resetAll,
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room) => { if (phase === "playing" && allActiveActed(room)) advance(room); },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing") return;
@@ -151,6 +156,7 @@ function create() {
           if (o.owner) obj.owner = o.owner;
           return obj;
         });
+        r.gains = Object.keys(lastGain).map((n) => ({ name: n, gain: lastGain[n] }));
       }
       if (phase === "finished") {
         const b = topBluffer();
@@ -158,13 +164,23 @@ function create() {
       }
       return r;
     },
-    // Tell each player which option is their own fake, so the client can
-    // disable it (voting your own fake is rejected server-side and otherwise
-    // silently no-ops, which can hang the round).
+    // Per-player whispers:
+    //   - vote step: which option is the viewer's own fake (so the client can
+    //     grey it out — voting your own is rejected server-side and would
+    //     otherwise silently stall the round).
+    //   - reveal:    whether the viewer voted the truth (so the +500 personal
+    //     badge fires only for correct guessers, not for incidental bluff
+    //     scorers; needed because `answer` no longer ships in the public state).
     serializePrivate: (room, viewer) => {
-      if (!viewer || !viewer.name || phase !== "playing" || step !== 1) return {};
-      const idx = options.findIndex((o) => o.owner === viewer.name);
-      return idx >= 0 ? { my_option_idx: idx } : {};
+      if (!viewer || !viewer.name) return {};
+      if (phase === "playing" && step === 1) {
+        const idx = options.findIndex((o) => o.owner === viewer.name);
+        return idx >= 0 ? { my_option_idx: idx } : {};
+      }
+      if (phase === "reveal" && realOptionIdx >= 0) {
+        return { my_correct: !!(viewer.answered && viewer.answer === realOptionIdx) };
+      }
+      return {};
     },
     tick: () => false,
   };
