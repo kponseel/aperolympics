@@ -1,7 +1,14 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; }
 body {
+  /* The radial glow has an explicit 1100×560 px size; without `no-repeat`
+     it tiles vertically as soon as the page is taller than 560 px (lobby,
+     in-game, fin de partie), producing repeated halos. `fixed` anchors it
+     to the viewport so the ambient light effect stays at the top edge
+     during scroll instead of riding the content. */
   background: radial-gradient(1100px 560px at 50% -8%, #1c2150 0%, #0f1020 55%), #0f1020;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: #fff; display: flex; flex-direction: column; min-height: 100vh; padding: 12px 16px 22px;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
@@ -99,8 +106,11 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 .game-card.disabled { opacity: .55; cursor: default; }
 .game-card.disabled .gc-info { opacity: 1; } /* rules stay readable even when you can't pick */
 .gc-info { width: 36px; height: 36px; padding: 0; flex: none; align-self: center; }
-.gc-min { display: inline-block; font-size: .7rem; color: #9aa; font-weight: 600; padding: 2px 8px; border: 1px solid #2a2f5c; border-radius: 999px; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
-.game-card.below-min .gc-min { color: #ffce6b; border-color: #5b4828; background: rgba(255, 206, 107, .08); }
+/* "👥 N+" pill on each game card. Bumped from .7rem/#9aa (barely legible at
+   arm's length on a dark background) to .82rem with a solid tint + brighter
+   text — readable while still secondary to the game name. */
+.gc-min { display: inline-block; font-size: .82rem; color: #e9ecff; font-weight: 700; padding: 3px 10px; background: #22264a; border: 1px solid #3a3f72; border-radius: 999px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.game-card.below-min .gc-min { color: #ffce6b; border-color: #7a5e2e; background: rgba(255, 206, 107, .14); }
 
 .lobby-head { display: flex; align-items: center; gap: 12px; justify-content: center; }
 /* Lobby room badge is the share CTA — beef it up vs. the in-game variant. */
