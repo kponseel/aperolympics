@@ -32,6 +32,7 @@ const PROMPTS = [
 function create() {
   let phase = "lobby";
   let currentIdx = -1;
+  let alignedCount = {}; // name -> rounds voted with the majority side
 
   function clearRound(room) { room.players.forEach((p) => { p.answered = false; p.answer = -1; }); }
   function startRound(room, idx) { currentIdx = idx; phase = "playing"; clearRound(room); }
@@ -41,7 +42,22 @@ function create() {
     room.players.forEach((p) => { if (p.name && p.answered && p.answer === which) n++; });
     return n;
   }
-  function resetAll(room) { phase = "lobby"; currentIdx = -1; clearRound(room); }
+  // Credit each voter who picked the majority side; ties credit no-one.
+  function tallyRound(room) {
+    const a = countWith(room, 0), b = countWith(room, 1);
+    if (a === b) return;
+    const winSide = a > b ? 0 : 1;
+    room.players.forEach((p) => {
+      if (p.name && p.answered && p.answer === winSide) alignedCount[p.name] = (alignedCount[p.name] || 0) + 1;
+    });
+  }
+  function toReveal(room) { phase = "reveal"; tallyRound(room); }
+  function resetAll(room) { phase = "lobby"; currentIdx = -1; alignedCount = {}; clearRound(room); }
+  function topAligned() {
+    let best = null;
+    for (const name in alignedCount) { if (!best || alignedCount[name] > alignedCount[best]) best = name; }
+    return best ? { name: best, count: alignedCount[best] } : null;
+  }
 
   return {
     phase: () => phase,
@@ -49,14 +65,14 @@ function create() {
     onStart: (room) => { if (PROMPTS.length) startRound(room, 0); },
     onAdvance: (room) => {
       if (phase === "lobby") { if (PROMPTS.length) startRound(room, 0); }
-      else if (phase === "playing") { phase = "reveal"; }
+      else if (phase === "playing") { toReveal(room); }
       else if (phase === "reveal") {
         if (currentIdx + 1 < PROMPTS.length) startRound(room, currentIdx + 1);
         else phase = "finished";
       } else { resetAll(room); }
     },
     onReset: resetAll,
-    onPlayerLeave: (room) => { if (phase === "playing" && allVoted(room)) phase = "reveal"; },
+    onPlayerLeave: (room) => { if (phase === "playing" && allVoted(room)) toReveal(room); },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.answered) return;
       if (msg.t !== "answer") return;
@@ -64,7 +80,7 @@ function create() {
       if (v !== 0 && v !== 1) return;
       p.answered = true;
       p.answer = v;
-      if (allVoted(room)) phase = "reveal";
+      if (allVoted(room)) toReveal(room);
     },
     serializeRound: (room) => {
       const r = { total: PROMPTS.length };
@@ -78,6 +94,10 @@ function create() {
       if (phase === "reveal") {
         r.count_a = countWith(room, 0);
         r.count_b = countWith(room, 1);
+      }
+      if (phase === "finished") {
+        const t = topAligned();
+        if (t) r.mvp = { label: "Le plus aligné avec la majorité", emoji: "⚖️", name: t.name, value: t.count + " fois" };
       }
       return r;
     },

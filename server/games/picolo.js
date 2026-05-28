@@ -40,6 +40,7 @@ function create() {
   let promptIdx = -1;
   let rendered = "";
   let roundN = 0;
+  let mentions = {}; // name -> times the prompt template actually named this player
 
   function pick(names, exclude) {
     const pool = names.filter((n) => exclude.indexOf(n) < 0);
@@ -53,12 +54,29 @@ function create() {
     const p1 = names[Math.floor(Math.random() * names.length)];
     const p2 = pick(names, [p1]);
     const p3 = pick(names, [p1, p2]);
-    rendered = PROMPTS[idx]
-      .split("{p1}").join(p1)
-      .split("{p2}").join(p2)
-      .split("{p3}").join(p3);
+    const tmpl = PROMPTS[idx];
+    // Dedupe the credited names: in 1- or 2-player rooms `pick()` falls back
+    // and can pick the same name twice, which would otherwise double-count.
+    const credited = new Set();
+    if (tmpl.indexOf("{p1}") >= 0) credited.add(p1);
+    if (tmpl.indexOf("{p2}") >= 0) credited.add(p2);
+    if (tmpl.indexOf("{p3}") >= 0) credited.add(p3);
+    credited.forEach((n) => { mentions[n] = (mentions[n] || 0) + 1; });
+    rendered = tmpl.split("{p1}").join(p1).split("{p2}").join(p2).split("{p3}").join(p3);
   }
-  function resetAll() { phase = "lobby"; promptIdx = -1; roundN = 0; rendered = ""; }
+  // Only crown a player who is still in the room — naming a long-departed
+  // player as "le plus interpellé" reads strangely on the results screen.
+  function topMentioned(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
+    let best = null;
+    for (const name in mentions) {
+      if (!present.has(name)) continue;
+      if (!best || mentions[name] > mentions[best]) best = name;
+    }
+    return best ? { name: best, count: mentions[best] } : null;
+  }
+  function resetAll() { phase = "lobby"; promptIdx = -1; roundN = 0; rendered = ""; mentions = {}; }
 
   return {
     phase: () => phase,
@@ -74,9 +92,13 @@ function create() {
       } else { resetAll(); }
     },
     onReset: resetAll,
-    serializeRound: () => {
+    serializeRound: (room) => {
       const r = { round_n: roundN, total: PROMPTS.length };
       if (phase === "playing") { r.idx = promptIdx; r.prompt = rendered; }
+      if (phase === "finished") {
+        const m = topMentioned(room);
+        if (m) r.mvp = { label: "Le plus interpellé", emoji: "🍻", name: m.name, value: m.count + " fois" };
+      }
       return r;
     },
     tick: () => false,

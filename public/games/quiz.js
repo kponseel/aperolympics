@@ -121,6 +121,7 @@
     rules: "Une question + 4 options <b>A/B/C/D</b>. Réponds <b>le plus vite possible</b> : tu as " +
            "<b>10 secondes</b> et les points <b>fondent avec le temps</b> (de <b>1000</b> à <b>500</b>).<br>" +
            "L'hôte 👑 peut <b>mettre en pause</b> (tout est masqué pour tout le monde) et avance entre les questions.",
+    scored: true,
     mount: build,
     render: render,
   });

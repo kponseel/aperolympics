@@ -38,13 +38,20 @@ function create() {
   let submissions = {}; // player name -> fake text
   let options = []; // [{ text, owner: name|null }]  (null owner = real answer)
   let realOptionIdx = -1;
+  let bluffVotes = {}; // name -> cumulative votes their fake lies have lured
 
   function clearStepFlags(room) { room.players.forEach((p) => { p.answered = false; p.answer = -1; }); }
   function clearFullRound(room) { clearStepFlags(room); submissions = {}; options = []; realOptionIdx = -1; }
   function startRound(room, idx) { qIdx = idx; step = 0; phase = "playing"; clearFullRound(room); }
   function resetAll(room) {
     phase = "lobby"; qIdx = -1; step = 0; clearFullRound(room);
+    bluffVotes = {};
     room.players.forEach((p) => { p.score = 0; });
+  }
+  function topBluffer() {
+    let best = null;
+    for (const name in bluffVotes) { if (!best || bluffVotes[name] > bluffVotes[best]) best = name; }
+    return (best && bluffVotes[best] > 0) ? { name: best, count: bluffVotes[best] } : null;
   }
   function allActiveActed(room) { const a = room.activePlayers(); return a.length > 0 && a.every((p) => p.answered); }
 
@@ -67,8 +74,11 @@ function create() {
 
   function applyScoring(room) {
     if (realOptionIdx < 0) return;
-    room.activePlayers().forEach((p) => {
-      if (!p.answered) return;
+    // Credit everyone who actually voted (not just `activePlayers()`): a voter
+    // who dropped between voting and the reveal still cast their vote, and the
+    // bluffer they fooled deserves the bluffVotes credit (parity with would_rather).
+    room.players.forEach((p) => {
+      if (!p.name || !p.answered) return;
       const pick = p.answer;
       if (typeof pick !== "number" || pick < 0 || pick >= options.length) return;
       if (pick === realOptionIdx) { p.score += 500; return; }
@@ -76,6 +86,7 @@ function create() {
       if (owner && owner !== p.name) {
         const op = room.players.get(owner.toLowerCase());
         if (op) op.score += 250;
+        bluffVotes[owner] = (bluffVotes[owner] || 0) + 1;
       }
     });
   }
@@ -140,6 +151,10 @@ function create() {
           if (o.owner) obj.owner = o.owner;
           return obj;
         });
+      }
+      if (phase === "finished") {
+        const b = topBluffer();
+        if (b) r.mvp = { label: "Meilleur bluffeur", emoji: "🤥", name: b.name, value: b.count + " piège" + (b.count > 1 ? "s" : "") };
       }
       return r;
     },

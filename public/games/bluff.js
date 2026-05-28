@@ -148,6 +148,7 @@
             "<b>2.</b> Toutes les fausses + la VRAIE sont melangees et affichees.<br>" +
             "<b>3.</b> Vote la <b>VRAIE</b> reponse.<br>" +
             "<b>Scoring :</b> +500 si tu trouves la vraie, +250 par joueur que ta fausse a piege.",
+    scored: true,
     mount:  build,
     render: render
   });

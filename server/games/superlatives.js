@@ -32,7 +32,8 @@ const PROMPTS = [
 function create() {
   let phase = "lobby";
   let currentIdx = -1;
-  let votes = {}; // canonical target name -> vote count
+  let votes = {};      // round-local: target name -> vote count
+  let totalVotes = {}; // session-cumulative: votes received across all rounds
 
   function clearRound(room) {
     votes = {};
@@ -40,7 +41,12 @@ function create() {
   }
   function startRound(room, idx) { currentIdx = idx; phase = "playing"; clearRound(room); }
   function allVoted(room) { const a = room.activePlayers(); return a.length > 0 && a.every((p) => p.answered); }
-  function resetAll(room) { phase = "lobby"; currentIdx = -1; clearRound(room); }
+  function resetAll(room) { phase = "lobby"; currentIdx = -1; totalVotes = {}; clearRound(room); }
+  function topVoted() {
+    let best = null;
+    for (const name in totalVotes) { if (!best || totalVotes[name] > totalVotes[best]) best = name; }
+    return best ? { name: best, count: totalVotes[best] } : null;
+  }
 
   return {
     phase: () => phase,
@@ -63,6 +69,7 @@ function create() {
       if (!target || !target.name) return;
       p.answered = true;
       votes[target.name] = (votes[target.name] || 0) + 1;
+      totalVotes[target.name] = (totalVotes[target.name] || 0) + 1;
       if (allVoted(room)) phase = "reveal";
     },
     serializeRound: (room) => {
@@ -77,6 +84,10 @@ function create() {
         r.votes = Object.keys(votes)
           .filter((name) => votes[name] > 0)
           .map((name) => ({ name: name, count: votes[name] }));
+      }
+      if (phase === "finished") {
+        const t = topVoted();
+        if (t) r.mvp = { label: "Champion(ne) des superlatifs", emoji: "🏆", name: t.name, value: t.count + " vote" + (t.count > 1 ? "s" : "") };
       }
       return r;
     },
