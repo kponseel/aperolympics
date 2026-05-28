@@ -131,6 +131,6 @@ module.exports = {
   id: "picolo",
   name: "Picolo",
   emoji: "🍻",
-  desc: "Prompts escalades avec les prenoms du groupe.",
+  desc: "Prompts pour ambiance soirée, avec les prénoms du groupe.",
   create,
 };

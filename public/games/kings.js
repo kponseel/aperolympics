@@ -55,24 +55,8 @@
       return;
     }
 
-    if (state.phase === "finished") {
-      h.$("kgTurnTitle").textContent = "👑 Coupe Royale !";
-      h.$("kgCard").innerHTML =
-        '<div style="font-size:2rem">👑 4 rois tires !</div>' +
-        '<div class="muted" style="margin-top:8px">' +
-          (r.royal_cup ? '<b>' + h.escapeHtml(r.royal_cup) + '</b> boit la Coupe Royale 🍻' : 'Coupe royale !') +
-        '</div>';
-      h.$("kgActions").innerHTML = "";
-      if (h.amHost()) {
-        var btn = document.createElement("button");
-        btn.className = "primary";
-        btn.style.width = "100%";
-        btn.textContent = "Nouveau round";
-        btn.onclick = function () { h.send({ t: "next" }); };
-        h.$("kgActions").appendChild(btn);
-      }
-      h.$("kgHint").textContent = "";
-    }
+    // phase==="finished" is handled by the shared fin-de-partie screen + the
+    // server's winner_banner ("Coupe Royale pour {name}" / "Deck épuisé").
   }
 
   window.GamesHub.register("kings", {

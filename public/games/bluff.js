@@ -25,11 +25,6 @@
         '<div class="muted">Options :</div>' +
         '<ol id="blOptionsR" style="margin-top:6px"></ol>' +
         '<button class="primary" id="blNextBtn" style="display:none;margin-top:14px">Question suivante</button>' +
-      '</div>' +
-      '<div class="screen" id="bl-end">' +
-        '<h2 class="center">Classement final</h2>' +
-        '<ol id="blBoard"></ol>' +
-        '<button class="primary" id="blResetBtn" style="display:none">Recommencer</button>' +
       '</div>';
 
     h.$("blSubmitBtn").onclick = function () {
@@ -40,12 +35,11 @@
       h.$("blSubStatus").textContent = "Envoyé !";
       h.send({ t: "submit", text: v.substring(0, 31) });
     };
-    h.$("blNextBtn").onclick  = function () { h.send({ t: "next"  }); };
-    h.$("blResetBtn").onclick = function () { h.send({ t: "reset" }); };
+    h.$("blNextBtn").onclick = function () { h.send({ t: "next" }); };
   }
 
   function showScreen(h, id) {
-    ["bl-submit", "bl-vote", "bl-reveal", "bl-end"].forEach(function (s) {
+    ["bl-submit", "bl-vote", "bl-reveal"].forEach(function (s) {
       h.$(s).classList.toggle("on", s === id);
     });
   }
@@ -135,18 +129,7 @@
       return;
     }
 
-    if (state.phase === "finished") {
-      showScreen(h, "bl-end");
-      var ol = h.$("blBoard"); ol.innerHTML = "";
-      var sorted = state.players.slice().sort(function (a, b) { return b.score - a.score; });
-      sorted.forEach(function (p, i) {
-        var medal = (i === 0 ? "🥇 " : i === 1 ? "🥈 " : i === 2 ? "🥉 " : "");
-        var li = document.createElement("li");
-        li.innerHTML = "<span>" + medal + (p.host ? '<span class="crown">&#x1F451;</span> ' : '') + h.escapeHtml(p.name) + "</span><b>" + p.score + "</b>";
-        ol.appendChild(li);
-      });
-      h.$("blResetBtn").style.display = h.amHost() ? "block" : "none";
-    }
+    // phase==="finished" is handled by the shared fin-de-partie screen + MVP.
   }
 
   window.GamesHub.register("bluff", {
