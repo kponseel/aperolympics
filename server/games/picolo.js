@@ -62,9 +62,15 @@ function create() {
     }
     return -1;
   }
+  // Players in the 3s disconnect grace are still in activePlayers() but are
+  // about to vanish — picking them as {p1}/{p2}/{p3} risks rendering a prompt
+  // around a name no longer in the room moments later.
+  function presentNames(room) {
+    return room.activePlayers().filter((p) => !p.disconnectedAt).map((p) => p.name);
+  }
   function renderPrompt(room, idx) {
     if (idx < 0 || idx >= PROMPTS.length) { rendered = ""; return; }
-    const names = room.activePlayers().map((p) => p.name);
+    const names = presentNames(room);
     if (!names.length) { rendered = PROMPTS[idx]; return; }
     const p1 = names[Math.floor(Math.random() * names.length)];
     const p2 = pick(names, [p1]);
@@ -97,17 +103,17 @@ function create() {
     phase: () => phase,
     onSelect: resetAll,
     onStart: (room) => {
-      const first = nextEligibleIdx(-1, room.activePlayers().length);
+      const first = nextEligibleIdx(-1, presentNames(room).length);
       if (first < 0) return;
       promptIdx = first; renderPrompt(room, promptIdx); phase = "playing"; roundN = 1;
     },
     onAdvance: (room) => {
       if (phase === "lobby") {
-        const first = nextEligibleIdx(-1, room.activePlayers().length);
+        const first = nextEligibleIdx(-1, presentNames(room).length);
         if (first < 0) return;
         promptIdx = first; renderPrompt(room, promptIdx); phase = "playing"; roundN = 1;
       } else if (phase === "playing") {
-        const next = nextEligibleIdx(promptIdx, room.activePlayers().length);
+        const next = nextEligibleIdx(promptIdx, presentNames(room).length);
         if (next < 0) { phase = "finished"; return; }
         promptIdx = next; renderPrompt(room, promptIdx); roundN++;
       } else { resetAll(); }

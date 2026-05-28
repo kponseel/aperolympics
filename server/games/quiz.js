@@ -23,6 +23,14 @@
 // shared fin-de-partie screen in public/app.js (renderResults):
 //   mvp:           { label, name, value, emoji? }   per-game session stat
 //   winner_banner: { text, emoji? }                 role/cup games' headline
+//
+// CLIENT-side (public/games/<id>.js) registration flags consumed by the SPA:
+//   scored:     true  -> render a 3-medal podium at "finished" (else "Partie jouée — N")
+//   endable:    true  -> show the 🏁 topbar button (host can force "finished")
+//   minPlayers: N     -> hub card shows "👥 N+" badge; below this disables Démarrer
+//   renderFinishedExtras(area, state, helpers) -> optional hook to layer
+//                       game-specific reveal content under the shared screen
+//                       (wolves uses it for the role roster).
 
 const QUESTION_TIME_MS = 10000; // max answer time per question (10 s)
 
@@ -101,9 +109,14 @@ function create() {
     phase = "reveal";
   }
 
-  function topStreak() {
+  function topStreak(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const name in bestStreak) { if (!best || bestStreak[name] > bestStreak[best]) best = name; }
+    for (const name in bestStreak) {
+      if (!present.has(name)) continue;
+      if (!best || bestStreak[name] > bestStreak[best]) best = name;
+    }
     return (best && bestStreak[best] >= 2) ? { name: best, count: bestStreak[best] } : null;
   }
 
@@ -193,7 +206,7 @@ function create() {
         r.gains = Object.keys(lastGain).map((n) => ({ name: n, gain: lastGain[n] }));
       }
       if (phase === "finished") {
-        const s = topStreak();
+        const s = topStreak(room);
         if (s) r.mvp = { label: "Meilleure série de bonnes réponses", emoji: "🔥", name: s.name, value: s.count + " d'affilée" };
       }
       return r;

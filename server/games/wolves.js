@@ -16,7 +16,10 @@ function create() {
   const roleOf = (name) => roles[name] || "spectator";
   function clearVotes(room) { votes = {}; room.players.forEach((p) => { p.answered = false; p.answer = -1; }); }
   function countAlive(room, role) {
-    return [...room.players.values()].filter((p) => p.name && alive[p.name] && roles[p.name] === role).length;
+    // Require the player to be currently connected too — a disconnected-but-
+    // alive wolf would otherwise keep the game in a 'wolves still in play'
+    // state and deadlock the night vote (allWolvesVoted needs >0 active wolves).
+    return [...room.players.values()].filter((p) => p.name && p.active && alive[p.name] && roles[p.name] === role).length;
   }
   function assignRoles(room) {
     roles = {}; alive = {};
@@ -89,8 +92,15 @@ function create() {
     onStart: (room) => { startRound(room); },
     onAdvance: advance,
     onReset: resetAll,
+    // Wolves opts into the 🏁 end-session affordance so a host can break out
+    // of a stuck night/day if the lone wolf has bailed and nobody can vote.
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room) => {
       if (phase !== "playing") return;
+      // A leave can flip the win condition (last wolf gone → villagers win).
+      // Check end-of-game first; if not over, propagate to the vote progression.
+      checkEnd(room);
+      if (phase === "finished") return;
       if (step === 0 && allWolvesVoted(room)) advance(room);
       else if (step === 1 && allAliveVoted(room)) advance(room);
     },

@@ -53,9 +53,14 @@ function create() {
   }
   function toReveal(room) { phase = "reveal"; tallyRound(room); }
   function resetAll(room) { phase = "lobby"; currentIdx = -1; alignedCount = {}; clearRound(room); }
-  function topAligned() {
+  function topAligned(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const name in alignedCount) { if (!best || alignedCount[name] > alignedCount[best]) best = name; }
+    for (const name in alignedCount) {
+      if (!present.has(name)) continue;
+      if (!best || alignedCount[name] > alignedCount[best]) best = name;
+    }
     return best ? { name: best, count: alignedCount[best] } : null;
   }
 
@@ -96,7 +101,7 @@ function create() {
         r.count_b = countWith(room, 1);
       }
       if (phase === "finished") {
-        const t = topAligned();
+        const t = topAligned(room);
         if (t) r.mvp = { label: "Le plus aligné avec la majorité", emoji: "⚖️", name: t.name, value: t.count + " fois" };
       }
       return r;

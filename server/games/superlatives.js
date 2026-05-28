@@ -42,9 +42,14 @@ function create() {
   function startRound(room, idx) { currentIdx = idx; phase = "playing"; clearRound(room); }
   function allVoted(room) { const a = room.activePlayers(); return a.length > 0 && a.every((p) => p.answered); }
   function resetAll(room) { phase = "lobby"; currentIdx = -1; totalVotes = {}; clearRound(room); }
-  function topVoted() {
+  function topVoted(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const name in totalVotes) { if (!best || totalVotes[name] > totalVotes[best]) best = name; }
+    for (const name in totalVotes) {
+      if (!present.has(name)) continue;
+      if (!best || totalVotes[name] > totalVotes[best]) best = name;
+    }
     return best ? { name: best, count: totalVotes[best] } : null;
   }
 
@@ -86,7 +91,7 @@ function create() {
           .map((name) => ({ name: name, count: votes[name] }));
       }
       if (phase === "finished") {
-        const t = topVoted();
+        const t = topVoted(room);
         if (t) r.mvp = { label: "Champion(ne) des superlatifs", emoji: "🏆", name: t.name, value: t.count + " vote" + (t.count > 1 ? "s" : "") };
       }
       return r;

@@ -56,10 +56,15 @@ function create() {
     totalVotes = {};
     clearRound(room);
   }
-  // Pick the player who collected the most votes across all rounds.
-  function topVoted() {
+  // Pick the player who collected the most votes across all rounds. Only crown
+  // a player who is still in the room — naming a long-departed player as
+  // "Le plus voté de la soirée" reads strangely on the results screen.
+  function topVoted(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
     for (const name in totalVotes) {
+      if (!present.has(name)) continue;
       if (!best || totalVotes[name] > totalVotes[best]) best = name;
     }
     return best ? { name: best, count: totalVotes[best] } : null;
@@ -103,7 +108,7 @@ function create() {
           .map((name) => ({ name: name, count: votes[name] }));
       }
       if (phase === "finished") {
-        const t = topVoted();
+        const t = topVoted(room);
         if (t) r.mvp = { label: "Le plus voté de la soirée", emoji: "😈", name: t.name, value: t.count + " vote" + (t.count > 1 ? "s" : "") };
       }
       return r;

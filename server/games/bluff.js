@@ -50,9 +50,14 @@ function create() {
     lastGain = {};
     room.players.forEach((p) => { p.score = 0; });
   }
-  function topBluffer() {
+  function topBluffer(room) {
+    const present = new Set();
+    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     let best = null;
-    for (const name in bluffVotes) { if (!best || bluffVotes[name] > bluffVotes[best]) best = name; }
+    for (const name in bluffVotes) {
+      if (!present.has(name)) continue;
+      if (!best || bluffVotes[name] > bluffVotes[best]) best = name;
+    }
     return (best && bluffVotes[best] > 0) ? { name: best, count: bluffVotes[best] } : null;
   }
   function allActiveActed(room) { const a = room.activePlayers(); return a.length > 0 && a.every((p) => p.answered); }
@@ -159,7 +164,7 @@ function create() {
         r.gains = Object.keys(lastGain).map((n) => ({ name: n, gain: lastGain[n] }));
       }
       if (phase === "finished") {
-        const b = topBluffer();
+        const b = topBluffer(room);
         if (b) r.mvp = { label: "Meilleur bluffeur", emoji: "🤥", name: b.name, value: b.count + " piège" + (b.count > 1 ? "s" : "") };
       }
       return r;
