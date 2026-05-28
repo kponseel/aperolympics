@@ -20,13 +20,19 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
 
 (function () {
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
+  // Visibility chosen on the Create card; toggled by the .vis-btn group.
+  var createVisibility = "public";
+  // Snapshot of the last public-rooms list pushed by the server. Re-rendered
+  // every time it changes (or the user opens the Choice screen).
+  var publicRooms = [];
+  var publicPollTimer = null;
 
   function $(id) { return document.getElementById(id); }
   function setStatus(t) { $("status").textContent = t; }
   function send(o) { if (socket && socket.connected) socket.emit("msg", o); }
   function escapeHtml(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 
-  var SHELL = ["s-join", "s-hub", "s-lobby", "game-area"];
+  var SHELL = ["s-pseudo", "s-choice", "s-hub", "s-lobby", "game-area"];
   function show(id) { SHELL.forEach(function (s) { $(s).classList.toggle("on", s === id); }); }
 
   function findMe() {
@@ -440,7 +446,12 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   }
 
   function render() {
-    if (!state || !findMe()) { show("s-join"); updateChrome(); return; }
+    if (!state || !findMe()) {
+      // Not in a room — landing flow. Pseudo is the gate: stage 1 if missing,
+      // stage 2 (choice: rejoindre / créer) otherwise.
+      if (myName) { renderChoice(); updateChrome(); return; }
+      show("s-pseudo"); stopPublicPoll(); updateChrome(); return;
+    }
     if (state.game) {
       if (state.phase === "lobby") { if (currentRendererId) switchTo(null); renderLobby(); updateChrome(); return; }
       if (state.phase === "finished") {
@@ -461,6 +472,59 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     updateChrome();
   }
 
+  // --- landing (pseudo → choice) --------------------------------------------
+  // Stage 2: greet the user, show the live public-rooms counter + list, and
+  // wire the join-by-code / create-with-visibility cards. Polls the server
+  // every 5 s for a fresh list while this screen is on.
+  function renderChoice() {
+    show("s-choice");
+    $("choiceWho").textContent = myName;
+    renderPublicList();
+    startPublicPoll();
+    setStatus("Salut " + myName + " !");
+  }
+  function renderPublicList() {
+    var n = publicRooms.length;
+    $("choiceCount").textContent = String(n);
+    // Singular/plural agreement on "partie(s) publique(s)"
+    $("choiceCountS").style.display = n === 1 ? "none" : "";
+    $("choiceCountS2").style.display = n === 1 ? "none" : "";
+    var ul = $("pubList"); ul.innerHTML = "";
+    $("pubEmpty").style.display = n === 0 ? "" : "none";
+    publicRooms.forEach(function (r) {
+      var g = (r.gameId && window.Apero.games[r.gameId]) || null;
+      var phaseLabel = !r.gameId ? "menu" : (r.phase === "lobby" ? "lobby" : (r.phase === "finished" ? "fin de partie" : "en cours"));
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pub-item";
+      btn.innerHTML =
+        '<div class="pi-emoji">' + (g ? g.emoji : "🎮") + '</div>' +
+        '<div class="pi-body">' +
+          '<div class="pi-game">' + escapeHtml(g ? g.name : "Salon") + '</div>' +
+          '<div class="pi-meta"><span class="pi-code">' + escapeHtml(r.code) + '</span> · ' + r.players + ' joueur' + (r.players > 1 ? 's' : '') + ' · ' + phaseLabel + '</div>' +
+        '</div>' +
+        '<div class="pi-go">Rejoindre →</div>';
+      btn.onclick = function () { joinByCode(r.code); };
+      ul.appendChild(btn);
+    });
+  }
+  function requestPublicList() { send({ t: "list_public" }); }
+  function startPublicPoll() {
+    if (publicPollTimer) return;
+    requestPublicList();
+    publicPollTimer = setInterval(requestPublicList, 5000);
+  }
+  function stopPublicPoll() {
+    if (publicPollTimer) { clearInterval(publicPollTimer); publicPollTimer = null; }
+  }
+  function joinByCode(code) {
+    var c = String(code || "").trim().toUpperCase();
+    if (!c) { $("joinError").textContent = "Entre un code de partie"; return; }
+    if (!myName) { $("joinError").textContent = "Entre d'abord un pseudo"; return; }
+    rejoining = false; myRoom = c; $("joinError").textContent = "";
+    send({ t: "join", name: myName, room: c });
+  }
+
   function connect() {
     socket = io({ transports: ["polling", "websocket"] });
     socket.on("connect", function () {
@@ -470,6 +534,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       // localStorage before we connect). `rejoining` lets error_msg below tell
       // a failed auto-rejoin (room gone) apart from a manual bad code.
       if (myName && myRoom) { rejoining = true; send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnexion — " + myName + "…"); }
+      else if (myName) { setStatus("Salut " + myName + " !"); requestPublicList(); }
       else setStatus("Choisis ton pseudo");
     });
     socket.on("disconnect", function () {
@@ -486,20 +551,28 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       var keepPriv = (state && state._private && state.game === m.game && state.phase === m.phase) ? state._private : null;
       state = m; myRoom = m.room || myRoom;
       if (keepPriv && !state._private) state._private = keepPriv;
-      if (findMe()) { rejoining = false; hideReconnecting(); saveSession(); }
+      if (findMe()) { rejoining = false; hideReconnecting(); saveSession(); stopPublicPoll(); }
       render();
     });
     socket.on("private", function (m) { if (state) { state._private = m.round || {}; render(); } });
+    // Server's snapshot of joinable public rooms. Rendered immediately if the
+    // user is on the choice screen; otherwise just stashed for the next open.
+    socket.on("public_rooms", function (m) {
+      publicRooms = (m && m.rooms) || [];
+      if ($("s-choice").classList.contains("on")) renderPublicList();
+    });
     socket.on("error_msg", function (m) {
       // An auto-rejoin failed: the room was swept after inactivity, or the
-      // server restarted and lost all rooms. Clear the dead session and drop to
-      // the landing screen with a gentle explanation instead of a blank reset.
+      // server restarted and lost all rooms. Clear the dead-room handle (but
+      // KEEP the pseudo, which lives in its own localStorage key) and drop to
+      // the choice screen with a gentle explanation.
       if (rejoining) {
-        rejoining = false; clearSession(); myName = ""; myRoom = ""; state = null;
+        rejoining = false; clearSession(); myRoom = ""; state = null;
         if (currentRendererId) switchTo(null);
         hideReconnecting(); render();
         $("joinError").textContent = "La partie n'existe plus — crée une nouvelle partie ou rejoins avec un code.";
-        setStatus("Choisis ton pseudo"); return;
+        if (myName) requestPublicList();
+        return;
       }
       var e = $("joinError"); if (e) e.textContent = (m && m.msg) ? m.msg : "Erreur";
     });
@@ -508,13 +581,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Leave the room: drop our session (server marks us offline) and reset to the
   // landing screen with a fresh socket that won't auto-rejoin.
   function leaveRoom() {
-    myName = ""; myRoom = ""; state = null; rejoining = false; clearSession();
+    myRoom = ""; state = null; rejoining = false; clearSession();
     if (currentRendererId) switchTo(null);
     hideReconnecting(); document.body.classList.remove("offline");
     closeOverlay("ov-board"); closeOverlay("ov-help"); closeOverlay("ov-history");
     if (socket) { socket.disconnect(); socket.connect(); }
-    $("code").value = ""; $("joinError").textContent = ""; syncCreateJoin();
-    show("s-join"); updateChrome(); setStatus("Choisis ton pseudo");
+    $("code").value = ""; $("joinError").textContent = "";
+    render(); updateChrome();
   }
 
   function prefillFromUrl() {
@@ -541,15 +614,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     try { var s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); return (s && s.name && s.room) ? s : null; } catch (e) { return null; }
   }
 
-  // Landing CTA reflects intent: an empty code means "create a room", a typed
-  // code means "join one". Emphasize the matching button and block create while
-  // a code is present, so a typed code can't accidentally spawn a new room.
-  function syncCreateJoin() {
-    var hasCode = !!($("code").value || "").trim();
-    $("createBtn").classList.toggle("primary", !hasCode);
-    $("createBtn").disabled = hasCode;
-    $("joinBtn").classList.toggle("primary", hasCode);
-  }
+  // Pseudo persistence — separate key from the room session. Survives ✕ Quitter
+  // so a returning player lands straight on the choice screen with the same
+  // name. Wiped only by an explicit "modifier" then empty submit.
+  var PSEUDO_KEY = "apero.pseudo";
+  function savePseudo(n) { try { if (n) localStorage.setItem(PSEUDO_KEY, n); } catch (e) {} }
+  function clearPseudo() { try { localStorage.removeItem(PSEUDO_KEY); } catch (e) {} }
+  function loadPseudo() { try { return localStorage.getItem(PSEUDO_KEY) || ""; } catch (e) { return ""; } }
 
   // One delegated click handler for: closing overlays, copy-to-clipboard,
   // and tap-to-toggle tooltips (mobile-friendly — no hover needed).
@@ -595,34 +666,87 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
 
   document.addEventListener("DOMContentLoaded", function () {
     prefillFromUrl();
-    syncCreateJoin();
-    $("code").addEventListener("input", syncCreateJoin);
-    // Restore a saved session so refreshing rejoins the same room. A /r/CODE
-    // link for a *different* room wins over the saved one.
+    // Pre-fill the pseudo input from the persistent localStorage key (separate
+    // from the room session). The user can still edit before validating.
+    var savedPseudo = loadPseudo();
+    if (savedPseudo) $("name").value = savedPseudo;
+    // Auto-rejoin if a full session (pseudo + room) is saved. A /r/CODE link
+    // for a *different* room wins over the saved one (we don't auto-rejoin).
     (function () {
       var saved = loadSession();
-      if (!saved) return;
-      if (!$("name").value.trim()) $("name").value = saved.name;
+      if (!saved) {
+        // No room to rejoin, but we may have the pseudo — that primes stage 2
+        // (s-choice) so the user skips re-typing on every visit.
+        if (savedPseudo) myName = savedPseudo;
+        return;
+      }
       var urlCode = ($("code").value || "").trim().toUpperCase();
       if (!urlCode || urlCode === saved.room) {
         myName = saved.name; myRoom = saved.room;
-        // Cover the landing form until the rejoin resolves (or the user opts out).
         showReconnecting(myRoom);
+      } else {
+        if (saved.name) myName = saved.name;
       }
     })();
+
+    // Stage 1 → Stage 2 promotion: validate the pseudo, persist it, switch
+    // to the choice screen, and ask the server for the public-rooms list.
+    function commitPseudo() {
+      var n = ($("name").value || "").trim();
+      if (!n) { $("pseudoError").textContent = "Entre un pseudo pour continuer"; return; }
+      myName = n.substring(0, 16);
+      savePseudo(myName);
+      $("pseudoError").textContent = "";
+      render();
+      requestPublicList();
+    }
+    $("continueBtn").onclick = commitPseudo;
+    $("name").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); commitPseudo(); }
+    });
+    // "modifier" link on the choice screen: go back to stage 1 to change the
+    // pseudo. We don't wipe localStorage; only an empty submit on stage 1 will.
+    $("editPseudoBtn").onclick = function () {
+      // Preserve the current pseudo as the input default so editing is a
+      // tweak, not a fresh type-in. User can clear it to fully reset.
+      $("name").value = myName;
+      myName = "";
+      $("pseudoError").textContent = "";
+      stopPublicPoll();
+      render();
+      setTimeout(function () { try { $("name").focus(); } catch (e) {} }, 0);
+    };
+
+    // Visibility toggle on the Create card (Public ↔ Cachée).
+    document.querySelectorAll(".vis-btn").forEach(function (b) {
+      b.onclick = function () {
+        createVisibility = b.getAttribute("data-vis") === "private" ? "private" : "public";
+        document.querySelectorAll(".vis-btn").forEach(function (x) {
+          var on = x.getAttribute("data-vis") === createVisibility;
+          x.classList.toggle("on", on);
+          x.setAttribute("aria-checked", on ? "true" : "false");
+        });
+      };
+    });
+
     $("createBtn").onclick = function () {
-      var n = $("name").value.trim();
-      if (!n) { $("joinError").textContent = "Entre un pseudo"; return; }
+      if (!myName) { $("joinError").textContent = "Entre d'abord un pseudo"; return; }
       // A deliberate create supersedes any in-flight auto-rejoin (see error_msg).
-      rejoining = false; myName = n.substring(0, 16); send({ t: "create", name: myName });
+      rejoining = false;
+      send({ t: "create", name: myName, visibility: createVisibility });
     };
     $("joinBtn").onclick = function () {
-      var n = $("name").value.trim();
       var c = ($("code").value || "").trim().toUpperCase();
-      if (!n) { $("joinError").textContent = "Entre un pseudo"; return; }
+      if (!myName) { $("joinError").textContent = "Entre d'abord un pseudo"; return; }
       if (!c) { $("joinError").textContent = "Entre un code de partie"; return; }
-      rejoining = false; myName = n.substring(0, 16); myRoom = c; send({ t: "join", name: myName, room: c });
+      rejoining = false; myRoom = c; $("joinError").textContent = "";
+      send({ t: "join", name: myName, room: c });
     };
+    $("refreshPubBtn").onclick = function () { requestPublicList(); };
+    $("code").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); $("joinBtn").click(); }
+    });
+
     $("startBtn").onclick = function () { send({ t: "next" }); };
     $("backToHubBtn").onclick = function () { send({ t: "select_game", id: "" }); };
     $("navMenuBtn").onclick = function () { if (amHost()) send({ t: "select_game", id: "" }); };
@@ -633,12 +757,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("navEndBtn").onclick = function () { if (amHost() && window.confirm("Terminer la session et voir les stats ?")) send({ t: "end" }); };
     // Escape hatch from the reconnecting overlay: abandon the restore and start fresh.
     $("reconnectFreshBtn").onclick = function () { leaveRoom(); };
-    // Desktop affordance: Enter in the landing inputs submits (join if a code is typed, else create).
-    function landingSubmit() { (($("code").value || "").trim() ? $("joinBtn") : $("createBtn")).click(); }
-    ["name", "code"].forEach(function (id) {
-      $(id).addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); landingSubmit(); } });
-    });
+
     initDelegated();
-    connect(); show("s-join"); updateChrome();
+    connect();
+    // Initial screen choice: if we have a pseudo (and no auto-rejoin in flight),
+    // skip stage 1 and land on the choice screen immediately.
+    if (myName && !myRoom) { renderChoice(); }
+    else if (!myName) { show("s-pseudo"); }
+    updateChrome();
   });
 })();

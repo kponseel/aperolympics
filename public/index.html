@@ -28,29 +28,53 @@
   <div class="sub center" id="status">Connexion…</div>
 
   <main>
-    <!-- Landing: create or join a room -->
-    <section class="screen on" id="s-join">
+    <!-- Stage 1: pseudo only. The pseudo is the entry condition for every
+         downstream action (create / join / rejoin), so it gets its own screen
+         with nothing else competing for attention. -->
+    <section class="screen on" id="s-pseudo">
       <div class="hero">
         <div class="hero-emoji">🍹</div>
         <h1>Aperolympics</h1>
         <p class="muted">Les mini-jeux de l'apéro — sur le téléphone de chacun.</p>
       </div>
-      <ol class="steps">
-        <li><span class="num">1</span> Choisis un <b>pseudo</b>.</li>
-        <li><span class="num">2</span> <b>Crée</b> une partie (tu deviens l'hôte 👑) ou <b>rejoins</b> avec un code.</li>
-        <li><span class="num">3</span> L'hôte lance une épreuve — jouez et grimpez au <b>classement</b> 🏆.</li>
-      </ol>
-      <input id="name" placeholder="Ton pseudo" maxlength="16" autocomplete="off" />
-      <div class="row">
-        <button class="primary grow" id="createBtn">Créer une partie</button>
-        <button type="button" class="info" data-tip="Crée une nouvelle salle : tu en deviens l'hôte 👑 et tu reçois un code à partager.">?</button>
+      <label class="field-label" for="name">Ton pseudo</label>
+      <input id="name" placeholder="Ex : Alice" maxlength="16" autocomplete="off" />
+      <button class="primary" id="continueBtn">Continuer →</button>
+      <div class="center error" id="pseudoError"></div>
+    </section>
+
+    <!-- Stage 2: chosen pseudo on top + create/join with public-rooms list.
+         Reached after the user validates a pseudo (or returns from a room). -->
+    <section class="screen" id="s-choice">
+      <div class="choice-head">
+        <div class="choice-who">Salut <b id="choiceWho"></b> 👋 <button type="button" class="link" id="editPseudoBtn" aria-label="Changer de pseudo">modifier</button></div>
+        <div class="choice-counter"><span class="cc-dot"></span><span id="choiceCount">0</span> partie<span id="choiceCountS">s</span> publique<span id="choiceCountS2">s</span> en cours</div>
       </div>
-      <div class="or">— ou —</div>
-      <input id="code" placeholder="Code de partie (ex : ABCD)" maxlength="6" autocomplete="off" autocapitalize="characters" />
-      <div class="row">
-        <button class="grow" id="joinBtn">Rejoindre</button>
-        <button type="button" class="info" data-tip="Entre le code à 4 lettres donné par l'hôte (ou ouvre son lien) pour rejoindre sa salle.">?</button>
+
+      <!-- Join card: code input OR pick from the live public list -->
+      <div class="choice-card">
+        <h3>🎮 Rejoindre une partie</h3>
+        <input id="code" placeholder="Code de partie (ex : ABCD)" maxlength="6" autocomplete="off" autocapitalize="characters" />
+        <button id="joinBtn">Rejoindre par code</button>
+        <div class="choice-sep">— ou choisis dans la liste —</div>
+        <div class="pub-list-head">
+          <span class="muted">Parties publiques</span>
+          <button type="button" class="mini" id="refreshPubBtn" aria-label="Actualiser la liste">⟳ Actualiser</button>
+        </div>
+        <div id="pubList" class="pub-list"></div>
+        <div class="center muted small" id="pubEmpty">Aucune partie publique pour le moment.</div>
       </div>
+
+      <!-- Create card: visibility toggle + go -->
+      <div class="choice-card">
+        <h3>✨ Créer une partie</h3>
+        <div class="vis-toggle" role="radiogroup" aria-label="Visibilité de la partie">
+          <button type="button" class="vis-btn on" data-vis="public" role="radio" aria-checked="true"><div class="vis-label">🌍 Publique</div><div class="vis-sub">visible dans la liste</div></button>
+          <button type="button" class="vis-btn" data-vis="private" role="radio" aria-checked="false"><div class="vis-label">🔒 Cachée</div><div class="vis-sub">par code / lien seulement</div></button>
+        </div>
+        <button class="primary" id="createBtn">Créer la partie</button>
+      </div>
+
       <div class="center error" id="joinError"></div>
     </section>
 

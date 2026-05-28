@@ -179,6 +179,9 @@ io.on("connection", (socket) => {
 
     if (m.t === "create") {
       const room = rooms.create();
+      // Optional `visibility` (default "public"). Private rooms stay off the
+      // landing page list — invitees must have the code or the /r/CODE link.
+      if (m.visibility === "private") room.visibility = "private";
       joinRoom(socket, room, m.name);
       return;
     }
@@ -186,6 +189,22 @@ io.on("connection", (socket) => {
       const room = rooms.get(m.room);
       if (!room) { socket.emit("error_msg", { msg: "Partie introuvable" }); return; }
       joinRoom(socket, room, m.name);
+      return;
+    }
+    if (m.t === "list_public") {
+      // Snapshot of the rooms a landing visitor can discover. Filters to
+      // `visibility === "public"` AND at least one active player (an empty
+      // room is in the TTL grace period; surfacing it would lead to a join
+      // that immediately disconnects when the TTL expires).
+      const list = rooms.all()
+        .filter((r) => r.visibility === "public" && r.activePlayers().length > 0)
+        .map((r) => ({
+          code: r.code,
+          gameId: r.gameId,
+          phase: r.game ? r.game.phase() : "lobby",
+          players: r.activePlayers().length,
+        }));
+      socket.emit("public_rooms", { rooms: list });
       return;
     }
 
