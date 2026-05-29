@@ -70,6 +70,7 @@ function create() {
     onStart: (room) => { startRound(room); },
     onAdvance: advance,
     onReset: resetAll,
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room, p) => { if (phase === "playing" && p && p.name === currentName) rotateTurn(room); },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.name !== currentName) return;

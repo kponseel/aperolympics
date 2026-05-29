@@ -112,7 +112,7 @@
   window.GamesHub.register("undercover", {
     name:   "Undercover",
     emoji:  "🕵️",
-    desc:   "Mot secret different pour l'intrus. Trouvez-le ! (3 joueurs min)",
+    desc:   "Mot secret différent pour l'intrus — 75 paires. Trouvez-le !",
     minPlayers: 3,
     endable: true,
     rules:  "<b>3+ joueurs.</b> Chacun recoit un <b>mot prive</b> sur son tel.<br>" +

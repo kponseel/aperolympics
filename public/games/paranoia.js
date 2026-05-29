@@ -96,14 +96,15 @@
   window.GamesHub.register("paranoia", {
     name:   "Paranoia",
     emoji:  "👀",
-    desc:   "Question secrete a une personne. Le doigt parle... le coin decide.",
+    desc:   "Question secrète à une personne — 85 prompts. Le doigt parle, le coin décide.",
     minPlayers: 3,
     endable: true,
-    rules:  "<b>1.</b> Un seul joueur recoit une <b>question privee</b> sur son tel (les autres ne voient rien).<br>" +
-            "<b>2.</b> Il/elle pointe discretement la personne qui colle le mieux a la question.<br>" +
-            "<b>3.</b> Tout le groupe voit <b>qui</b> a ete pointe — sans savoir pourquoi.<br>" +
-            "<b>4.</b> Le <b>coin 🪙</b> est tire : 50% chance que la question soit revelee, 50% qu'elle reste mystere.<br>" +
-            "Tour rotatif. Reste paranoiaque ! 👀",
+    rules:  "<b>1.</b> Un seul joueur reçoit une <b>question privée</b> sur son tel (les autres ne voient rien).<br>" +
+            "<b>2.</b> Il/elle pointe discrètement la personne qui colle le mieux à la question.<br>" +
+            "<b>3.</b> Tout le groupe voit <b>qui</b> a été pointé — sans savoir pourquoi.<br>" +
+            "<b>4.</b> Le <b>coin 🪙</b> est tiré : 50% chance que la question soit révélée, 50% qu'elle reste mystère.<br>" +
+            "Tour rotatif. Reste paranoïaque ! 👀<br>" +
+            "<b>Stat de la partie :</b> 👀 « Le plus accusé » va au joueur le plus souvent pointé.",
     mount:  build,
     render: render
   });

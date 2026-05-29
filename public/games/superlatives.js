@@ -79,11 +79,16 @@
   window.GamesHub.register("superlatives", {
     name:   "Superlatifs",
     emoji:  "🏆",
-    desc:   "Vote secret : qui est le/la plus X du groupe ?",
+    desc:   "10 catégories parmi 110 — vote secret, qui est le/la plus X ?",
     minPlayers: 3,
     rules:  "Variante de \"Le plus susceptible\" mais avec des <b>categories</b> : drole, style, organise, voyageur...<br>" +
             "Vote secret pour le/la plus <b>X du groupe</b>.<br>" +
-            "Reveal sous forme de <b>podium</b> 🥇🥈🥉 avec les compteurs.",
+            "Reveal sous forme de <b>podium</b> 🥇🥈🥉 avec les compteurs.<br>" +
+            "<b>Format :</b> 10 catégories par partie, tirées au hasard dans une banque de 110.<br>" +
+            "<b>Stats de fin de partie :</b><br>" +
+            "• <b>🏆 Champion(ne) des superlatifs</b> — qui cumule le plus de votes.<br>" +
+            "• <b>🥈 L'outsider</b> — la médaille d'argent.<br>" +
+            "• <b>💞 Les âmes sœurs du vote</b> — la paire qui a le plus souvent voté pour la même personne.",
     mount:  build,
     render: render
   });
