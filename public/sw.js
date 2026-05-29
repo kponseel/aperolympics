@@ -2,7 +2,7 @@
 // opens instantly. Realtime traffic (/socket.io/) is never cached; gameplay
 // still requires a connection.
 
-const CACHE = "apero-v37";
+const CACHE = "apero-v38";
 const GAMES = [
   "quiz", "most_likely", "superlatives", "would_rather", "never", "bluff",
   "quips", "picolo", "dares", "kings", "bomb", "paranoia",
@@ -13,6 +13,7 @@ const GAMES = [
 const ASSETS = [
   "/", "/index.html", "/style.css", "/app.js",
   "/manifest.webmanifest", "/icons/icon.svg",
+  "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-180.png", "/icons/icon-512-maskable.png",
 ].concat(GAMES.map((g) => "/games/" + g + ".js"));
 
 self.addEventListener("install", (e) => {

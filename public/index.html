@@ -10,7 +10,9 @@
   <meta name="apple-mobile-web-app-title" content="Aperolympics" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon.svg" />
-  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <!-- iOS ignores SVG apple-touch-icon → use a PNG so the home-screen icon is crisp. -->
+  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -155,6 +157,20 @@
 
   <!-- Transient toast (e.g. "you're the host now"). -->
   <div class="toast" id="toast"></div>
+
+  <!-- Install-as-app banner (offered on the landing). Android/Chrome shows the
+       "Installer" button (driven by beforeinstallprompt); iOS Safari shows the
+       manual Partage→écran d'accueil hint. Hidden when already installed or
+       dismissed. -->
+  <div class="install-banner" id="installBanner">
+    <div class="ib-icon">📲</div>
+    <div class="ib-body">
+      <div class="ib-title">Installe Aperolympics</div>
+      <div class="ib-text" id="ibText">Ajoute-la à ton écran d'accueil — comme une vraie app, plein écran et hors-ligne.</div>
+    </div>
+    <button type="button" class="ib-cta" id="ibInstall">Installer</button>
+    <button type="button" class="ib-close" id="ibClose" aria-label="Fermer">✕</button>
+  </div>
 
   <!-- Discreet build tag (bottom corner). Useful to confirm which version is
        deployed when reporting a bug; sits at very low opacity so a regular

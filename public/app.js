@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v37";
+  var APP_VERSION = "v38";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -82,6 +82,36 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function toast(msg) {
     var el = $("toast"); el.textContent = msg; el.classList.add("on");
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove("on"); }, 4000);
+  }
+
+  // --- install-as-app (PWA) prompt -------------------------------------------
+  // Android/Chromium fire `beforeinstallprompt`; we stash it and drive a custom
+  // "Installer" button. iOS Safari has no such API — install is manual via the
+  // Share sheet — so we show a hint instead. Only offered on the landing, never
+  // when already installed or once dismissed.
+  var deferredInstall = null, INSTALL_KEY = "apero.install.dismiss";
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  }
+  function isIOSSafari() {
+    var ua = navigator.userAgent || "";
+    return /iphone|ipad|ipod/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+  }
+  function installDismissed() { try { return localStorage.getItem(INSTALL_KEY) === "1"; } catch (e) { return false; } }
+  function hideInstall() { $("installBanner").classList.remove("on"); }
+  function maybeShowInstall() {
+    if (isStandalone() || installDismissed() || inRoom()) { hideInstall(); return; }
+    if (deferredInstall) {
+      $("ibInstall").style.display = "";
+      $("ibText").textContent = "Ajoute-la à ton écran d'accueil — comme une vraie app, plein écran et hors-ligne.";
+      $("installBanner").classList.add("on");
+    } else if (isIOSSafari()) {
+      $("ibInstall").style.display = "none";
+      $("ibText").innerHTML = "Appuie sur <b>Partager</b> &#x2191; puis <b>« Sur l'écran d'accueil »</b>.";
+      $("installBanner").classList.add("on");
+    } else {
+      hideInstall(); // not (yet) installable — beforeinstallprompt will re-trigger
+    }
   }
 
   // Match history overlay. Reverse-chronological list of past games, each
@@ -514,6 +544,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
 
   function render() {
     manageWake();
+    maybeShowInstall();
     if (!state || !findMe()) {
       // Not in a room — landing flow. Pseudo is the gate: stage 1 if missing,
       // stage 2 (choice: rejoindre / créer) otherwise.
@@ -909,6 +940,21 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("navEndBtn").onclick = function () { if (amHost() && window.confirm("Terminer la session et voir les stats ?")) send({ t: "end" }); };
     // Escape hatch from the reconnecting overlay: abandon the restore and start fresh.
     $("reconnectFreshBtn").onclick = function () { leaveRoom(); };
+
+    // --- install-as-app wiring ---
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();      // suppress Chrome's mini-infobar; we drive our own
+      deferredInstall = e;
+      maybeShowInstall();
+    });
+    window.addEventListener("appinstalled", function () { deferredInstall = null; hideInstall(); });
+    $("ibInstall").onclick = function () {
+      if (!deferredInstall) return;
+      var d = deferredInstall; deferredInstall = null; hideInstall();
+      d.prompt();
+      if (d.userChoice && d.userChoice.then) d.userChoice.catch(function () {});
+    };
+    $("ibClose").onclick = function () { try { localStorage.setItem(INSTALL_KEY, "1"); } catch (e) {} hideInstall(); };
 
     initDelegated();
     // Populate the discreet version badge in the corner from the build
