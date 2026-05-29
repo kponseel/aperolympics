@@ -22,6 +22,8 @@ const reaction = require("./reaction");
 const roulette = require("./roulette");
 const simon = require("./simon");
 const quiz_solo = require("./quiz_solo");
+const mind_meld = require("./mind_meld");
+const dare_duel = require("./dare_duel");
 
 const GAMES = [
   quiz,
@@ -44,6 +46,9 @@ const GAMES = [
   roulette,
   simon,
   quiz_solo,
+  // 2+ joueurs : fun immédiat
+  mind_meld,
+  dare_duel,
 ];
 
 module.exports = {
