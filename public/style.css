@@ -47,6 +47,10 @@ input, .rb-code { -webkit-user-select: text; user-select: text; }
   .brand { font-size: 1.35rem; }
 }
 .iconbtn.danger { background: #3a1d2a; color: #ff9a9a; }
+/* Labeled "Arrêter l'épreuve" button: during a running game it's the host's
+   primary way back to the menu, so it carries text + an accent to stand out. */
+.iconbtn.labeled { display: inline-flex; align-items: center; gap: 6px; background: #34387a; color: #fff; }
+.iconbtn.labeled span { font-size: .9rem; font-weight: 700; }
 
 .sub { color: #9aa; font-size: .9rem; margin: 6px auto 8px; width: 100%; max-width: 560px; }
 
