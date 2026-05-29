@@ -100,9 +100,9 @@
   }
 
   window.Apero.register("quiz", {
-    name: "Quiz",
+    name: "Speed Quiz",
     emoji: "🧠",
-    desc: "10 questions tirées au hasard parmi 150 — score au chrono.",
+    desc: "Questions à choix multiples, score au chrono.",
     minPlayers: 1,
     rules: "Une question + 4 options <b>A/B/C/D</b>. Réponds <b>le plus vite possible</b> : tu as " +
            "<b>10 secondes</b> et les points <b>fondent avec le temps</b> (de <b>1000</b> à <b>500</b>).<br>" +
