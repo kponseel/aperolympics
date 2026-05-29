@@ -19,12 +19,26 @@
       '</div>';
     best = loadBest();
     S = { state: "idle", times: [], attempt: 0, greenAt: 0, last: 0 };
-    h.$("rxZone").onclick = function () { tap(h); };
+    // React on pointerdown, NOT click: click only fires on touch-release and is
+    // cancelled if the finger micro-moves (the browser guesses "scroll"), which
+    // is why a tap sometimes needed a second try. pointerdown fires the instant
+    // the finger lands → reliable + a truer reaction time. preventDefault stops
+    // the synthetic click / text-selection that would otherwise double-fire.
+    var zone = h.$("rxZone");
+    zone.addEventListener("pointerdown", function (e) { e.preventDefault(); zoneTap(h); });
     h.$("rxBtn").onclick = function () {
       if (S.state === "done") { S.times = []; S.attempt = 0; }
       startAttempt(h);
     };
     draw(h);
+  }
+
+  // The whole zone is the tap target: it reacts during the round, and (re)starts
+  // an attempt from idle/between/early/done so a stray tap is never a dead tap.
+  function zoneTap(h) {
+    if (S.state === "waiting" || S.state === "go") { tap(h); return; }
+    if (S.state === "done") { S.times = []; S.attempt = 0; }
+    startAttempt(h);
   }
 
   function startAttempt(h) {
