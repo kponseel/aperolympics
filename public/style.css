@@ -183,7 +183,7 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 
 .muted { color: #9aa; }
 .center { text-align: center; }
-.q { font-size: 1.35rem; text-align: center; margin-bottom: 8px; }
+.q { font-size: 1.35rem; text-align: center; margin-bottom: 8px; word-break: break-word; }
 .big { font-size: 3rem; text-align: center; }
 
 /* quiz answer grid */
@@ -230,6 +230,9 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 .hl-label { font-weight: 700; font-size: 1.05rem; word-break: break-word; }
 .hl-val { font-size: 1.8rem; font-weight: 900; color: #ffd23f; font-variant-numeric: tabular-nums; }
 .hl-vs { align-self: center; color: #7a7e9a; font-weight: 800; }
+/* Long labels ("Faucon pèlerin (piqué)", "Empire State Building") on iPhone SE
+   width: shrink so the two cards don't clip or blow up the row height. */
+@media (max-width: 400px) { .hl-label { font-size: .92rem; } .hl-val { font-size: 1.5rem; } }
 
 /* --- 2+: Désamorçage (defuse) --- */
 .df-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
