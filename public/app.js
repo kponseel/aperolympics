@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v30";
+  var APP_VERSION = "v31";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -521,14 +521,17 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("choiceWho").textContent = myName;
     renderPublicList();
     startPublicPoll();
-    setStatus("Salut " + myName + " !");
+    // The card already greets the player; keep the top sub-line as guidance
+    // (not a duplicate "Salut <name>").
+    setStatus("Rejoins une partie ou crée la tienne 🎉");
   }
   function renderPublicList() {
     var n = publicRooms.length;
-    $("choiceCount").textContent = String(n);
-    // Singular/plural agreement on "partie(s) publique(s)"
-    $("choiceCountS").style.display = n === 1 ? "none" : "";
-    $("choiceCountS2").style.display = n === 1 ? "none" : "";
+    // Build the whole sentence as one text node (the counter is an inline-flex
+    // row with a gap, so separate spans would get gap-spaced → "partie s").
+    // French: singular for 0 and 1, plural from 2.
+    var plural = n >= 2 ? "s" : "";
+    $("choiceCount").textContent = n + " partie" + plural + " publique" + plural + " en cours";
     var ul = $("pubList"); ul.innerHTML = "";
     $("pubEmpty").style.display = n === 0 ? "" : "none";
     publicRooms.forEach(function (r) {
@@ -574,7 +577,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       // localStorage before we connect). `rejoining` lets error_msg below tell
       // a failed auto-rejoin (room gone) apart from a manual bad code.
       if (myName && myRoom) { rejoining = true; send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnexion — " + myName + "…"); }
-      else if (myName) { setStatus("Salut " + myName + " !"); requestPublicList(); }
+      else if (myName) { setStatus("Rejoins une partie ou crée la tienne 🎉"); requestPublicList(); }
       else setStatus("Choisis ton pseudo");
     });
     socket.on("disconnect", function () {
