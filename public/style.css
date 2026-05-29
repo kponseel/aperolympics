@@ -217,6 +217,13 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 .simon-pad.sp2 { background: #1368ce; }
 .simon-pad.sp3 { background: #d89e00; }
 
+/* --- 2+: Le Convergent (mind_meld) reveal --- */
+.mm-word { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; background: #1b1d35; border: 1px solid #2a2f5c; border-radius: 10px; margin-bottom: 8px; }
+.mm-word b { word-break: break-word; text-align: right; }
+.mm-word .mm-who { color: #9aa; }
+.mm-hit { border-color: #2f6633; background: linear-gradient(180deg, rgba(38,137,12,.14), rgba(38,137,12,.03)), #1b1d35; }
+.mm-hit b { color: #b8e8a8; }
+
 /* ranked lists: per-game reveal ols + leaderboard overlay (.board) */
 ol { list-style: none; padding: 0; }
 #game-area ol li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; background: #1b1d35; border-radius: 10px; margin-bottom: 8px; }
