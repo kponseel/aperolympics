@@ -3,7 +3,9 @@
    user taps (buttons, cards, inputs, the reaction zone). `manipulation` keeps
    one-finger pan + pinch-zoom, only drops the double-tap gesture. */
 button, input, .game-card, .pub-item, .rx-zone, label { touch-action: manipulation; }
-html, body { height: 100%; }
+/* overscroll-behavior: none stops pull-to-refresh + scroll-chaining — a stray
+   swipe-down mid-game no longer reloads the PWA (native-app feel). */
+html, body { height: 100%; overscroll-behavior: none; }
 body {
   /* The radial glow has an explicit 1100×560 px size; without `no-repeat`
      it tiles vertically as soon as the page is taller than 560 px (lobby,
@@ -13,7 +15,10 @@ body {
   background: radial-gradient(1100px 560px at 50% -8%, #1c2150 0%, #0f1020 55%), #0f1020;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  color: #fff; display: flex; flex-direction: column; min-height: 100vh; padding: 12px 16px 22px;
+  /* 100dvh = dynamic viewport height: on mobile Safari/Chrome it excludes the
+     address bar, so the layout doesn't jump or overflow as the bar shows/hides
+     (vh fallback first for older browsers). */
+  color: #fff; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; padding: 12px 16px 22px;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 /* App-like feel: UI text never selects on tap/long-press — except the editable
