@@ -33,6 +33,11 @@ const server = http.createServer(app);
 const io = new Server(server, {
   // Keep both transports; on hosts that block the WS upgrade it stays on polling.
   transports: ["polling", "websocket"],
+  // Transparently restore a client's session (its rooms + any missed events)
+  // after a short network blip — the common "tunnel / lift / wifi handoff"
+  // dropout — so a reconnect doesn't even need a rejoin round-trip. Belt to the
+  // device-id braces in joinRoom for longer drops.
+  connectionStateRecovery: { maxDisconnectionDuration: 2 * 60 * 1000, skipMiddlewares: true },
 });
 
 // --- helpers ---------------------------------------------------------------
@@ -145,25 +150,35 @@ function isHost(socket, room) {
   return !!(p && p.name === room.hostName());
 }
 
-function joinRoom(socket, room, rawName) {
+function joinRoom(socket, room, rawName, cid) {
   const name = String(rawName || "Joueur").trim().slice(0, 16) || "Joueur";
   const key = name.toLowerCase();
+  cid = cid ? String(cid).slice(0, 64) : null;
   let p = room.players.get(key);
-  // Pseudo collision: an active player with no pending disconnect is already
-  // holding this name from a different socket. Silently overwriting them would
-  // orphan their tab; reject and let the joiner pick another name.
+  // Pseudo collision guard. The seat may still look "live" (active, no pending
+  // disconnect) when the SAME player reconnects faster than the server noticed
+  // their old socket drop — a flaky-network blip or a page refresh. In that
+  // case the client id matches, so we let them reclaim the seat (score kept)
+  // instead of falsely rejecting them. Only a DIFFERENT device holding the same
+  // pseudo is a real collision → reject.
   if (p && p.active && !p.disconnectedAt && p.socketId !== socket.id) {
-    socket.emit("error_msg", { msg: "Ce pseudo est déjà pris dans cette salle." });
-    return;
+    const sameDevice = cid && p.cid && p.cid === cid;
+    if (!sameDevice) {
+      socket.emit("error_msg", { msg: "Ce pseudo est déjà pris dans cette salle.", code: "name_taken" });
+      return;
+    }
+    // else: fall through and take over the seat below. The old socket's late
+    // disconnect is harmless — its handler guards on socketId, which we reassign.
   }
   if (!p) {
-    p = { name, score: 0, answered: false, answer: -1, answerMs: 0, joinedAt: Date.now(), active: true, socketId: socket.id, disconnectedAt: 0 };
+    p = { name, score: 0, answered: false, answer: -1, answerMs: 0, joinedAt: Date.now(), active: true, socketId: socket.id, disconnectedAt: 0, cid: cid };
     room.players.set(key, p);
   } else {
     p.active = true;
     p.socketId = socket.id;
     p.name = name;
     p.disconnectedAt = 0; // a reconnect cancels any pending soft-disconnect
+    if (cid) p.cid = cid;  // remember/refresh the device id for future reclaims
   }
   socket.join(room.code);
   socket.data.roomCode = room.code;
@@ -182,13 +197,16 @@ io.on("connection", (socket) => {
       // Optional `visibility` (default "public"). Private rooms stay off the
       // landing page list — invitees must have the code or the /r/CODE link.
       if (m.visibility === "private") room.visibility = "private";
-      joinRoom(socket, room, m.name);
+      joinRoom(socket, room, m.name, m.cid);
       return;
     }
     if (m.t === "join") {
       const room = rooms.get(m.room);
-      if (!room) { socket.emit("error_msg", { msg: "Partie introuvable" }); return; }
-      joinRoom(socket, room, m.name);
+      // `room_gone` lets the client tell a truly-vanished room (server restart /
+      // swept after inactivity) apart from a transient reconnect collision, so
+      // it only discards the saved session in the former case.
+      if (!room) { socket.emit("error_msg", { msg: "Partie introuvable", code: "room_gone" }); return; }
+      joinRoom(socket, room, m.name, m.cid);
       return;
     }
     if (m.t === "list_public") {

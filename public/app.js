@@ -22,10 +22,11 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v36";
+  var APP_VERSION = "v37";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
+  var rejoinTries = 0, rejoinTimer = null; // reconnection retry state
   // Visibility chosen on the Create card; toggled by the .vis-btn group.
   var createVisibility = "public";
   // Snapshot of the last public-rooms list pushed by the server. Re-rendered
@@ -592,7 +593,15 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     if (!c) { $("joinError").textContent = "Entre un code de partie"; return; }
     if (!myName) { $("joinError").textContent = "Entre d'abord un pseudo"; return; }
     rejoining = false; myRoom = c; $("joinError").textContent = "";
-    send({ t: "join", name: myName, room: c });
+    send({ t: "join", name: myName, room: c, cid: getCid() });
+  }
+
+  // Fire a rejoin for the saved {pseudo, room}, carrying the device id so the
+  // server can reclaim our seat even if our old socket hasn't been released.
+  function sendRejoin() {
+    if (!myName || !myRoom) return;
+    rejoining = true;
+    send({ t: "join", name: myName, room: myRoom, cid: getCid() });
   }
 
   function connect() {
@@ -603,7 +612,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       // dropped socket AND a full page refresh (session restored from
       // localStorage before we connect). `rejoining` lets error_msg below tell
       // a failed auto-rejoin (room gone) apart from a manual bad code.
-      if (myName && myRoom) { rejoining = true; send({ t: "join", name: myName, room: myRoom }); setStatus("Reconnexion — " + myName + "…"); }
+      if (myName && myRoom) { rejoinTries = 0; sendRejoin(); setStatus("Reconnexion — " + myName + "…"); }
       else if (myName) { setStatus("Rejoins une partie ou crée la tienne 🎉"); requestPublicList(); }
       else setStatus("Choisis ton pseudo");
     });
@@ -621,7 +630,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       var keepPriv = (state && state._private && state.game === m.game && state.phase === m.phase) ? state._private : null;
       state = m; myRoom = m.room || myRoom;
       if (keepPriv && !state._private) state._private = keepPriv;
-      if (findMe()) { rejoining = false; hideReconnecting(); saveSession(); stopPublicPoll(); }
+      if (findMe()) { rejoining = false; rejoinTries = 0; clearTimeout(rejoinTimer); hideReconnecting(); saveSession(); stopPublicPoll(); }
       render();
     });
     socket.on("private", function (m) { if (state) { state._private = m.round || {}; render(); } });
@@ -632,15 +641,30 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if ($("s-choice").classList.contains("on")) renderPublicList();
     });
     socket.on("error_msg", function (m) {
-      // An auto-rejoin failed: the room was swept after inactivity, or the
-      // server restarted and lost all rooms. Clear the dead-room handle (but
-      // KEEP the pseudo, which lives in its own localStorage key) and drop to
-      // the choice screen with a gentle explanation.
+      var code = m && m.code;
       if (rejoining) {
-        rejoining = false; clearSession(); myRoom = ""; state = null;
+        // A "name_taken" during a rejoin is almost always our OWN old socket
+        // still lingering (slow-to-drop on mobile). Keep the session and retry
+        // a few times — the seat frees up within the socket's ping-timeout, and
+        // the device id lets us reclaim it. Never discard the session for this.
+        if (code === "name_taken" && rejoinTries < 5) {
+          rejoinTries++;
+          setStatus("Reconnexion… (" + rejoinTries + ")");
+          showReconnecting(myRoom);
+          clearTimeout(rejoinTimer);
+          rejoinTimer = setTimeout(function () { sendRejoin(); }, 1500);
+          return;
+        }
+        // Room truly gone (server restart / swept), or a collision that won't
+        // clear (a different device genuinely holds the pseudo): drop the dead
+        // session — but KEEP the pseudo (its own localStorage key).
+        rejoining = false; rejoinTries = 0; clearTimeout(rejoinTimer);
+        clearSession(); myRoom = ""; state = null;
         if (currentRendererId) switchTo(null);
         hideReconnecting(); render();
-        $("joinError").textContent = "La partie n'existe plus — crée une nouvelle partie ou rejoins avec un code.";
+        $("joinError").textContent = (code === "name_taken")
+          ? "Ce pseudo est déjà pris dans cette salle — choisis-en un autre ou attends quelques secondes."
+          : "La partie n'existe plus — crée une nouvelle partie ou rejoins avec un code.";
         if (myName) requestPublicList();
         return;
       }
@@ -691,6 +715,23 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function savePseudo(n) { try { if (n) localStorage.setItem(PSEUDO_KEY, n); } catch (e) {} }
   function clearPseudo() { try { localStorage.removeItem(PSEUDO_KEY); } catch (e) {} }
   function loadPseudo() { try { return localStorage.getItem(PSEUDO_KEY) || ""; } catch (e) { return ""; } }
+
+  // Stable per-device id, generated once and kept forever. Sent with every
+  // create/join so the server can recognise the SAME player reclaiming their
+  // seat after a drop/refresh (even before it noticed the old socket leave) —
+  // the key to robust reconnection. Falls back to an in-memory id in private
+  // mode where localStorage throws.
+  var CID_KEY = "apero.cid", _cid = null;
+  function getCid() {
+    if (_cid) return _cid;
+    try { _cid = localStorage.getItem(CID_KEY) || ""; } catch (e) { _cid = ""; }
+    if (!_cid) {
+      _cid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : (Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+      try { localStorage.setItem(CID_KEY, _cid); } catch (e) {}
+    }
+    return _cid;
+  }
 
   // One delegated click handler for: closing overlays, copy-to-clipboard,
   // and tap-to-toggle tooltips (mobile-friendly — no hover needed).
@@ -843,15 +884,15 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("createBtn").onclick = function () {
       if (!myName) { $("joinError").textContent = "Entre d'abord un pseudo"; return; }
       // A deliberate create supersedes any in-flight auto-rejoin (see error_msg).
-      rejoining = false;
-      send({ t: "create", name: myName, visibility: createVisibility });
+      rejoining = false; rejoinTries = 0; clearTimeout(rejoinTimer);
+      send({ t: "create", name: myName, visibility: createVisibility, cid: getCid() });
     };
     $("joinBtn").onclick = function () {
       var c = ($("code").value || "").trim().toUpperCase();
       if (!myName) { $("joinError").textContent = "Entre d'abord un pseudo"; return; }
       if (!c) { $("joinError").textContent = "Entre un code de partie"; return; }
-      rejoining = false; myRoom = c; $("joinError").textContent = "";
-      send({ t: "join", name: myName, room: c });
+      rejoining = false; rejoinTries = 0; clearTimeout(rejoinTimer); myRoom = c; $("joinError").textContent = "";
+      send({ t: "join", name: myName, room: c, cid: getCid() });
     };
     $("refreshPubBtn").onclick = function () { requestPublicList(); };
     $("code").addEventListener("keydown", function (e) {
