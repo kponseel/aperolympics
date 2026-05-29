@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v40";
+  var APP_VERSION = "v41";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -284,11 +284,9 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function showGameRules(id) { $("ov-help").classList.add("on"); renderHelp(id); }
 
   function renderHelp(forceId) {
-    var html = '<ol class="steps">' +
-      '<li><span class="num">1</span> <b>Crée</b> une partie ou <b>rejoins</b>-en une avec le code à 4 lettres (ou le lien) de l\'hôte.</li>' +
-      '<li><span class="num">2</span> L\'<b>hôte</b> 👑 (le 1er arrivé) choisit une <b>épreuve</b> dans le menu 🏠.</li>' +
-      '<li><span class="num">3</span> Tout le monde joue depuis son téléphone. Le <b>classement</b> 🏆 se met à jour en direct.</li>' +
-      '</ol>';
+    // The 3-step "comment ça marche" intro lives on the login screen now; in
+    // the in-game help we go straight to the épreuve's own rules.
+    var html = '';
     var gid = forceId || (state && state.game);
     var g = gid && window.Apero.games[gid];
     if (g && g.rules) {
@@ -460,7 +458,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     // Skip identical re-renders so a peer's mid-game broadcast doesn't replace
     // a button the host has just tapped (the touch would land on a detached node).
     var sig = JSON.stringify([
-      name, iAmHost, hostName, round.mvp || 0, round.winner_banner || 0,
+      name, iAmHost, hostName, round.mvp || 0, round.winner_banner || 0, round.extras || 0,
       ps.map(function (p) { return [p.name, p.score, p.host, p.connected]; }),
     ]);
     if (lastResultsSig === sig) return;
@@ -496,6 +494,18 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
           '</div>' +
         '</div>'
       : '';
+    // Optional extra session stats (round.extras: [{emoji?,label,name,value?}, ...])
+    // — rendered as smaller cards beneath the headline MVP. Lets a game surface
+    // « L'éternel rebelle », « Les âmes sœurs », etc. without a custom renderer.
+    var extras = Array.isArray(round.extras) ? round.extras : [];
+    var extrasHtml = extras.length ? '<div class="mvp-extras">' + extras.map(function (x) {
+      if (!x || !x.label) return '';
+      return '<div class="mvp mvp-x">' +
+        '<div class="mvp-label">' + escapeHtml(x.label) + '</div>' +
+        '<div class="mvp-name">' + (x.emoji ? escapeHtml(x.emoji) + ' ' : '') + escapeHtml(x.name || '') +
+          (x.value != null && x.value !== '' ? ' <span class="mvp-value">' + escapeHtml(String(x.value)) + '</span>' : '') +
+        '</div></div>';
+    }).join("") + '</div>' : '';
 
     var actions = iAmHost
       ? '<button class="primary" id="resReplayBtn">Rejouer</button>' +
@@ -509,7 +519,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
           '<h2>Partie terminée</h2>' +
           '<div class="muted">' + escapeHtml(name) + '</div>' +
         '</div>' +
-        winnerHtml + podiumHtml + mvpHtml +
+        winnerHtml + podiumHtml + mvpHtml + extrasHtml +
         '<div id="resExtras"></div>' +
         '<div class="results-actions">' + actions + '</div>' +
       '</section>';
