@@ -403,4 +403,7 @@ module.exports = {
   emoji: "🧠",
   desc: "Questions à choix multiples, score au chrono.",
   create,
+  // Exposed so other games can reuse the 150-question bank without duplicating
+  // it: `buzzer` (race-to-answer) and `quiz_solo` (60 s survival) both require it.
+  QUESTION_BANK,
 };

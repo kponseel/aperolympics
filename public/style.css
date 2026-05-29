@@ -188,8 +188,34 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 
 /* quiz answer grid */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; }
-.grid button { font-size: 1.3rem; min-height: 92px; }
+.grid button { font-size: 1.3rem; min-height: 92px; word-break: break-word; }
 .a { background: #e6394a; } .b { background: #1368ce; } .c { background: #d89e00; } .d { background: #26890c; }
+
+/* --- solo: Réflexe (reaction) --- */
+.rx-zone { border-radius: 16px; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 20px; cursor: pointer; transition: background-color .1s; user-select: none; }
+.rx-big { font-size: 2rem; font-weight: 800; }
+.rx-idle { background: #1b1d35; }
+.rx-wait { background: #7a1d1d; }   /* red: don't tap yet */
+.rx-go   { background: #1f7a2e; }   /* green: tap now */
+.rx-early { background: #5a2a2a; }
+
+/* --- solo: Roulette --- */
+.ro-cyl { display: flex; gap: 10px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+.ro-dot { width: 30px; height: 30px; border-radius: 50%; background: #2a2d4a; border: 2px solid #3a3f72; display: inline-block; }
+.ro-spent { background: #14331a; border-color: #2f6633; }
+.ro-next { border-color: #ffd23f; box-shadow: 0 0 10px rgba(255,210,63,.5); }
+.ro-hit { background: #e6394a; border-color: #ff7a7a; }
+.ro-hc { display: flex; align-items: center; gap: 8px; justify-content: center; margin-top: 14px; color: #9aa; font-size: .9rem; }
+.ro-hc input { width: auto; }
+
+/* --- solo: Simon --- */
+.simon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 320px; margin: 0 auto; }
+.simon-pad { height: 110px; border-radius: 16px; opacity: .55; transition: opacity .1s, transform .05s; border: 3px solid rgba(255,255,255,.08); }
+.simon-pad.lit { opacity: 1; transform: scale(1.03); box-shadow: 0 0 24px rgba(255,255,255,.35); }
+.simon-pad.sp0 { background: #26890c; }
+.simon-pad.sp1 { background: #e6394a; }
+.simon-pad.sp2 { background: #1368ce; }
+.simon-pad.sp3 { background: #d89e00; }
 
 /* ranked lists: per-game reveal ols + leaderboard overlay (.board) */
 ol { list-style: none; padding: 0; }

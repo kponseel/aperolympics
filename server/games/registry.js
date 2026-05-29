@@ -18,6 +18,10 @@ const paranoia = require("./paranoia");
 const spyfall = require("./spyfall");
 const undercover = require("./undercover");
 const wolves = require("./wolves");
+const reaction = require("./reaction");
+const roulette = require("./roulette");
+const simon = require("./simon");
+const quiz_solo = require("./quiz_solo");
 
 const GAMES = [
   quiz,
@@ -35,6 +39,11 @@ const GAMES = [
   spyfall,
   undercover,
   wolves,
+  // Solo skill / party games (1 joueur)
+  reaction,
+  roulette,
+  simon,
+  quiz_solo,
 ];
 
 module.exports = {
