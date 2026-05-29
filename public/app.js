@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v43";
+  var APP_VERSION = "v44";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -363,7 +363,9 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       list.appendChild(card);
     });
     var hn = (state && state.hostId) || "l'hôte";
-    $("hubHint").textContent = iAmHost ? "Tu es l'hôte 👑 — touche une épreuve pour la lancer. (? = règles)" : ("En attente que 👑 " + hn + " choisisse une épreuve… (? pour lire les règles)");
+    $("hubHint").innerHTML = iAmHost
+      ? "Tu es l'hôte 👑 — touche une épreuve pour la lancer. (? = règles)"
+      : "🔒 Seul l'hôte 👑 <b>" + escapeHtml(hn) + "</b> choisit l'épreuve et lance la partie. En attendant, ouvre les règles avec « ? ».";
     renderPlayerChips("hubPlayers");
     setStatus("Salle " + ((state && state.room) || myRoom) + " — " + myName);
   }
@@ -393,7 +395,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("lrStatus").innerHTML = enough
       ? (iAmHost
           ? "✅ Prêt à démarrer — clique <b>Démarrer</b> quand tout le monde est là"
-          : "✅ Prêt — en attente de 👑 " + escapeHtml(hn))
+          : "✅ Prêt — seul l'hôte 👑 <b>" + escapeHtml(hn) + "</b> peut lancer la partie")
       : "⏳ Il manque <b>" + (min - connected) + "</b> joueur" + (min - connected > 1 ? "s" : "") + " — partage le code ci-dessus";
     $("startBtn").style.display = iAmHost ? "block" : "none";
     $("startBtn").disabled = !enough;
@@ -426,13 +428,24 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (wasHost !== null && nowHost && !wasHost) toast("👑 Tu es l'hôte maintenant — à toi de continuer !");
       wasHost = nowHost;
     } else { wasHost = null; }
-    // ✕ "Quitter la partie" is for leaving the room (→ login). We hide it
-    // for the host while they're inside an épreuve: they should use 🏠
-    // "Arrêter l'épreuve" to come back to the hub, NOT bail on the room.
-    // Non-host players still need ✕ as their emergency exit.
-    $("navLeaveBtn").style.display = roomed && !(inGame && amHost()) ? "" : "none";
+    var phase = state && state.phase;
+    // "At the room menu" = in a room but NOT inside a running épreuve: the hub
+    // (no game picked) or a game's pre-start lobby. ✕ "Quitter la partie"
+    // (→ login) shows ONLY here — during an épreuve the way back is 🏠
+    // "Arrêter l'épreuve", so a mis-tap can't nuke the whole session.
+    var atRoomMenu = roomed && (!state.game || phase === "lobby");
+    $("navLeaveBtn").style.display = atRoomMenu ? "" : "none";
     $("navBoardBtn").style.display = roomed ? "" : "none";
-    $("navMenuBtn").style.display = (inGame && amHost()) ? "" : "none";
+    // 🏠 back-to-hub: host-only, whenever a game is selected (lobby/play/results).
+    // While an épreuve is actually running it's the host's primary exit (✕ is
+    // hidden), so give it a visible text label + accent instead of a lone icon.
+    var navMenu = $("navMenuBtn");
+    var showMenu = inGame && amHost();
+    navMenu.style.display = showMenu ? "" : "none";
+    var activePlay = showMenu && phase !== "lobby" && phase !== "finished";
+    navMenu.classList.toggle("labeled", activePlay);
+    var menuHtml = activePlay ? '🏠 <span>Arrêter</span>' : '🏠';
+    if (navMenu.innerHTML !== menuHtml) navMenu.innerHTML = menuHtml;
     $("navHistoryBtn").style.display = (roomed && state && state.history && state.history.length) ? "" : "none";
     // 🏁 "Terminer la session" — only meaningful for loop-only games that
     // declare `endable: true` and only while playing/reveal (host's call).
