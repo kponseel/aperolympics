@@ -4,6 +4,7 @@
 
 (function () {
   var S;
+  function vibe(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 
   function newGame(hardcore) {
     var chambers = 6;
@@ -35,7 +36,7 @@
     if (S.state !== "ready") return;
     var hit = !!S.loaded[S.pos];
     if (hit) {
-      S.state = "boom";
+      S.state = "boom"; vibe([130, 60, 130, 60, 200]);
     } else {
       S.pos++;
       if (S.pos >= S.chambers) S.state = "survived"; // somehow cycled all empty (shouldn't with >=1 bullet)
