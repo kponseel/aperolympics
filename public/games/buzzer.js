@@ -2,6 +2,8 @@
 // Wrong tap locks you for the round. Scored podium at the end.
 
 (function () {
+  var curLocked = []; // names locked this round, refreshed each render (read by taps)
+
   function build(area, h) {
     area.innerHTML =
       '<div class="screen on" id="bz-play">' +
@@ -22,7 +24,8 @@
     for (var i = 0; i < 4; i++) (function (idx) {
       h.$("bz" + idx).onclick = function () {
         var me = h.findMe();
-        var locked = me && (h.$("bz-play")._locked || []).indexOf(me.name) >= 0;
+        // Read the live locked list (refreshed each render), not a stale cache.
+        var locked = me && curLocked.indexOf(me.name) >= 0;
         if (locked) return;
         for (var j = 0; j < 4; j++) h.$("bz" + j).disabled = true;
         h.$("bzStatus").textContent = "Réponse envoyée…";
@@ -48,7 +51,7 @@
     var me = h.findMe();
     if (state.phase === "playing") {
       showScreen(h, "bz-play");
-      h.$("bz-play")._locked = r.locked || [];
+      curLocked = r.locked || [];
       h.$("bzQ").textContent = "(" + ((r.idx || 0) + 1) + "/" + (r.total || "?") + ") " + (r.q || "");
       var iLocked = !!(me && (r.locked || []).indexOf(me.name) >= 0);
       for (var i = 0; i < 4; i++) { var btn = h.$("bz" + i); btn.textContent = (r.choices && r.choices[i]) || ""; btn.disabled = iLocked; }

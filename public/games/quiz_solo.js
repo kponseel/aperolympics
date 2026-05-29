@@ -14,6 +14,7 @@
     area.innerHTML =
       '<div class="screen on" id="qs-main">' +
         '<div class="quiz-top">' +
+          '<div class="points" id="qsSecs" style="min-width:54px;text-align:left">60s</div>' +
           '<div class="timerbar"><i id="qsFill" style="width:100%"></i></div>' +
           '<div class="points" id="qsScore">0</div>' +
         '</div>' +
@@ -81,6 +82,8 @@
     var left = Math.max(0, S.endAt - Date.now());
     fill.style.width = (left / (DURATION * 1000) * 100) + "%";
     fill.style.background = left > 20000 ? "#26890c" : (left > 8000 ? "#d89e00" : "#e6394a");
+    var secs = h.$("qsSecs");
+    if (secs) { secs.textContent = Math.ceil(left / 1000) + "s"; secs.style.color = left <= 10000 ? "#ff7a7a" : "#fff"; }
     if (left <= 0) finish(h);
   }
 
