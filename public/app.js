@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v42";
+  var APP_VERSION = "v43";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -426,7 +426,11 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (wasHost !== null && nowHost && !wasHost) toast("👑 Tu es l'hôte maintenant — à toi de continuer !");
       wasHost = nowHost;
     } else { wasHost = null; }
-    $("navLeaveBtn").style.display = roomed ? "" : "none";
+    // ✕ "Quitter la partie" is for leaving the room (→ login). We hide it
+    // for the host while they're inside an épreuve: they should use 🏠
+    // "Arrêter l'épreuve" to come back to the hub, NOT bail on the room.
+    // Non-host players still need ✕ as their emergency exit.
+    $("navLeaveBtn").style.display = roomed && !(inGame && amHost()) ? "" : "none";
     $("navBoardBtn").style.display = roomed ? "" : "none";
     $("navMenuBtn").style.display = (inGame && amHost()) ? "" : "none";
     $("navHistoryBtn").style.display = (roomed && state && state.history && state.history.length) ? "" : "none";
@@ -942,7 +946,14 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
 
     $("startBtn").onclick = function () { send({ t: "next" }); };
     $("backToHubBtn").onclick = function () { send({ t: "select_game", id: "" }); };
-    $("navMenuBtn").onclick = function () { if (amHost()) send({ t: "select_game", id: "" }); };
+    $("navMenuBtn").onclick = function () {
+      if (!amHost()) return;
+      // In a game: confirm — abandoning an épreuve is destructive (drops score / round state).
+      // From the lobby it's the natural "back" — no confirm there.
+      var midGame = !!(state && state.game && state.phase !== "lobby" && state.phase !== "finished");
+      if (midGame && !window.confirm("Arrêter l'épreuve et revenir au menu ?")) return;
+      send({ t: "select_game", id: "" });
+    };
     $("navBoardBtn").onclick = function () { openOverlay("ov-board"); };
     $("navHistoryBtn").onclick = function () { openOverlay("ov-history"); };
     $("navHelpBtn").onclick = function () { openOverlay("ov-help"); };
