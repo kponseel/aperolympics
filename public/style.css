@@ -224,6 +224,13 @@ button:focus-visible, input:focus-visible, .game-card:focus-visible { outline: 2
 .mm-hit { border-color: #2f6633; background: linear-gradient(180deg, rgba(38,137,12,.14), rgba(38,137,12,.03)), #1b1d35; }
 .mm-hit b { color: #b8e8a8; }
 
+/* --- 2+: Plus ou Moins (higher_lower) cards --- */
+.hl-cards { display: flex; align-items: stretch; gap: 10px; justify-content: center; margin: 14px 0; }
+.hl-card { flex: 1; min-width: 0; background: #1b1d35; border: 1px solid #2a2f5c; border-radius: 14px; padding: 18px 12px; text-align: center; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.hl-label { font-weight: 700; font-size: 1.05rem; word-break: break-word; }
+.hl-val { font-size: 1.8rem; font-weight: 900; color: #ffd23f; font-variant-numeric: tabular-nums; }
+.hl-vs { align-self: center; color: #7a7e9a; font-weight: 800; }
+
 /* ranked lists: per-game reveal ols + leaderboard overlay (.board) */
 ol { list-style: none; padding: 0; }
 #game-area ol li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; background: #1b1d35; border-radius: 10px; margin-bottom: 8px; }

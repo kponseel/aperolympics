@@ -2,13 +2,13 @@
 // opens instantly. Realtime traffic (/socket.io/) is never cached; gameplay
 // still requires a connection.
 
-const CACHE = "apero-v28";
+const CACHE = "apero-v29";
 const GAMES = [
   "quiz", "most_likely", "superlatives", "would_rather", "never", "bluff",
   "quips", "picolo", "dares", "kings", "bomb", "paranoia",
   "spyfall", "undercover", "wolves",
   "reaction", "roulette", "simon", "quiz_solo",
-  "mind_meld", "dare_duel",
+  "mind_meld", "dare_duel", "buzzer", "higher_lower",
 ];
 const ASSETS = [
   "/", "/index.html", "/style.css", "/app.js",
