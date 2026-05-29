@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v44";
+  var APP_VERSION = "v45";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -225,22 +225,87 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   var boardTab = "round";
   function renderBoard() {
     if (boardTab === "session") { renderBoardSession(); return; }
+    if (boardTab === "bygame") { renderBoardByGame(); return; }
     renderBoardRound();
+  }
+
+  // "Par jeu" view: collapse state.history into one panel per game, each
+  // showing the latest podium for that game + how many times it was played.
+  // Sourced entirely from history (no extra server payload) so the moment a
+  // game finishes it joins the list.
+  function renderBoardByGame() {
+    $("boardList").style.display = "none";
+    $("boardSessionList").style.display = "none";
+    $("boardEmpty").style.display = "none";
+    $("boardSessionEmpty").style.display = "none";
+    var container = $("boardByGameList");
+    container.style.display = "";
+    container.innerHTML = "";
+    var hist = (state && state.history) || [];
+    if (!hist.length) {
+      $("boardByGameEmpty").style.display = "block";
+      return;
+    }
+    $("boardByGameEmpty").style.display = "none";
+    // Group by game; keep the most recent entry per game + play count.
+    var byGame = {};
+    hist.forEach(function (e) {
+      if (!byGame[e.game]) byGame[e.game] = { count: 0, last: e };
+      byGame[e.game].count++;
+      if ((e.at || 0) > (byGame[e.game].last.at || 0)) byGame[e.game].last = e;
+    });
+    var ids = Object.keys(byGame).sort(function (a, b) { return (byGame[b].last.at || 0) - (byGame[a].last.at || 0); });
+    var medals = ["🥇", "🥈", "🥉"];
+    var activeDef = (state && state.game) ? window.Apero.games[state.game] : null;
+    ids.forEach(function (id) {
+      var def = window.Apero.games[id];
+      var fmt = (def && typeof def.formatScore === "function") ? def.formatScore : null;
+      var e = byGame[id].last;
+      var standings = (e.standings || []).filter(function (s) { return s.score > 0; });
+      var card = document.createElement("div");
+      card.className = "bygame-card";
+      var head = '<div class="bg-head">' + (def ? escapeHtml(def.emoji || "🎮") + ' <b>' + escapeHtml(def.name) + '</b>' : '<b>' + escapeHtml(id) + '</b>') +
+        (byGame[id].count > 1 ? ' <span class="muted">· joué ' + byGame[id].count + 'x</span>' : '') + '</div>';
+      var body;
+      if (standings.length) {
+        body = '<ol class="bg-podium">' + standings.slice(0, 3).map(function (s, i) {
+          var pts = fmt ? fmt(s.score) : (s.score + ' pts');
+          return '<li><span class="rank">' + medals[i] + '</span>' +
+            '<span class="who">' + escapeHtml(s.name) + '</span>' +
+            '<b class="pts">' + escapeHtml(String(pts)) + '</b></li>';
+        }).join("") + '</ol>';
+      } else if (e.mvp && e.mvp.name) {
+        // Non-scored game (role / coop / vote-only) — show the MVP card instead.
+        body = '<div class="bg-mvp">' + escapeHtml(e.mvp.emoji || '⭐') + ' <b>' + escapeHtml(e.mvp.label || 'MVP') + '</b> : ' + escapeHtml(e.mvp.name) +
+          (e.mvp.value ? ' <span class="muted">(' + escapeHtml(String(e.mvp.value)) + ')</span>' : '') + '</div>';
+      } else {
+        body = '<div class="muted center">Partie jouée — pas de classement scoré</div>';
+      }
+      card.innerHTML = head + body;
+      container.appendChild(card);
+    });
   }
   function renderBoardRound() {
     $("boardList").style.display = "";
     $("boardSessionList").style.display = "none";
     $("boardSessionEmpty").style.display = "none";
+    $("boardByGameList").style.display = "none";
+    $("boardByGameEmpty").style.display = "none";
     var ol = $("boardList"); var ps = sortedPlayers();
     ol.innerHTML = "";
     $("boardEmpty").style.display = ps.length ? "none" : "block";
     var medals = ["🥇", "🥈", "🥉"];
+    // Per-game score formatter (e.g. Réflexe shows "350 ms" instead of "4650")
+    var activeDef = (state && state.game) ? window.Apero.games[state.game] : null;
+    var fmt = activeDef && typeof activeDef.formatScore === "function" ? activeDef.formatScore : null;
     ps.forEach(function (p, i) {
       var li = document.createElement("li");
       li.className = p.connected ? "" : "off";
+      var score = p.score || 0;
+      var pts = fmt ? fmt(score) : score;
       li.innerHTML = '<span class="rank">' + (medals[i] || (i + 1)) + '</span>' +
         '<span class="who">' + (p.host ? '<span class="crown">&#x1F451;</span> ' : '') + escapeHtml(p.name) + '</span>' +
-        '<b class="pts">' + (p.score || 0) + '</b>';
+        '<b class="pts">' + escapeHtml(String(pts)) + '</b>';
       ol.appendChild(li);
     });
   }
@@ -248,6 +313,8 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     $("boardList").style.display = "none";
     $("boardEmpty").style.display = "none";
     $("boardSessionList").style.display = "";
+    $("boardByGameList").style.display = "none";
+    $("boardByGameEmpty").style.display = "none";
     var ol = $("boardSessionList"); ol.innerHTML = "";
     var totals = (state && state.sessionTotals) || {};
     // Server keys by lowercased name; each entry carries its display `name`.
