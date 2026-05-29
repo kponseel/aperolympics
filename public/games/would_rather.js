@@ -76,12 +76,16 @@
   window.GamesHub.register("would_rather", {
     name:   "Tu preferes",
     emoji:  "⚖️",
-    desc:   "Dilemmes a deux options, vote en direct.",
+    desc:   "10 dilemmes tirés au hasard parmi 135+ — vote en direct.",
     minPlayers: 2,
     rules:  "Un dilemme entre <b>A</b> ou <b>B</b> (\"Pizza pour la vie\" vs \"Plus jamais de fromage\"...).<br>" +
             "Vote pour ton option preferee, en meme temps que tout le monde.<br>" +
             "Le reveal affiche les <b>compteurs par cote</b> dans des cards colorees.<br>" +
-            "<b>Stat de la partie :</b> à la fin, le titre <b>« Le plus aligné avec la majorité »</b> va au joueur qui a le plus souvent voté du côté gagnant.",
+            "<b>Format :</b> 10 dilemmes par partie, tirés au hasard dans une banque de 135+ — pas de déjà-vu d'une soirée à l'autre.<br>" +
+            "<b>Stats de fin de partie :</b><br>" +
+            "• <b>⚖️ Le plus aligné avec la majorité</b> — qui a le plus souvent voté du côté gagnant.<br>" +
+            "• <b>🔥 L'éternel rebelle</b> — qui a le plus souvent voté à contre-courant.<br>" +
+            "• <b>💞 Les âmes sœurs</b> — la paire qui a le plus souvent voté pareil.",
     mount:  build,
     render: render
   });

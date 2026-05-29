@@ -59,7 +59,7 @@
 
   window.GamesHub.register("dare_duel", {
     name: "Cap ou pas cap", emoji: "😏",
-    desc: "Un défi s'affiche : Cap (tu le fais) ou Pas cap (tu bois) ?",
+    desc: "Cap (tu le fais) ou Pas cap (tu bois) ? 100 défis sur 3 niveaux.",
     minPlayers: 2, endable: true,
     rules: "À tour de rôle, un <b>défi</b> s'affiche pour le joueur actif.<br>" +
            "Il tape <b>Cap 😎</b> (il le fait, les autres jugent) ou <b>Pas cap 🍺</b> (il boit).<br>" +

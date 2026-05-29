@@ -40,8 +40,13 @@
       '</div>';
     best = loadBest();
     S = { seq: [], input: [], state: "idle", level: 0 };
+    // pointerdown (not onclick) so a fast finger registers immediately on
+    // mobile — onclick waits for touch-release and is cancelled by tiny
+    // finger drift, which made pads feel unresponsive.
     h.$("siGrid").querySelectorAll(".simon-pad").forEach(function (b) {
-      b.onclick = function () { padTap(h, parseInt(b.getAttribute("data-pad"), 10)); };
+      var fire = function (e) { if (e && e.preventDefault) e.preventDefault(); padTap(h, parseInt(b.getAttribute("data-pad"), 10)); };
+      if ("onpointerdown" in window) b.addEventListener("pointerdown", fire);
+      else b.addEventListener("click", fire);
     });
     h.$("siBtn").onclick = function () { startGame(h); };
     draw(h);

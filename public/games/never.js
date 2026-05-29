@@ -72,13 +72,16 @@
   window.GamesHub.register("never", {
     name:   "Je n'ai jamais",
     emoji:  "🙊",
-    desc:   "Anonyme : j'ai deja ou jamais ? On voit le score.",
+    desc:   "10 questions parmi 130 — anonyme, j'ai déjà ou jamais ?",
     minPlayers: 2,
     rules:  "Une phrase \"Je n'ai jamais...\" s'affiche.<br>" +
             "Chacun choisit <b>J'ai deja</b> ou <b>Jamais</b>.<br>" +
             "Le reveal montre uniquement les <b>compteurs</b> par question (qui a repondu quoi reste secret).<br>" +
             "Le but : ambiance, decouvertes, et tu bois quand t'as deja fait 😉.<br>" +
-            "<b>Stat de la partie :</b> a la fin, le titre <b>« Le plus experimente »</b> va au joueur qui a cumule le plus de <b>« J'ai deja »</b> sur toute la session (l'agregat est public, pas le detail par question).",
+            "<b>Format :</b> 10 questions par partie, tirées au hasard dans une banque de 130 — fraîcheur garantie.<br>" +
+            "<b>Stats de fin de partie</b> (agrégat seul — le détail par question reste anonyme) :<br>" +
+            "• <b>🙊 Le plus expérimenté</b> — qui a cumulé le plus de <b>« J'ai déjà »</b>.<br>" +
+            "• <b>😇 Le plus innocent</b> — qui a cumulé le plus de <b>« Jamais »</b>.",
     mount:  build,
     render: render
   });

@@ -37,7 +37,7 @@
   window.GamesHub.register("picolo", {
     name:   "Picolo",
     emoji:  "🍻",
-    desc:   "Prompts pour ambiance soirée, avec les prénoms du groupe.",
+    desc:   "90 prompts d'ambiance avec les prénoms du groupe.",
     minPlayers: 2,
     endable: true,
     rules:  "L'hôte <b>fait défiler une liste de prompts</b> pour animer la soirée.<br>" +

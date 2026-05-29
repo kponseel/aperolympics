@@ -89,6 +89,7 @@ function recordHistory(room) {
   const entry = { game: room.gameId, at: Date.now(), standings };
   if (round && round.mvp) entry.mvp = round.mvp;
   if (round && round.winner_banner) entry.winner_banner = round.winner_banner;
+  if (round && Array.isArray(round.extras) && round.extras.length) entry.extras = round.extras;
   room.history.push(entry);
   if (room.history.length > 30) room.history.shift();
   // Cross-game session totals (powers the 🏆 "Soirée" tab). Counts:
