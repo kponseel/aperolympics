@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v34";
+  var APP_VERSION = "v35";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -485,7 +485,27 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     }
   }
 
+  // Screen Wake Lock — keep the phone awake while a game is selected (lobby +
+  // play), so a passed-around / watched party-game screen doesn't dim or sleep.
+  // Guarded for unsupported browsers; the lock auto-releases when the tab is
+  // backgrounded, so we re-acquire on visibilitychange.
+  var wakeLock = null;
+  function acquireWake() {
+    try {
+      if (wakeLock || !navigator.wakeLock) return;
+      navigator.wakeLock.request("screen").then(function (wl) {
+        wakeLock = wl;
+        wl.addEventListener("release", function () { wakeLock = null; });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  function releaseWake() { try { if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; } } catch (e) {} }
+  function manageWake() {
+    if (state && findMe() && state.game) acquireWake(); else releaseWake();
+  }
+
   function render() {
+    manageWake();
     if (!state || !findMe()) {
       // Not in a room — landing flow. Pseudo is the gate: stage 1 if missing,
       // stage 2 (choice: rejoindre / créer) otherwise.
@@ -724,6 +744,12 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       if (open) closeOverlay(open.id);
     });
   }
+
+  // The Wake Lock drops when the tab is backgrounded; re-acquire on return if
+  // we're still mid-game.
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") manageWake();
+  });
 
   document.addEventListener("DOMContentLoaded", function () {
     prefillFromUrl();
