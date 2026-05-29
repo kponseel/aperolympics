@@ -399,8 +399,8 @@ function create() {
 
 module.exports = {
   id: "quiz",
-  name: "Quiz",
+  name: "Speed Quiz",
   emoji: "🧠",
-  desc: "10 questions tirées au hasard parmi 150, score au chrono.",
+  desc: "Questions à choix multiples, score au chrono.",
   create,
 };
