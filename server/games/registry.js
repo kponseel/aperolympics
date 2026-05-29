@@ -24,6 +24,8 @@ const simon = require("./simon");
 const quiz_solo = require("./quiz_solo");
 const mind_meld = require("./mind_meld");
 const dare_duel = require("./dare_duel");
+const buzzer = require("./buzzer");
+const higher_lower = require("./higher_lower");
 
 const GAMES = [
   quiz,
@@ -49,6 +51,8 @@ const GAMES = [
   // 2+ joueurs : fun immédiat
   mind_meld,
   dare_duel,
+  buzzer,
+  higher_lower,
 ];
 
 module.exports = {
