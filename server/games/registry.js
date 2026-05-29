@@ -26,6 +26,7 @@ const mind_meld = require("./mind_meld");
 const dare_duel = require("./dare_duel");
 const buzzer = require("./buzzer");
 const higher_lower = require("./higher_lower");
+const defuse = require("./defuse");
 
 const GAMES = [
   quiz,
@@ -53,6 +54,7 @@ const GAMES = [
   dare_duel,
   buzzer,
   higher_lower,
+  defuse,
 ];
 
 module.exports = {
