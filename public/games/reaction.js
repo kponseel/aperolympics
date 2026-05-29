@@ -3,6 +3,7 @@
 
 (function () {
   var S, toGreen = null, best = 0;
+  function vibe(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 
   function loadBest() { try { return parseInt(localStorage.getItem("apero.hs.reaction") || "0", 10) || 0; } catch (e) { return 0; } }
   function saveBest(ms) { try { localStorage.setItem("apero.hs.reaction", String(ms)); } catch (e) {} }
@@ -36,12 +37,13 @@
   }
 
   function tap(h) {
-    if (S.state === "waiting") { clearTimers(); S.state = "early"; draw(h); return; }
+    if (S.state === "waiting") { clearTimers(); S.state = "early"; vibe([60, 40, 60]); draw(h); return; }
     if (S.state === "go") {
       var ms = Date.now() - S.greenAt;
       S.last = ms; S.times.push(ms); S.attempt++;
       if (!best || ms < best) { best = ms; saveBest(ms); }
       S.state = (S.attempt >= 5) ? "done" : "between";
+      vibe(35);
       draw(h);
     }
   }

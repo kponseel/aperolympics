@@ -90,6 +90,7 @@
   function finish(h) {
     clearTimers();
     S.over = true;
+    try { if (navigator.vibrate) navigator.vibrate([70, 50, 130]); } catch (e) {}
     if (S.score > best) { best = S.score; saveBest(S.score); }
     for (var i = 0; i < 4; i++) h.$("qb" + i).disabled = true;
     h.$("qsText").textContent = "⏱️ Temps écoulé !";

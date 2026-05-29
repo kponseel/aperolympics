@@ -22,7 +22,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v35";
+  var APP_VERSION = "v36";
   var APP_BUILD = "2026-05-29";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
@@ -37,6 +37,9 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function setStatus(t) { $("status").textContent = t; }
   function send(o) { if (socket && socket.connected) socket.emit("msg", o); }
   function escapeHtml(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+  // Haptic feedback (mobile). Guarded: no-op on desktop / unsupported / when the
+  // OS denies it. Patterns are short so they read as "juice", not a phone alarm.
+  function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 
   var SHELL = ["s-pseudo", "s-choice", "s-hub", "s-lobby", "game-area"];
   function show(id) { SHELL.forEach(function (s) { $(s).classList.toggle("on", s === id); }); }
@@ -50,7 +53,7 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   function amHost() { var me = findMe(); return !!(me && me.host); }
   function inRoom() { return !!(state && findMe()); }
 
-  var helpers = { $: $, send: send, setStatus: setStatus, escapeHtml: escapeHtml, findMe: findMe, amHost: amHost };
+  var helpers = { $: $, send: send, setStatus: setStatus, escapeHtml: escapeHtml, findMe: findMe, amHost: amHost, vibrate: vibrate };
 
   // --- overlays (leaderboard / help) -----------------------------------------
   function openOverlay(id) {
@@ -430,7 +433,11 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       ps.map(function (p) { return [p.name, p.score, p.host, p.connected]; }),
     ]);
     if (lastResultsSig === sig) return;
+    var firstPaint = !lastResultsSig; // entering the results screen, not a refresh
     lastResultsSig = sig;
+    // Payoff haptic when the fin-de-partie screen first appears: a livelier
+    // triple-buzz for a winner banner (role/cup games), a single tap otherwise.
+    if (firstPaint) vibrate(round.winner_banner ? [70, 50, 130] : [45]);
 
     var scored = !!(def && def.scored);
     var medals = ["🥇", "🥈", "🥉"];

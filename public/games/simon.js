@@ -85,6 +85,7 @@
     if (S.seq[idx] !== pad) { gameOver(h); return; }
     if (S.input.length === S.seq.length) {
       S.state = "ok";
+      try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {}
       draw(h);
       seqTimer = setTimeout(function () { nextRound(h); }, 700);
     }
@@ -96,6 +97,7 @@
     if (reached > best) { best = reached; saveBest(reached); }
     S.state = "over"; S.reached = reached;
     tone(110, 500);
+    try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {}
     draw(h);
   }
 
