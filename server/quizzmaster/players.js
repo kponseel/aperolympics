@@ -199,20 +199,38 @@ function recordGame(name, cid, theme, r) {
 
 function accuracy(s) { const att = s.correct + s.wrong; return att > 0 ? Math.round((s.correct / att) * 100) : 0; }
 
-// Global ranking with per-player stats. Ranked by cumulative points, then best.
+// Anti-grind ranking score: the SUM of a player's best score in each theme.
+// Replaying the same theme on a loop is worthless unless you beat your own
+// record there — so a France champion can't farm one theme to top the board.
+// Breadth (playing many themes well) is rewarded. Only positive bests count.
+function bestTotals(a) {
+  let total = 0, count = 0;
+  for (const t in a.themeBest) {
+    const v = a.themeBest[t] | 0;
+    if (v >= 1) { total += v; count += 1; }
+  }
+  return { total, count };
+}
+
+// Global ranking with per-player stats. Ranked by the best-per-theme total
+// (anti-grind), then by best single game.
 function globalRanking() {
   return Object.values(data.byName)
     .filter((a) => a.stats.games > 0)
-    .map((a) => ({
-      name: a.name,
-      points: a.stats.points,
-      games: a.stats.games,
-      best: a.stats.bestScore,
-      correct: a.stats.correct,
-      accuracy: accuracy(a.stats),
-      locked: !!a.pinHash,
-    }))
-    .sort((x, y) => y.points - x.points || y.best - x.best || x.name.localeCompare(y.name))
+    .map((a) => {
+      const bt = bestTotals(a);
+      return {
+        name: a.name,
+        points: bt.total,          // sum of best score per theme (the ranking score)
+        themes: bt.count,          // distinct themes with a real record
+        games: a.stats.games,
+        best: a.stats.bestScore,   // best single game overall
+        correct: a.stats.correct,
+        accuracy: accuracy(a.stats),
+        locked: !!a.pinHash,
+      };
+    })
+    .sort((x, y) => y.points - x.points || y.best - x.best || y.themes - x.themes || x.name.localeCompare(y.name))
     .slice(0, TOP_N);
 }
 
@@ -287,11 +305,14 @@ function playerStats(name, themesMap) {
     }
   }
 
+  const bt = bestTotals(a);
   return {
     name: a.name,
     locked: !!a.pinHash,
     games: a.stats.games | 0,
-    points: a.stats.points | 0,
+    points: bt.total,             // ranking score = sum of best per theme (anti-grind)
+    themesPlayed: bt.count,       // distinct themes with a real record
+    totalPlayed: a.stats.points | 0,  // lifetime cumulative points (info only)
     best: a.stats.bestScore | 0,
     correct: a.stats.correct | 0,
     wrong: a.stats.wrong | 0,

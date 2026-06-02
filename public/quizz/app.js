@@ -266,10 +266,12 @@
     if (!top.length) { ol.innerHTML = '<li class="qm-top-empty">Aucun score pour l\'instant. Sois le premier !</li>'; return; }
     var me = getPseudo();
     ol.innerHTML = top.map(function (e, i) {
+      var themes = (e.themes | 0);
+      var themesTxt = themes + ' thème' + (themes > 1 ? 's' : '');
       return '<li class="qm-clickable ' + (e.name === me ? "me" : "") + '" data-name="' + esc(e.name) + '" title="Voir le profil">' +
         '<span class="rank">' + medal(i) + '</span>' +
         '<span class="who">' + (e.locked ? "🔒 " : "") + esc(e.name) + '</span>' +
-        '<span class="qm-pstats">' + e.games + ' parties · ' + e.accuracy + '% · record ' + e.best + '</span>' +
+        '<span class="qm-pstats">' + e.games + ' parties · ' + themesTxt + ' · record ' + e.best + '</span>' +
         '<b class="pts">' + (e.points | 0) + '</b></li>';
     }).join("");
     Array.prototype.forEach.call(ol.querySelectorAll("li.qm-clickable"), function (li) {
@@ -506,8 +508,9 @@
       "<p>C'est <b>facultatif</b> — laisse vide si tu ne veux pas protéger ton pseudo. Tu pourras le faire plus tard depuis le bouton 🔒 en haut à droite.</p>" +
       "<p>Tes <b>stats</b> et ton <b>record</b> restent attachés à ton pseudo.</p>" },
     ranking: { title: "Classement général 🏆", body:
-      "<p>Le classement cumule tes <b>points</b> de toutes tes parties (une partie négative compte 0).</p>" +
-      "<p>Pour chaque joueur on affiche : <b>nombre de parties</b>, <b>précision moyenne</b> et <b>meilleur score</b>.</p>" +
+      "<p>Ton <b>score de classement</b> = la <b>somme de ton meilleur score dans chaque thème</b>.</p>" +
+      "<p>⚠️ Rejouer un thème ne compte que si tu <b>bats ton propre record</b> : impossible de farmer un seul thème pour monter ! Pour grimper, il faut <b>progresser</b> et <b>varier les thèmes</b>.</p>" +
+      "<p>Pour chaque joueur on affiche aussi : <b>nombre de parties</b>, <b>thèmes joués</b> et <b>meilleur score</b> en une partie.</p>" +
       "<p>👉 <b>Touche un joueur</b> (ou ton propre pseudo en haut) pour voir son profil détaillé : thèmes préférés, bête noire, victoires, meilleure série…</p>" +
       "<p>🔒 = pseudo protégé par un PIN. Les records par thème sont visibles dans chaque salle.</p>" },
   };
@@ -531,14 +534,17 @@
     var isMe = s.name === me;
     $("qmSheetTitle").textContent = (s.locked ? "🔒 " : "") + s.name + (isMe ? " (toi)" : "");
 
-    // Big top numbers.
+    // Big top numbers. "Score" = sum of best-per-theme (the anti-grind ranking
+    // score), distinct from "record" (best single game).
+    var themesN = (s.themesPlayed | 0);
     var head =
       '<div class="qm-prof-top">' +
-        '<div class="qm-prof-stat"><b>' + (s.points | 0) + '</b><span>points</span></div>' +
+        '<div class="qm-prof-stat"><b>' + (s.points | 0) + '</b><span>score classement</span></div>' +
         '<div class="qm-prof-stat"><b>' + (s.games | 0) + '</b><span>parties</span></div>' +
         '<div class="qm-prof-stat"><b>' + plurPts(s.best | 0) + '</b><span>record</span></div>' +
         '<div class="qm-prof-stat"><b>' + (s.accuracy | 0) + '%</b><span>précision</span></div>' +
-      '</div>';
+      '</div>' +
+      '<p class="qm-prof-sub">🏅 Score = somme de ton meilleur score dans chaque thème (' + themesN + ' thème' + (themesN > 1 ? 's' : '') + ' joué' + (themesN > 1 ? 's' : '') + ')</p>';
 
     // Trophies row (wins / podiums / streak) — only shown if non-zero.
     var trophies = [];
