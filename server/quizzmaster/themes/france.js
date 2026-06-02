@@ -1,4 +1,4 @@
-// QuizzMaster — thème 🇫🇷 France. 290 questions.
+// QuizzMaster — thème 🇫🇷 France. 300 questions.
 
 module.exports = [
   { text: "Quelle est la capitale de la France ?", options: ["Lyon","Paris","Marseille","Nice"], correct: 1 },
@@ -291,4 +291,14 @@ module.exports = [
   { text: "Nanterre est la préfecture de quel département ?", options: ["la Gironde","les Hauts-de-Seine","le Lot","le Nord"], correct: 1 },
   { text: "Bobigny est la préfecture de quel département ?", options: ["le Lot","la Seine-Saint-Denis","le Nord","la Sarthe"], correct: 1 },
   { text: "Créteil est la préfecture de quel département ?", options: ["le Nord","le Val-de-Marne","la Sarthe","la Vienne"], correct: 1 },
+  { text: "Quelle ville française accueille le festival de la BD ?", options: ["Angoulême","Cannes","Avignon","Deauville"], correct: 0 },
+  { text: "Quel parc d'attractions près de Paris a ouvert en 1992 ?", options: ["Astérix","Disneyland Paris","Futuroscope","Walibi"], correct: 1 },
+  { text: "Quel pont géant franchit le Tarn près de Millau ?", options: ["Pont de Normandie","Viaduc de Millau","Pont de Tancarville","Pont d'Aquitaine"], correct: 1 },
+  { text: "Quelle est la plus longue autoroute de liaison Paris-Marseille ?", options: ["A1","A7 (via A6)","A10","A4"], correct: 1 },
+  { text: "Quel TGV relie Paris à Lyon en environ 2 heures ?", options: ["Le RER","Le TGV","Le Transilien","Le TER"], correct: 1 },
+  { text: "Quelle est la plus grande agglomération française ?", options: ["Lyon","Paris","Marseille","Lille"], correct: 1 },
+  { text: "Quel est le plus haut sommet des Pyrénées françaises ?", options: ["Mont Blanc","Vignemale","Aneto","Mont Perdu"], correct: 1 },
+  { text: "Quelle est la région la plus au sud de la métropole ?", options: ["Bretagne","Provence-Alpes-Côte d'Azur","Normandie","Grand Est"], correct: 1 },
+  { text: "Quelle ville est connue pour sa cathédrale gothique et ses bulles (Champagne) ?", options: ["Reims","Lyon","Nantes","Tours"], correct: 0 },
+  { text: "Quelle ville bretonne est un grand port militaire ?", options: ["Rennes","Brest","Quimper","Vannes"], correct: 1 },
 ];
