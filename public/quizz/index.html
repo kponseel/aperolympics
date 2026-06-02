@@ -18,7 +18,11 @@
     <button type="button" class="qm-back" id="qmBack" style="display:none">← Salles</button>
     <div class="qm-brand">🧠 <span>QuizzMaster</span></div>
     <button type="button" class="qm-help" id="qmHelp" aria-label="Aide et règles">?</button>
-    <div class="qm-who" id="qmWho"></div>
+    <div class="qm-me" id="qmMe">
+      <button type="button" class="qm-who" id="qmWho" aria-label="Mon profil"></button>
+      <button type="button" class="qm-icon" id="qmRename" title="Renommer mon pseudo" aria-label="Renommer">✏️</button>
+      <button type="button" class="qm-icon" id="qmProtect" title="Protéger mon pseudo" aria-label="Protéger avec un PIN">🔒</button>
+    </div>
   </header>
   <div class="qm-sub center" id="qmStatus">Connexion…</div>
 
@@ -30,7 +34,7 @@
         <h1>QuizzMaster</h1>
         <p class="qm-lead">60 secondes pour enchaîner un maximum de bonnes réponses.</p>
       </div>
-      <label class="qm-label" for="qmName">Ton prénom</label>
+      <label class="qm-label" for="qmName">Ton pseudo</label>
       <input id="qmName" placeholder="Ex : Marie" maxlength="16" autocomplete="off" inputmode="text" />
 
       <label class="qm-label" for="qmPin" id="qmPinLabel">
@@ -44,15 +48,15 @@
 
       <!-- Locked-out actions (hidden until needed) -->
       <div id="qmLocked" class="qm-locked" style="display:none">
-        <p class="qm-lead center">Trop d'essais. Ce nom est protégé.</p>
-        <button class="qm-primary" id="qmNewName">Choisir un autre nom</button>
-        <p class="qm-hint center">Si c'est bien ton nom, contacte Kevin.</p>
+        <p class="qm-lead center">Trop d'essais. Ce pseudo est protégé.</p>
+        <button class="qm-primary" id="qmNewName">Choisir un autre pseudo</button>
+        <p class="qm-hint center">Si c'est bien ton pseudo, contacte Kevin.</p>
       </div>
 
       <ol class="qm-steps">
         <li><span class="num">1</span> Choisis un <b>thème</b>.</li>
         <li><span class="num">2</span> <b>60 s</b> : bonne <b class="g">+1</b>, mauvaise <b class="r">−1</b>, « Je passe » <b>0</b>.</li>
-        <li><span class="num">3</span> Tes <b>stats</b> et ton <b>classement</b> sont gardés. Protège ton nom avec un PIN 🔒.</li>
+        <li><span class="num">3</span> Tes <b>stats</b> et ton <b>classement</b> sont gardés. Protège ton pseudo avec un PIN 🔒.</li>
       </ol>
     </section>
 
@@ -67,11 +71,6 @@
       <div class="qm-hall-head">
         <h2>Choisis ton thème</h2>
         <p class="qm-lead">60 s chrono · seul ou à plusieurs</p>
-        <div class="qm-name-row">
-          <span id="qmNameBadge" class="qm-name-badge"></span>
-          <button type="button" class="qm-mini" id="qmProtect">🔒 Protéger mon nom</button>
-          <button type="button" class="qm-mini" id="qmRename">✏️ Renommer</button>
-        </div>
       </div>
       <div class="qm-rooms" id="qmRooms"></div>
       <div class="qm-global">
