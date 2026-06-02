@@ -1,12 +1,12 @@
-// QuizzMaster — 10 persistent rooms (one per theme), single "Blitz 30 s" mode.
+// QuizzMaster — 10 persistent rooms (one per theme), single "Blitz 60 s" mode.
 //
 // Lifecycle per room (the room owns ALL timing; the blitz engine is a pure
 // pool + scorer):
 //
 //   idle      ──Démarrer (n'importe quel joueur)──▶  countdown (3 s : 3-2-1-GO)
 //             ◀──── 60 s timeout, 2+ joueurs ────  (démarrage auto)
-//   countdown ──fin du décompte──▶  playing (30 s de blitz)
-//   playing   ──30 s écoulées──▶  podium (résumé + stats, 10 s)
+//   countdown ──fin du décompte──▶  playing (60 s de blitz)
+//   playing   ──60 s écoulées──▶  podium (résumé + stats, 10 s)
 //   podium    ──10 s──▶  idle  (scores remis à zéro)
 //
 // Les retardataires pendant `playing` voient un écran spectateur (géré côté
@@ -17,7 +17,7 @@ const blitz = require("./blitz");
 const players = require("./players");
 
 const COUNTDOWN_MS = Number(process.env.QM_COUNTDOWN_MS) > 0 ? Number(process.env.QM_COUNTDOWN_MS) : 3000;
-const BLITZ_MS = Number(process.env.QM_BLITZ_MS) > 0 ? Number(process.env.QM_BLITZ_MS) : 30000;
+const BLITZ_MS = Number(process.env.QM_BLITZ_MS) > 0 ? Number(process.env.QM_BLITZ_MS) : 60000;
 const PODIUM_MS = Number(process.env.QM_PODIUM_MS) > 0 ? Number(process.env.QM_PODIUM_MS) : 10000;
 const AUTO_START_AFTER_MS = Number(process.env.QM_AUTOSTART_MS) > 0 ? Number(process.env.QM_AUTOSTART_MS) : 60000;
 
@@ -27,7 +27,7 @@ function makeRoom(themeDef) {
   const playerMap = new Map();   // cid -> { cid, name, socketId, score }
   let state = "idle";          // "idle" | "countdown" | "playing" | "podium"
   let goAt = 0;                // absolute Date.now() of GO (countdown end)
-  let endAt = 0;               // absolute end of the 30 s blitz
+  let endAt = 0;               // absolute end of the 60 s blitz
   let podiumEndAt = 0;
   let lastIdleSince = Date.now();
   let lastSummary = null;

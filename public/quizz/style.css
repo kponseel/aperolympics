@@ -158,3 +158,10 @@ input#qmPin:focus { outline: none; border-color: #6c7cff; }
 .qm-sheet-body ul { padding-left: 20px; }
 .qm-sheet-body li { margin: 6px 0; }
 @media (min-width: 600px) { .qm-overlay { align-items: center; } .qm-sheet { border-radius: 18px; } }
+
+/* ===== PWA install banner ===== */
+.qm-install { display: flex; align-items: center; gap: 10px; background: #1d2152; border: 2px solid #5b6cff; border-radius: 14px; padding: 12px 14px; margin: 14px 0 4px; }
+.qm-install-txt { flex: 1; font-size: 0.98rem; line-height: 1.35; }
+.qm-install-btn { flex: none; background: #5b6cff; color: #fff; border: none; border-radius: 10px; padding: 12px 16px; font-size: 1rem; font-weight: 800; cursor: pointer; min-height: 44px; }
+.qm-install-btn:active { background: #4757e0; }
+.qm-install-x { flex: none; width: 36px; height: 36px; border-radius: 999px; background: transparent; color: #9aa3d6; border: none; font-size: 1.1rem; cursor: pointer; }

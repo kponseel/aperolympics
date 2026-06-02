@@ -1,6 +1,6 @@
-// QuizzMaster SPA — single "Blitz 30 s" mode, mobile-first, accessible 60+.
+// QuizzMaster SPA — single "Blitz 60 s" mode, mobile-first, accessible 60+.
 // Socket.IO /qm. Screens: pseudo(+PIN) / hall / room. Room states:
-// idle → countdown(3-2-1) → playing(30s) → podium. PIN-protected names,
+// idle → countdown(3-2-1) → playing(60s) → podium. PIN-protected names,
 // persistent per-player stats, in-app help.
 
 (function () {
@@ -234,7 +234,7 @@
     var inRoom = (r.players || []).some(function (p) { return p.name === me; });
     var auto = r.auto_start_in_ms > 0 ? Math.ceil(r.auto_start_in_ms / 1000) : 0;
     body.innerHTML =
-      '<div class="qm-card"><p class="qm-rule">30 secondes · <b class="g">bonne +1</b> · <b class="r">mauvaise −1</b> · <b>passe 0</b></p></div>' +
+      '<div class="qm-card"><p class="qm-rule">60 secondes · <b class="g">bonne +1</b> · <b class="r">mauvaise −1</b> · <b>passe 0</b></p></div>' +
       '<div class="qm-card"><h3>Joueurs (' + (r.players || []).length + ')</h3>' + renderPills(r.players) + '</div>' +
       (inRoom
         ? '<button class="qm-primary qm-xl" id="qmStart">▶️ Démarrer</button>' +
@@ -395,7 +395,7 @@
   // ---------- help overlay ----------
   var HELP = {
     main: { title: "Comment jouer", body:
-      "<p><b>Blitz 30 secondes.</b> Tu as 30 secondes pour répondre à un max de questions.</p>" +
+      "<p><b>Blitz 60 secondes.</b> Tu as 60 secondes pour répondre à un max de questions.</p>" +
       "<ul><li><b class='g'>Bonne réponse : +1</b></li><li><b class='r'>Mauvaise réponse : −1</b></li><li><b>Je passe : 0</b> — utilise-le quand tu hésites pour éviter le −1 !</li></ul>" +
       "<p>À plusieurs, tout le monde reçoit <b>les mêmes questions dans le même ordre</b>. Le classement s'affiche en direct.</p>" +
       "<p>🔒 <b>Protège ton prénom</b> avec un code PIN à 4 chiffres pour que personne d'autre ne l'utilise.</p>" },
@@ -428,10 +428,46 @@
   }
   function stopRefresh() { if (refreshTick) { clearInterval(refreshTick); refreshTick = null; } }
 
+  // ---------- PWA install (plein écran) ----------
+  var deferredPrompt = null;
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+           (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) ||
+           window.navigator.standalone === true;
+  }
+  function isiOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
+  function installDismissed() { try { return localStorage.getItem("qm.installHidden") === "1"; } catch (e) { return false; } }
+  function setupInstall() {
+    var bar = $("qmInstall"), btn = $("qmInstallBtn"), txt = $("qmInstallTxt"), x = $("qmInstallX");
+    if (!bar) return;
+    if (isStandalone() || installDismissed()) { bar.style.display = "none"; return; }
+    x.onclick = function () { bar.style.display = "none"; try { localStorage.setItem("qm.installHidden", "1"); } catch (e) {} };
+
+    if (isiOS()) {
+      // iOS Safari: no programmatic install — show the gesture.
+      btn.style.display = "none";
+      txt.innerHTML = "📲 Pour jouer en plein écran : appuie sur <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>.";
+      bar.style.display = "flex";
+      return;
+    }
+    // Android/Chrome: wait for the install prompt to be available.
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault(); deferredPrompt = e;
+      if (!isStandalone() && !installDismissed()) bar.style.display = "flex";
+    });
+    btn.onclick = function () {
+      if (!deferredPrompt) { toast("Utilise le menu ⋮ du navigateur → « Installer l'application »."); return; }
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function () { deferredPrompt = null; bar.style.display = "none"; });
+    };
+    window.addEventListener("appinstalled", function () { bar.style.display = "none"; toast("✅ QuizzMaster installé !"); });
+  }
+
   // ---------- bootstrap ----------
   document.addEventListener("DOMContentLoaded", function () {
     setWho();
     setupPseudo();
+    setupInstall();
     $("qmBack").onclick = leaveRoom;
     $("qmHelp").onclick = function () { openHelp("main"); };
     $("qmSheetClose").onclick = closeHelp;
