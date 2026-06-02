@@ -291,6 +291,9 @@ setInterval(() => {
   rooms.sweep();
 }, 500);
 
+// QuizzMaster sub-app: serves /quizz/* + Socket.IO namespace /qm.
+require("./quizzmaster")({ app, io });
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`[Aperolympics] up on :${PORT} — ${registry.list().length} game(s) registered`);
 });
