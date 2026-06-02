@@ -137,7 +137,10 @@ function recordGame(name, cid, theme, r) {
   a.stats.points += Math.max(0, score);       // cumulative points (floored at 0/game)
   if (score > a.stats.bestScore) a.stats.bestScore = score;
   a.stats.lastAt = Date.now();
-  if (theme && (!a.themeBest[theme] || score > a.themeBest[theme])) a.themeBest[theme] = score;
+  // Best score per theme — keep the highest, incl. 0/negative bests.
+  // (Use === undefined, not falsy: a stored 0 must not be treated as "no record"
+  // and overwritten by a worse score.)
+  if (theme && (a.themeBest[theme] === undefined || score > a.themeBest[theme])) a.themeBest[theme] = score;
   data.updated_at = Date.now();
   save();
 }
@@ -163,9 +166,12 @@ function globalRanking() {
 
 // Per-theme record board (best single-game score in that theme).
 function themeTop(theme) {
+  // Show the best score of every player who has finished a game in this theme
+  // (including 0 / negative bests — a Blitz score can dip below 0 with the −1
+  // penalty, but they still earned a record to beat).
   return Object.values(data.byName)
-    .filter((a) => (a.themeBest[theme] | 0) > 0)
-    .map((a) => ({ name: a.name, value: a.themeBest[theme], displayValue: a.themeBest[theme] + " pt" + (a.themeBest[theme] > 1 ? "s" : ""), locked: !!a.pinHash }))
+    .filter((a) => a.themeBest[theme] !== undefined)
+    .map((a) => ({ name: a.name, value: a.themeBest[theme], displayValue: a.themeBest[theme] + " pt" + (Math.abs(a.themeBest[theme]) > 1 ? "s" : ""), locked: !!a.pinHash }))
     .sort((x, y) => y.value - x.value || x.name.localeCompare(y.name))
     .slice(0, TOP_N);
 }
