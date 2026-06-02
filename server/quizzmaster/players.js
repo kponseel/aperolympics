@@ -166,12 +166,12 @@ function globalRanking() {
 
 // Per-theme record board (best single-game score in that theme).
 function themeTop(theme) {
-  // Show the best score of every player who has finished a game in this theme
-  // (including 0 / negative bests — a Blitz score can dip below 0 with the −1
-  // penalty, but they still earned a record to beat).
+  // Only surface records of at least 1 point. Scores of 0 / negative (typically
+  // test runs or a quick give-up) are still stored per account, but showing them
+  // just pollutes the board — a real record starts at 1.
   return Object.values(data.byName)
-    .filter((a) => a.themeBest[theme] !== undefined)
-    .map((a) => ({ name: a.name, value: a.themeBest[theme], displayValue: a.themeBest[theme] + " pt" + (Math.abs(a.themeBest[theme]) > 1 ? "s" : ""), locked: !!a.pinHash }))
+    .filter((a) => a.themeBest[theme] >= 1)
+    .map((a) => ({ name: a.name, value: a.themeBest[theme], displayValue: a.themeBest[theme] + " pt" + (a.themeBest[theme] > 1 ? "s" : ""), locked: !!a.pinHash }))
     .sort((x, y) => y.value - x.value || x.name.localeCompare(y.name))
     .slice(0, TOP_N);
 }
