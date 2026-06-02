@@ -215,9 +215,9 @@ const QUESTION_BANK = [
   { text: "Quel sport olympique utilise un sabre, un fleuret ou une épée ?", options: ["Tir à l'arc", "Escrime", "Pentathlon", "Lutte"], correct: 1 },
 ];
 
-function create() {
+function create({ bank = QUESTION_BANK } = {}) {
   let phase = "lobby";
-  let questions = []; // freshly picked from QUESTION_BANK for each match
+  let questions = []; // freshly picked from the active bank for each match
   let currentQ = -1;
   let questionStart = 0;
   let paused = false; // host pause: timer frozen, question hidden for everyone
@@ -226,12 +226,12 @@ function create() {
   let bestStreak = {};  // name -> longest correct streak achieved this session
   let lastGain = {};    // name -> points awarded on the most recent question (for the reveal screen)
 
-  // Pick QUESTIONS_PER_MATCH from QUESTION_BANK. Shuffled (Fisher-Yates) by
+  // Pick QUESTIONS_PER_MATCH from the active bank. Shuffled (Fisher-Yates) by
   // default; set QUIZ_NO_SHUFFLE=1 in the server env for deterministic tests
   // (head-of-bank kept stable so the existing E2Es still see "Capitale France
   // = Paris" as the first prompt with `correct: 1`).
   function pickRound() {
-    const arr = QUESTION_BANK.slice();
+    const arr = bank.slice();
     if (process.env.QUIZ_NO_SHUFFLE !== "1") {
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
