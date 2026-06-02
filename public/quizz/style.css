@@ -1,135 +1,126 @@
-/* QuizzMaster — self-contained styling, dark theme. */
+/* QuizzMaster — mobile-first, gros texte & gros boutons (lisible 60+). */
 
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; min-height: 100vh; background: #0f1020; color: #e9ecff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-body { padding-bottom: env(safe-area-inset-bottom); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { font-size: 18px; }                 /* base large pour la lisibilité */
+html, body { margin: 0; padding: 0; min-height: 100vh; background: #0f1020; color: #f2f4ff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { padding-bottom: calc(env(safe-area-inset-bottom) + 16px); line-height: 1.4; }
 button, input { font-family: inherit; touch-action: manipulation; }
 .center { text-align: center; }
-.muted { color: #9aa3d6; }
-.qm-error { color: #ff7a7a; min-height: 1.4em; margin-top: 8px; }
+.g { color: #5fe06a; } .r { color: #ff8a8a; }
 
-.qm-topbar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top));
-  background: #161830; border-bottom: 1px solid #262a52;
-}
-.qm-brand { font-weight: 800; font-size: 1.15rem; }
-.qm-brand span { margin-left: 4px; }
-.qm-back { background: transparent; color: #e9ecff; border: 1px solid #262a52; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-.qm-back:hover { background: #1d2152; }
-.qm-who { margin-left: auto; color: #9aa3d6; font-size: 0.9rem; }
-.qm-sub { padding: 10px 16px; color: #9aa3d6; font-size: 0.9rem; }
+/* ----- top bar ----- */
+.qm-topbar { display: flex; align-items: center; gap: 12px; padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top)); background: #161830; border-bottom: 1px solid #2a2f5c; position: sticky; top: 0; z-index: 10; }
+.qm-brand { font-weight: 800; font-size: 1.3rem; }
+.qm-back { background: #1d2152; color: #fff; border: 2px solid #3a4080; border-radius: 12px; padding: 12px 18px; font-size: 1rem; font-weight: 700; cursor: pointer; min-height: 48px; }
+.qm-back:active { background: #2a2f5c; }
+.qm-who { margin-left: auto; color: #c3c9f5; font-size: 1rem; font-weight: 600; }
+.qm-sub { padding: 8px 16px; color: #9aa3d6; font-size: 0.95rem; min-height: 1.2em; }
 
-.qm-main { max-width: 720px; margin: 0 auto; padding: 0 16px 40px; }
+.qm-main { max-width: 600px; margin: 0 auto; padding: 0 16px 48px; }
 .qm-screen { display: none; }
 .qm-screen.on { display: block; }
+.qm-lead { color: #c3c9f5; font-size: 1.05rem; margin: 6px 0; }
 
-/* ----- Pseudo screen ----- */
-.qm-hero { text-align: center; padding: 30px 0 20px; }
-.qm-hero-emoji { font-size: 4rem; margin-bottom: 6px; }
-.qm-hero h1 { margin: 4px 0 6px; font-size: 2.2rem; }
-.qm-label { display: block; margin: 14px 0 6px; font-weight: 600; }
-input#qmName {
-  display: block; width: 100%; padding: 14px 16px; font-size: 1.05rem;
-  background: #161830; border: 1px solid #262a52; border-radius: 12px; color: #e9ecff;
-}
-input#qmName:focus { outline: none; border-color: #5b6cff; }
-.qm-primary {
-  display: block; width: 100%; padding: 14px; margin-top: 12px;
-  font-size: 1.05rem; font-weight: 700;
-  background: #5b6cff; color: white; border: none; border-radius: 12px; cursor: pointer;
-}
-.qm-primary:hover { background: #6c7cff; }
-.qm-primary:disabled { background: #353a72; cursor: not-allowed; }
-.qm-steps { list-style: none; padding: 0; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
-.qm-steps li { display: flex; gap: 10px; align-items: flex-start; background: #161830; padding: 12px 14px; border-radius: 10px; border: 1px solid #262a52; }
-.qm-steps .num { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; border-radius: 999px; background: #5b6cff; color: white; font-weight: 800; }
+/* ----- pseudo ----- */
+.qm-hero { text-align: center; padding: 28px 0 16px; }
+.qm-hero-emoji { font-size: 4.5rem; }
+.qm-hero h1 { margin: 6px 0; font-size: 2.4rem; }
+.qm-label { display: block; margin: 16px 0 8px; font-weight: 700; font-size: 1.1rem; }
+input#qmName { display: block; width: 100%; padding: 18px; font-size: 1.25rem; background: #161830; border: 2px solid #3a4080; border-radius: 14px; color: #fff; }
+input#qmName:focus { outline: none; border-color: #6c7cff; }
+.qm-primary { display: block; width: 100%; padding: 18px; margin-top: 14px; font-size: 1.2rem; font-weight: 800; background: #5b6cff; color: #fff; border: none; border-radius: 14px; cursor: pointer; min-height: 60px; }
+.qm-primary:active { background: #4757e0; }
+.qm-primary.qm-xl { font-size: 1.4rem; padding: 22px; min-height: 72px; }
+.qm-steps { list-style: none; padding: 0; margin-top: 26px; display: flex; flex-direction: column; gap: 12px; }
+.qm-steps li { display: flex; gap: 12px; align-items: flex-start; background: #161830; padding: 16px; border-radius: 14px; border: 1px solid #2a2f5c; font-size: 1.05rem; }
+.qm-steps .num { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; background: #5b6cff; color: #fff; font-weight: 800; font-size: 1.1rem; }
+.qm-error { color: #ff8a8a; min-height: 1.4em; margin-top: 10px; font-size: 1.05rem; }
 
-/* ----- Hall ----- */
-.qm-hall-head { margin: 18px 0 14px; text-align: center; }
-.qm-hall-head h2 { margin: 0; }
-.qm-mode-group { margin-bottom: 24px; }
-.qm-mode-head { font-size: 1.05rem; margin: 12px 0 8px; }
-.qm-mode-desc { font-weight: 400; color: #9aa3d6; font-size: 0.85rem; margin-left: 6px; }
-.qm-rooms { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.qm-room-card {
-  display: flex; flex-direction: column; gap: 6px;
-  background: #161830; border: 1px solid #262a52; border-radius: 12px;
-  padding: 14px; text-align: left; color: #e9ecff; cursor: pointer; transition: background-color .1s, border-color .1s;
-}
-.qm-room-card:hover { background: #1d2152; border-color: #5b6cff; }
-.qm-room-card.live { border-color: #ffcc4d; background: #2a1f0f; }
-.qm-room-card .qm-rc-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
-.qm-room-card .qm-rc-emoji { font-size: 1.4rem; }
-.qm-room-card .qm-rc-state { font-size: 0.82rem; color: #9aa3d6; }
-.qm-room-card .qm-rc-state.live { color: #ffcc4d; font-weight: 700; }
-.qm-room-card .qm-rc-state.prerace { color: #26890c; font-weight: 700; }
-.qm-room-card .qm-rc-state.podium { color: #5b6cff; font-weight: 700; }
+/* ----- hall ----- */
+.qm-hall-head { text-align: center; margin: 20px 0 16px; }
+.qm-hall-head h2 { margin: 0; font-size: 1.7rem; }
+.qm-rooms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.qm-room-card { display: flex; flex-direction: column; align-items: center; gap: 6px; background: #161830; border: 2px solid #2a2f5c; border-radius: 16px; padding: 18px 12px; color: #fff; cursor: pointer; min-height: 120px; justify-content: center; }
+.qm-room-card:active { background: #1d2152; }
+.qm-room-card.live { border-color: #ffcc4d; background: #2a220f; }
+.qm-rc-emoji { font-size: 2.4rem; }
+.qm-rc-name { font-weight: 800; font-size: 1.1rem; text-align: center; }
+.qm-rc-state { font-size: 0.9rem; color: #9aa3d6; font-weight: 600; }
+.qm-rc-state.live { color: #ffcc4d; } .qm-rc-state.go { color: #5fe06a; } .qm-rc-state.podium { color: #8ea2ff; } .qm-rc-state.wait { color: #ffd23f; }
 
-.qm-global { background: #161830; border: 1px solid #262a52; border-radius: 12px; padding: 14px; margin-top: 20px; }
-.qm-global h3 { margin: 0 0 10px; }
-.qm-top-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.qm-top-list li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #1b1d35; border: 1px solid #262a52; border-radius: 8px; }
-.qm-top-list .rank { font-weight: 800; min-width: 28px; text-align: center; }
+.qm-global { background: #161830; border: 1px solid #2a2f5c; border-radius: 16px; padding: 18px; margin-top: 22px; }
+.qm-global h3 { margin: 0 0 12px; font-size: 1.2rem; }
+
+.qm-top-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.qm-top-list li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #1b1d35; border: 1px solid #2a2f5c; border-radius: 12px; font-size: 1.05rem; }
+.qm-top-list .rank { font-weight: 800; min-width: 36px; font-size: 1.1rem; }
 .qm-top-list .who { flex: 1; }
 .qm-top-list .pts { font-weight: 800; color: #ffd23f; }
-.qm-top-empty { padding: 14px; text-align: center; color: #9aa3d6; }
+.qm-top-empty { padding: 16px; text-align: center; color: #9aa3d6; }
 
-/* ----- Room screen ----- */
-.qm-room-head { display: flex; align-items: center; gap: 12px; margin: 14px 0; padding: 14px; background: #161830; border-radius: 12px; border: 1px solid #262a52; }
-.qm-room-emoji { font-size: 2rem; }
-.qm-room-title h2 { margin: 0; font-size: 1.25rem; }
-.qm-room-title p { margin: 2px 0 0; font-size: 0.9rem; }
+/* ----- room ----- */
+.qm-room-head { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+.qm-room-emoji { font-size: 2.4rem; }
+.qm-room-head h2 { margin: 0; font-size: 1.6rem; }
 
-.qm-section { background: #161830; border: 1px solid #262a52; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
-.qm-section h3 { margin: 0 0 10px; font-size: 1.05rem; }
-.qm-section .center { padding: 8px 0; }
+.qm-card { background: #161830; border: 1px solid #2a2f5c; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+.qm-card h3 { margin: 0 0 12px; font-size: 1.2rem; }
+.qm-center-card { text-align: center; }
+.qm-rule { margin: 0; font-size: 1.1rem; text-align: center; }
+.qm-hint { color: #9aa3d6; text-align: center; font-size: 1rem; margin: 12px 0 0; }
+.qm-big { font-size: 1.8rem; font-weight: 800; }
+.qm-go { font-size: 6rem; font-weight: 900; color: #ffd23f; text-shadow: 0 3px 16px #0009; line-height: 1; padding: 12px 0; }
 
-.qm-big { font-size: 1.4rem; font-weight: 800; text-align: center; padding: 10px 0; }
-.qm-bigger { font-size: 4rem; font-weight: 900; text-align: center; color: #ffd23f; text-shadow: 0 2px 12px #0008; }
+.qm-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.qm-pill { padding: 10px 16px; border-radius: 999px; background: #1d2152; border: 2px solid #3a4080; font-size: 1.05rem; font-weight: 600; }
+.qm-pill.me { background: #5b6cff; border-color: #6c7cff; }
 
-.qm-player-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.qm-pill { padding: 6px 10px; border-radius: 999px; background: #1d2152; border: 1px solid #5b6cff; font-size: 0.9rem; }
-.qm-pill.me { background: #5b6cff; color: white; }
+/* ----- playing ----- */
+.qm-timerbar { height: 10px; background: #2a2f5c; border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+.qm-timerbar i { display: block; height: 100%; background: #5fe06a; transition: width .25s linear; }
+.qm-playhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.qm-clock { font-size: 2.4rem; font-weight: 900; color: #5fe06a; min-width: 90px; }
+.qm-clock.warn { color: #ffd23f; } .qm-clock.danger { color: #ff6a6a; }
+.qm-myscore { font-size: 1.2rem; color: #c3c9f5; } .qm-myscore b { font-size: 1.6rem; color: #fff; }
 
-/* Answer grid (Speed Quiz / Contre-la-montre) */
-.qm-q { font-size: 1.3rem; text-align: center; margin: 6px 0 14px; word-break: break-word; min-height: 1.6em; }
-.qm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.qm-grid button {
-  font-size: 1.1rem; min-height: 78px; padding: 12px;
-  background: #1d2152; border: 1px solid #353a72; border-radius: 10px; color: #e9ecff; cursor: pointer; word-break: break-word;
+.qm-qcard { padding: 18px; }
+.qm-q { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 18px; line-height: 1.3; min-height: 2.6em; display: flex; align-items: center; justify-content: center; }
+.qm-choices { display: flex; flex-direction: column; gap: 12px; }
+.qm-choice { width: 100%; padding: 20px; font-size: 1.25rem; font-weight: 600; background: #1d2152; border: 2px solid #3a4080; border-radius: 14px; color: #fff; cursor: pointer; min-height: 68px; text-align: center; }
+.qm-choice:active { background: #2a2f5c; }
+.qm-choice.good { background: #1a6d12; border-color: #2fc41f; }
+.qm-choice.bad { background: #7a1d1d; border-color: #e35; }
+.qm-choice:disabled { opacity: 0.85; }
+.qm-skip { width: 100%; margin-top: 14px; padding: 16px; font-size: 1.1rem; font-weight: 700; background: transparent; border: 2px dashed #5a6090; border-radius: 14px; color: #c3c9f5; cursor: pointer; min-height: 56px; }
+.qm-skip:active { background: #1d2152; }
+
+/* ----- live standings ----- */
+.qm-standings { display: flex; flex-direction: column; gap: 8px; }
+.qm-srow { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #1b1d35; border: 1px solid #2a2f5c; border-radius: 12px; font-size: 1.05rem; }
+.qm-srow.me { border-color: #6c7cff; background: #1d2152; }
+.qm-srow.gold { border-color: #ffd23f; background: #2a230f; }
+.qm-srow .rank { font-weight: 800; min-width: 36px; font-size: 1.1rem; }
+.qm-srow .who { flex: 1; font-weight: 600; }
+.qm-srow .detail { color: #9aa3d6; font-size: 0.95rem; }
+.qm-srow .score { font-weight: 800; color: #ffd23f; min-width: 44px; text-align: right; font-size: 1.2rem; }
+
+/* ----- podium / résumé ----- */
+.qm-mvp { text-align: center; }
+.qm-mvp-emoji { font-size: 3.5rem; }
+.qm-mvp-label { color: #c3c9f5; font-size: 1rem; }
+.qm-mvp-name { font-size: 1.8rem; font-weight: 900; margin: 4px 0; }
+.qm-mvp-val { font-size: 1.2rem; color: #ffd23f; font-weight: 700; }
+.qm-extras { display: flex; flex-direction: column; gap: 10px; }
+.qm-extra { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; gap: 2px 12px; align-items: center; padding: 12px 14px; background: #1b1d35; border: 1px solid #2a2f5c; border-radius: 12px; }
+.qm-extra .e { grid-row: 1 / 3; font-size: 1.8rem; }
+.qm-extra .l { color: #9aa3d6; font-size: 0.9rem; }
+.qm-extra .n { font-weight: 800; font-size: 1.1rem; grid-column: 2; }
+.qm-extra .v { grid-column: 3; grid-row: 1 / 3; color: #ffd23f; font-weight: 700; text-align: right; }
+
+@media (min-width: 520px) {
+  .qm-rooms { grid-template-columns: 1fr 1fr 1fr; }
 }
-.qm-grid button:hover:not(:disabled) { background: #2a2f5c; }
-.qm-grid button:disabled { opacity: 0.7; cursor: not-allowed; }
-.qm-grid button.good { background: #1a4d10; border-color: #26890c; }
-.qm-grid button.bad { background: #4d1a1a; border-color: #c43; }
-
-.qm-topbar-info { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
-.qm-time { font-weight: 800; color: #ffd23f; min-width: 60px; }
-.qm-points { font-weight: 800; }
-
-.qm-progress { display: flex; flex-direction: column; gap: 6px; }
-.qm-progress-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #1b1d35; border: 1px solid #262a52; border-radius: 8px; }
-.qm-progress-row.me { border-color: #5b6cff; background: #1d2152; }
-.qm-progress-row .who { flex: 1; }
-.qm-pips { display: inline-flex; gap: 4px; align-items: center; }
-.qm-pip { display: inline-block; width: 10px; height: 10px; border-radius: 999px; background: #2a2f5c; }
-.qm-pip.on { background: #26890c; box-shadow: 0 0 4px #26890c80; }
-.qm-finish-ms { font-weight: 800; color: #ffd23f; min-width: 60px; text-align: right; }
-
-.qm-countdown { display: flex; align-items: center; justify-content: center; padding: 24px 0; font-size: 4.5rem; font-weight: 900; color: #ffd23f; text-shadow: 0 2px 12px #0008; }
-
-.qm-podium-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #1b1d35; border: 1px solid #262a52; border-radius: 10px; }
-.qm-podium-row.gold { border-color: #ffd23f; background: #2a230f; }
-.qm-podium-row .rank { font-weight: 800; min-width: 36px; font-size: 1.2rem; }
-.qm-podium-row .who { flex: 1; font-weight: 700; }
-.qm-podium-row .pts { font-weight: 800; color: #ffd23f; }
-
-.qm-toast { padding: 8px 12px; background: #1a4d10; border: 1px solid #26890c; border-radius: 8px; text-align: center; margin: 6px 0; }
-.qm-toast.warn { background: #4d3010; border-color: #c80; }
-
-@media (max-width: 540px) {
-  .qm-rooms { grid-template-columns: 1fr; }
-  .qm-hero h1 { font-size: 1.8rem; }
-  .qm-bigger { font-size: 3rem; }
+@media (max-width: 360px) {
+  html { font-size: 17px; }
+  .qm-rooms { grid-template-columns: 1fr 1fr; }
 }

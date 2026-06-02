@@ -1,156 +1,104 @@
-// QuizzMaster — 20 persistent rooms (2 modes × 10 themes).
+// QuizzMaster — 10 persistent rooms (one per theme), single "Blitz 30 s" mode.
 //
-// Each room owns one engine instance (quiz.js or quiz_solo.js) wired to the
-// theme's question bank. Lifecycle per room:
+// Lifecycle per room (the room owns ALL timing; the blitz engine is a pure
+// pool + scorer):
 //
-//   idle   ──Démarrer (any player)──▶  prerace (15 s countdown)
-//          ◀──── 60 s timeout, 2+ players ────  (auto-start)
-//   prerace ──countdown elapsed──▶ racing (engine.onAdvance)
-//   racing ──engine.phase=="finished"──▶ podium (8 s display)
-//   podium ──8 s elapsed──▶ idle (engine.onReset, players' scores cleared)
+//   idle      ──Démarrer (n'importe quel joueur)──▶  countdown (3 s : 3-2-1-GO)
+//             ◀──── 60 s timeout, 2+ joueurs ────  (démarrage auto)
+//   countdown ──fin du décompte──▶  playing (30 s de blitz)
+//   playing   ──30 s écoulées──▶  podium (résumé + stats, 10 s)
+//   podium    ──10 s──▶  idle  (scores remis à zéro)
 //
-// Late-joins during `racing` see a spectator UI (handled client-side from
-// the room snapshot).
+// Les retardataires pendant `playing` voient un écran spectateur (géré côté
+// client à partir de l'état).
 
-const quizMod = require("../games/quiz");
-const quizSoloMod = require("../games/quiz_solo");
 const themes = require("./themes");
+const blitz = require("./blitz");
 const leaderboard = require("./leaderboard");
 
-const PRERACE_MS = Number(process.env.QM_PRERACE_MS) > 0 ? Number(process.env.QM_PRERACE_MS) : 15000;
-const PODIUM_MS = Number(process.env.QM_PODIUM_MS) > 0 ? Number(process.env.QM_PODIUM_MS) : 8000;
+const COUNTDOWN_MS = Number(process.env.QM_COUNTDOWN_MS) > 0 ? Number(process.env.QM_COUNTDOWN_MS) : 3000;
+const BLITZ_MS = Number(process.env.QM_BLITZ_MS) > 0 ? Number(process.env.QM_BLITZ_MS) : 30000;
+const PODIUM_MS = Number(process.env.QM_PODIUM_MS) > 0 ? Number(process.env.QM_PODIUM_MS) : 10000;
 const AUTO_START_AFTER_MS = Number(process.env.QM_AUTOSTART_MS) > 0 ? Number(process.env.QM_AUTOSTART_MS) : 60000;
-const MODES = [
-  { id: "quiz",      name: "Speed Quiz",         emoji: "🧠", module: quizMod,     scoreLabel: "pts" },
-  { id: "quiz_solo", name: "Contre-la-montre",   emoji: "🔢", module: quizSoloMod, scoreLabel: "s" },
-];
 
-function makeRoom(modeDef, themeDef) {
-  const id = modeDef.id + ":" + themeDef.id;
-  const engine = modeDef.module.create({ bank: themeDef.bank });
-  const players = new Map();   // cid -> { cid, name, socketId, score, answered, voteTarget, answer }
-  let state = "idle";          // "idle" | "prerace" | "racing" | "podium"
-  let preraceEndAt = 0;
+function makeRoom(themeDef) {
+  const id = themeDef.id;
+  const engine = blitz.create(themeDef.bank);
+  const players = new Map();   // cid -> { cid, name, socketId, score }
+  let state = "idle";          // "idle" | "countdown" | "playing" | "podium"
+  let goAt = 0;                // absolute Date.now() of GO (countdown end)
+  let endAt = 0;               // absolute end of the 30 s blitz
   let podiumEndAt = 0;
   let lastIdleSince = Date.now();
-  let lastRaceSummary = null;  // kept on screen during podium phase
+  let lastSummary = null;
 
-  // Shim that mimics the Aperolympics `room` API expected by the engines.
-  const roomShim = {
-    code: id,
-    players,
-    activePlayers: () => [...players.values()].filter((p) => p.socketId),
-    hostName: () => {
-      const active = roomShim.activePlayers();
-      return active.length ? active[0].name : "";
-    },
-  };
-
-  function clearPlayerRoundState() {
-    players.forEach((p) => {
-      p.answered = false;
-      p.voteTarget = null;
-      p.answer = -1;
-    });
-  }
+  function activePlayers() { return [...players.values()].filter((p) => p.socketId); }
 
   function addPlayer(cid, name, socketId) {
     if (!cid || !name) return null;
     let p = players.get(cid);
-    if (p) {
-      p.name = name;
-      p.socketId = socketId;
-    } else {
-      p = { cid, name, socketId, score: 0, answered: false, voteTarget: null, answer: -1 };
-      players.set(cid, p);
-    }
+    if (p) { p.name = name; p.socketId = socketId; }
+    else { p = { cid, name, socketId, score: 0 }; players.set(cid, p); }
     return p;
   }
 
   function removePlayer(cid) {
     players.delete(cid);
-    if (state === "idle" && roomShim.activePlayers().length === 0) {
-      lastIdleSince = Date.now();
-    }
+    if (state === "idle" && activePlayers().length === 0) lastIdleSince = Date.now();
   }
 
   function trigger(now) {
     if (state !== "idle") return false;
-    if (roomShim.activePlayers().length === 0) return false;
-    state = "prerace";
-    preraceEndAt = now + PRERACE_MS;
+    if (activePlayers().length === 0) return false;
+    state = "countdown";
+    goAt = now + COUNTDOWN_MS;
+    endAt = goAt + BLITZ_MS;
     return true;
   }
 
-  function recordScoresToLeaderboard() {
-    const active = roomShim.activePlayers();
-    active.forEach((p) => {
-      let value, displayValue;
-      if (modeDef.id === "quiz_solo") {
-        // p.score = max(0, 60000 - bestMs). Convert back to ms.
-        if (!p.score || p.score <= 0) return; // never finished
-        const ms = 60000 - p.score;
-        if (ms <= 0 || ms >= 60000) return;
-        value = ms;
-        displayValue = (ms / 1000).toFixed(2) + " s";
-      } else {
-        // Speed Quiz: p.score is the accumulated points.
-        if (!p.score || p.score <= 0) return;
-        value = p.score;
-        displayValue = String(p.score) + " pts";
-      }
-      leaderboard.record(id, modeDef.id, {
-        cid: p.cid, name: p.name, value, displayValue, at: Date.now(),
+  function recordToLeaderboard() {
+    engine.standings().forEach((r) => {
+      const p = [...players.values()].find((x) => x.name === r.name && x.socketId);
+      if (!p) return;
+      // Only positive scores make the board (a negative run isn't a record).
+      if (r.score <= 0) return;
+      leaderboard.record(id, "blitz", {
+        cid: p.cid, name: p.name,
+        value: r.score,
+        displayValue: r.score + " pt" + (r.score > 1 ? "s" : "") + " (" + r.correct + "✓)",
+        at: Date.now(),
       });
     });
-  }
-
-  function captureSummary() {
-    const round = engine.serializeRound ? engine.serializeRound(roomShim) : {};
-    return {
-      mvp: round.mvp || null,
-      extras: round.extras || [],
-      progress: round.progress || null,
-      players: roomShim.activePlayers().map((p) => ({
-        name: p.name, score: p.score,
-      })),
-    };
   }
 
   function tick(now) {
     let dirty = false;
 
-    // Engine internal timer (countdown for quiz_solo, question timeout for quiz).
-    if (engine.tick && engine.tick(roomShim, now)) dirty = true;
-
-    if (state === "prerace" && now >= preraceEndAt) {
-      engine.onAdvance(roomShim);
-      state = "racing";
+    if (state === "countdown" && now >= goAt) {
+      engine.begin(activePlayers());
+      state = "playing";
       dirty = true;
     }
 
-    if (state === "racing" && engine.phase() === "finished") {
-      recordScoresToLeaderboard();
-      lastRaceSummary = captureSummary();
+    if (state === "playing" && now >= endAt) {
+      lastSummary = engine.summary();
+      recordToLeaderboard();
       state = "podium";
       podiumEndAt = now + PODIUM_MS;
       dirty = true;
     }
 
     if (state === "podium" && now >= podiumEndAt) {
-      if (engine.onReset) engine.onReset(roomShim);
-      clearPlayerRoundState();
+      engine.reset();
       players.forEach((p) => { p.score = 0; });
-      lastRaceSummary = null;
+      lastSummary = null;
       state = "idle";
       lastIdleSince = now;
       dirty = true;
     }
 
-    // Auto-start: 2+ active players sitting idle for AUTO_START_AFTER_MS.
-    if (state === "idle"
-        && roomShim.activePlayers().length >= 2
-        && now - lastIdleSince >= AUTO_START_AFTER_MS) {
+    // Démarrage auto : 2+ joueurs qui attendent depuis AUTO_START_AFTER_MS.
+    if (state === "idle" && activePlayers().length >= 2 && now - lastIdleSince >= AUTO_START_AFTER_MS) {
       trigger(now);
       dirty = true;
     }
@@ -162,66 +110,53 @@ function makeRoom(modeDef, themeDef) {
     const p = players.get(cid);
     if (!p) return false;
     if (msg && msg.t === "demarrer") return trigger(Date.now());
-    // Forward to engine
-    if (engine.onMessage) {
-      engine.onMessage(roomShim, p, msg || {});
-      return true; // even if no-op, caller broadcasts anyway
+    if (msg && msg.t === "progress" && state === "playing") {
+      return engine.report(p.name, msg);
     }
     return false;
   }
 
   function snapshot() {
-    const active = roomShim.activePlayers();
     const now = Date.now();
-    const round = engine.serializeRound ? engine.serializeRound(roomShim) : {};
-    return {
-      id, mode: modeDef.id, theme: themeDef.id,
-      mode_name: modeDef.name, mode_emoji: modeDef.emoji, theme_name: themeDef.name, theme_emoji: themeDef.emoji,
+    const active = activePlayers();
+    const snap = {
+      id, theme: themeDef.id, theme_name: themeDef.name, theme_emoji: themeDef.emoji,
       state,
-      prerace_remaining_ms: state === "prerace" ? Math.max(0, preraceEndAt - now) : 0,
+      countdown_remaining_ms: state === "countdown" ? Math.max(0, goAt - now) : 0,
+      time_left_ms: state === "playing" ? Math.max(0, endAt - now) : 0,
+      blitz_total_ms: BLITZ_MS,
       podium_remaining_ms: state === "podium" ? Math.max(0, podiumEndAt - now) : 0,
-      auto_start_in_ms: (state === "idle" && active.length >= 2)
-        ? Math.max(0, AUTO_START_AFTER_MS - (now - lastIdleSince)) : 0,
-      engine_phase: engine.phase(),
-      round,
-      players: active.map((p) => ({ cid: p.cid, name: p.name, score: p.score, answered: !!p.answered })),
+      auto_start_in_ms: (state === "idle" && active.length >= 2) ? Math.max(0, AUTO_START_AFTER_MS - (now - lastIdleSince)) : 0,
+      players: active.map((p) => ({ cid: p.cid, name: p.name })),
+      standings: (state === "playing" || state === "podium") ? engine.standings() : [],
       top: leaderboard.top(id),
-      last_summary: state === "podium" ? lastRaceSummary : null,
+      summary: state === "podium" ? lastSummary : null,
     };
+    if (state === "countdown" || state === "playing") snap.questions = engine.questions();
+    return snap;
   }
 
   function lobbyCard() {
     const now = Date.now();
     return {
-      id, mode: modeDef.id, theme: themeDef.id,
-      mode_name: modeDef.name, mode_emoji: modeDef.emoji, theme_name: themeDef.name, theme_emoji: themeDef.emoji,
+      id, theme: themeDef.id, theme_name: themeDef.name, theme_emoji: themeDef.emoji,
       state,
-      player_count: roomShim.activePlayers().length,
-      prerace_remaining_ms: state === "prerace" ? Math.max(0, preraceEndAt - now) : 0,
+      player_count: activePlayers().length,
+      countdown_remaining_ms: state === "countdown" ? Math.max(0, goAt - now) : 0,
+      time_left_ms: state === "playing" ? Math.max(0, endAt - now) : 0,
       podium_remaining_ms: state === "podium" ? Math.max(0, podiumEndAt - now) : 0,
     };
   }
 
   return {
-    id, mode: modeDef.id, theme: themeDef.id,
+    id, theme: themeDef.id,
     addPlayer, removePlayer, handleMessage, tick, snapshot, lobbyCard,
     hasPlayer: (cid) => players.has(cid),
   };
 }
 
 function buildAll() {
-  const list = [];
-  MODES.forEach((mode) => {
-    Object.values(themes).forEach((theme) => {
-      list.push(makeRoom(mode, theme));
-    });
-  });
-  return list;
+  return Object.values(themes).map((theme) => makeRoom(theme));
 }
 
-module.exports = {
-  buildAll,
-  MODES,
-  THEMES: themes,
-  PRERACE_MS, PODIUM_MS, AUTO_START_AFTER_MS,
-};
+module.exports = { buildAll, THEMES: themes, COUNTDOWN_MS, BLITZ_MS, PODIUM_MS, AUTO_START_AFTER_MS };

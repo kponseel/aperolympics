@@ -1,93 +1,78 @@
-// QuizzMaster SPA. Socket.IO namespace /qm, 3 screens (pseudo / hall / room),
-// state-driven inner content in the room screen (idle, prerace, racing as
-// participant or spectator, podium).
+// QuizzMaster SPA — single "Blitz 30 s" mode.
+// Socket.IO namespace /qm. 3 screens: pseudo / hall (10 themes) / room.
+// Room is state-driven: idle → countdown (3-2-1) → playing (30 s) → podium.
+// Mobile-first, large touch targets, high contrast (lisible 60+).
 
 (function () {
   "use strict";
 
-  // ---- persistent identity ----
+  // ---------- identité persistante ----------
   function uuid() {
-    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function (c) {
+    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, function (c) {
       return (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16);
     });
   }
-  function getCid() {
-    var c = localStorage.getItem("qm.cid");
-    if (!c) { c = uuid(); localStorage.setItem("qm.cid", c); }
-    return c;
-  }
+  function getCid() { var c = localStorage.getItem("qm.cid"); if (!c) { c = uuid(); localStorage.setItem("qm.cid", c); } return c; }
   function getPseudo() { return (localStorage.getItem("qm.pseudo") || "").trim(); }
-  function setPseudo(name) { localStorage.setItem("qm.pseudo", name); }
+  function setPseudo(n) { localStorage.setItem("qm.pseudo", n); }
 
-  // ---- DOM helpers ----
+  // ---------- helpers ----------
   function $(id) { return document.getElementById(id); }
   function show(screenId) {
-    ["s-pseudo", "s-hall", "s-room"].forEach(function (s) {
-      var el = $(s); if (el) el.classList.toggle("on", s === screenId);
-    });
-    var back = $("qmBack");
-    if (back) back.style.display = (screenId === "s-room") ? "" : "none";
+    ["s-pseudo", "s-hall", "s-room"].forEach(function (s) { var el = $(s); if (el) el.classList.toggle("on", s === screenId); });
+    var back = $("qmBack"); if (back) back.style.display = (screenId === "s-room") ? "" : "none";
   }
-  function escapeHtml(s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function setStatus(t) { var el = $("qmStatus"); if (el) el.textContent = t || ""; }
-  function setWho() {
-    var el = $("qmWho"); if (!el) return;
-    var p = getPseudo();
-    el.textContent = p ? "👋 " + p : "";
-  }
+  function setWho() { var el = $("qmWho"); if (el) { var p = getPseudo(); el.textContent = p ? "👋 " + p : ""; } }
+  function medal(i) { return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#" + (i + 1); }
 
-  // ---- socket + session ----
-  var socket = null;
-  var connected = false;
-  var lastLobby = null;       // last lobby_state payload
-  var lastRoom = null;        // last room_state payload
-  var currentRoomId = null;
-  var stopwatchTick = null;   // setInterval handle for live timer redraw
-  var clientAnswer = -1;      // local memory of which option we tapped this question
-  var clientAnswered = false;
-  var clientCorrect = 0;
-  var clientWrong = 0;
+  // ---------- socket + session ----------
+  var socket = null, connected = false;
+  var lastLobby = null, lastRoom = null, currentRoomId = null;
+  var refreshTick = null;
+
+  // local blitz play state (client-trusted scoring, mirrors server)
+  var play = null; // { idx, correct, wrong, skipped, streak, curStreak, locked }
 
   function connect() {
     if (socket) return;
     socket = io("/qm", { transports: ["websocket", "polling"] });
     socket.on("connect", function () {
       connected = true; setStatus("");
-      socket.emit("set_identity", { cid: getCid(), name: getPseudo() });
+      if (getPseudo()) socket.emit("set_identity", { cid: getCid(), name: getPseudo() });
     });
     socket.on("disconnect", function () { connected = false; setStatus("Connexion perdue — reconnexion…"); });
     socket.on("identity_ok", function () {
-      // After identity, send what we're doing now.
+      setStatus("");
       if (currentRoomId) socket.emit("join_room", { id: currentRoomId });
-      else socket.emit("join_lobby");
+      else if ($("s-hall").classList.contains("on")) socket.emit("join_lobby");
     });
-    socket.on("error_msg", function (m) { setStatus(m && m.msg ? "Erreur : " + m.msg : "Erreur"); });
+    socket.on("error_msg", function (m) {
+      var code = m && m.msg;
+      if (code === "bad_identity" || code === "no_identity") return;
+      setStatus(code ? "Erreur : " + code : "Erreur");
+    });
     socket.on("lobby_state", function (m) { lastLobby = m || {}; renderLobby(); });
     socket.on("room_state", function (m) {
+      var prev = lastRoom;
       lastRoom = m || {};
-      window.__qmLastRoom = lastRoom; // debug/test hook
-      // Reset local answer tracking when a new race starts (engine phase
-      // transitions from non-playing → playing).
-      var ep = lastRoom.engine_phase;
-      var st = lastRoom.state;
-      if (st === "prerace") {
-        clientAnswered = false; clientAnswer = -1; clientCorrect = 0; clientWrong = 0;
+      window.__qmLastRoom = lastRoom;
+      // New race starting: (re)initialise local play state once, at countdown.
+      if (lastRoom.state === "countdown" && (!prev || prev.state === "idle" || prev.state === "podium")) {
+        play = { idx: 0, correct: 0, wrong: 0, skipped: 0, streak: 0, curStreak: 0, locked: false };
       }
       renderRoom();
     });
   }
 
-  // ---- pseudo screen ----
+  // ---------- pseudo ----------
   function setupPseudo() {
     var input = $("qmName"); if (!input) return;
     input.value = getPseudo();
     $("qmContinue").onclick = function () {
       var n = (input.value || "").trim().slice(0, 16);
-      if (!n) { $("qmPseudoError").textContent = "Choisis un pseudo."; return; }
+      if (!n) { $("qmPseudoError").textContent = "Entre ton prénom."; return; }
       setPseudo(n); setWho();
       if (socket) socket.emit("set_identity", { cid: getCid(), name: n });
       enterHall();
@@ -101,429 +86,279 @@
     show("s-hall");
   }
 
-  // ---- hall renderer ----
-  function stateLabel(card) {
-    if (card.state === "racing") return { txt: "🔥 Course en cours", cls: "live" };
-    if (card.state === "prerace") {
-      var s = Math.ceil(card.prerace_remaining_ms / 1000);
-      return { txt: "🚦 Démarrage dans " + s + " s", cls: "prerace" };
-    }
-    if (card.state === "podium") return { txt: "🏆 Podium…", cls: "podium" };
-    if (card.player_count > 0) return { txt: "⏳ " + card.player_count + " en attente", cls: "" };
-    return { txt: "💤 Aucun joueur", cls: "" };
+  // ---------- hall ----------
+  function roomStateLabel(card) {
+    if (card.state === "playing") return { txt: "🔥 En cours", cls: "live" };
+    if (card.state === "countdown") return { txt: "🚦 Ça démarre !", cls: "go" };
+    if (card.state === "podium") return { txt: "🏆 Résultats…", cls: "podium" };
+    if (card.player_count > 0) return { txt: "⏳ " + card.player_count + " en attente", cls: "wait" };
+    return { txt: "Touche pour jouer", cls: "" };
   }
 
   function renderLobby() {
     if (!lastLobby) return;
-    var rooms = lastLobby.rooms || [];
-    var qq = $("qmRoomsQuiz"), qs = $("qmRoomsSolo");
-    if (!qq || !qs) return;
-    qq.innerHTML = ""; qs.innerHTML = "";
-    rooms.forEach(function (card) {
-      var st = stateLabel(card);
+    var wrap = $("qmRooms"); if (!wrap) return;
+    wrap.innerHTML = "";
+    (lastLobby.rooms || []).forEach(function (card) {
+      var st = roomStateLabel(card);
       var el = document.createElement("button");
       el.type = "button";
-      el.className = "qm-room-card" + (card.state === "racing" ? " live" : "");
+      el.className = "qm-room-card" + (card.state === "playing" || card.state === "countdown" ? " live" : "");
       el.innerHTML =
-        '<div class="qm-rc-head"><span class="qm-rc-emoji">' + escapeHtml(card.theme_emoji) + '</span>' +
-        '<span>' + escapeHtml(card.theme_name) + '</span></div>' +
-        '<div class="qm-rc-state ' + st.cls + '">' + escapeHtml(st.txt) + '</div>';
+        '<span class="qm-rc-emoji">' + esc(card.theme_emoji) + '</span>' +
+        '<span class="qm-rc-name">' + esc(card.theme_name) + '</span>' +
+        '<span class="qm-rc-state ' + st.cls + '">' + esc(st.txt) + '</span>';
       el.onclick = function () { enterRoom(card.id); };
-      (card.mode === "quiz" ? qq : qs).appendChild(el);
+      wrap.appendChild(el);
     });
-    // Global top
-    var top = (lastLobby.global_top || []);
+    var top = lastLobby.global_top || [];
     var ol = $("qmGlobalTop");
-    if (!top.length) {
-      ol.innerHTML = '<li class="qm-top-empty">Aucun score enregistré pour le moment.</li>';
-    } else {
-      var medals = ["🥇", "🥈", "🥉"];
-      ol.innerHTML = top.map(function (e, i) {
-        var rank = medals[i] || ("#" + (i + 1));
-        return '<li><span class="rank">' + rank + '</span>' +
-               '<span class="who">' + escapeHtml(e.name) + '</span>' +
-               '<b class="pts">' + (e.points | 0) + ' pts</b></li>';
-      }).join("");
-    }
+    if (!top.length) ol.innerHTML = '<li class="qm-top-empty">Aucun score pour l\'instant. Sois le premier !</li>';
+    else ol.innerHTML = top.map(function (e, i) {
+      return '<li><span class="rank">' + medal(i) + '</span><span class="who">' + esc(e.name) + '</span><b class="pts">' + (e.points | 0) + ' pts</b></li>';
+    }).join("");
   }
 
-  // ---- room: join / leave ----
+  // ---------- room ----------
   function enterRoom(id) {
     currentRoomId = id;
-    if (socket && connected) {
-      socket.emit("leave_lobby");
-      socket.emit("join_room", { id: id });
-    }
+    play = null;
+    if (socket && connected) { socket.emit("leave_lobby"); socket.emit("join_room", { id: id }); }
     show("s-room");
   }
   function leaveRoom() {
     if (socket && connected && currentRoomId) socket.emit("leave_room");
-    currentRoomId = null;
-    lastRoom = null;
-    stopStopwatch();
+    currentRoomId = null; lastRoom = null; stopRefresh();
     enterHall();
   }
 
-  // ---- room renderer (state-driven inner content) ----
+  function amParticipant(r) {
+    // You're a participant if you were present when the deck was dealt — the
+    // server lists you in `standings` once playing starts. During countdown,
+    // anyone in `players` is in.
+    var me = getPseudo();
+    if (r.state === "countdown") return (r.players || []).some(function (p) { return p.name === me; });
+    return (r.standings || []).some(function (s) { return s.name === me; });
+  }
+
   function renderRoom() {
     if (!lastRoom) return;
     var r = lastRoom;
     $("qmRoomEmoji").textContent = r.theme_emoji || "🎯";
     $("qmRoomTitle").textContent = r.theme_name || "—";
-    $("qmRoomSub").textContent = (r.mode_emoji || "") + " " + (r.mode_name || "");
     var body = $("qmRoomBody"); if (!body) return;
-    var me = r.players && r.players.find(function (p) { return p.cid === getCid(); });
-    var inRoom = !!me;
-    if (r.state === "idle") {
-      renderIdle(body, r, inRoom);
-      stopStopwatch();
-    } else if (r.state === "prerace") {
-      renderPrerace(body, r, inRoom);
-      startStopwatch();
-    } else if (r.state === "racing") {
-      if (inRoom && joinedBeforeRaceStart(r)) renderRaceParticipant(body, r);
-      else renderRaceSpectator(body, r);
-      startStopwatch();
-    } else if (r.state === "podium") {
-      renderPodium(body, r);
-      startStopwatch();
-    } else {
-      body.innerHTML = "<p class='muted center'>État inconnu.</p>";
-      stopStopwatch();
+
+    if (r.state === "idle") { stopRefresh(); renderIdle(body, r); return; }
+    if (r.state === "countdown") { startRefresh(); renderCountdown(body, r); return; }
+    if (r.state === "playing") {
+      startRefresh();
+      if (amParticipant(r) && play) renderPlaying(body, r);
+      else renderSpectator(body, r);
+      return;
     }
+    if (r.state === "podium") { startRefresh(); renderPodium(body, r); return; }
   }
 
-  // We treat "in the players list" as eligible. The engine snapshot already
-  // includes only players who joined before the race started (since latejoins
-  // don't get added to eligibleNames in the engine).
-  // For Speed Quiz, anyone in the room participates in answers — but the engine
-  // also limits answering to "currently active". Simpler heuristic: if we have
-  // sent any answer for the current round, we're a participant.
-  function joinedBeforeRaceStart(r) {
-    // For Contre-la-montre, the engine pre-snapshots eligibleNames at countdown.
-    // The progress list shows only eligible players; check if we're in there.
-    if (r.mode === "quiz_solo") {
-      var prog = (r.round && r.round.progress) || [];
-      var myName = getPseudo();
-      return prog.some(function (p) { return p.name === myName; });
-    }
-    // Speed Quiz: anyone in the room can answer the next question. Treat as
-    // participant if we're in the players list (we are if `me` was found).
-    return true;
-  }
-
-  function renderIdle(body, r, inRoom) {
-    var auto = (r.auto_start_in_ms > 0) ? Math.ceil(r.auto_start_in_ms / 1000) : 0;
-    var html =
-      '<div class="qm-section">' +
-        '<h3>👥 Présents</h3>' +
-        renderPlayerPills(r.players) +
-        (r.players.length === 0 ? '<p class="muted center">Aucun joueur pour le moment. Lance la course en solo !</p>' : '') +
+  function renderIdle(body, r) {
+    var me = getPseudo();
+    var inRoom = (r.players || []).some(function (p) { return p.name === me; });
+    var auto = r.auto_start_in_ms > 0 ? Math.ceil(r.auto_start_in_ms / 1000) : 0;
+    body.innerHTML =
+      '<div class="qm-card">' +
+        '<p class="qm-rule">30 secondes · <b class="g">bonne +1</b> · <b class="r">mauvaise −1</b> · <b>passe 0</b></p>' +
+      '</div>' +
+      '<div class="qm-card">' +
+        '<h3>Joueurs (' + (r.players || []).length + ')</h3>' +
+        renderPills(r.players) +
       '</div>' +
       (inRoom
-        ? '<button class="qm-primary" id="qmStart">▶️ Démarrer maintenant</button>' +
-          (auto > 0 ? '<p class="muted center" style="margin-top:8px">Démarrage automatique dans ' + auto + ' s si personne ne clique.</p>' : '')
-        : '<button class="qm-primary" id="qmJoin">🎮 Rejoindre cette salle</button>') +
+        ? '<button class="qm-primary qm-xl" id="qmStart">▶️ Démarrer</button>' +
+          (auto > 0 ? '<p class="qm-hint">Départ auto dans ' + auto + ' s</p>' : '<p class="qm-hint">Tu peux lancer seul, ou attendre des joueurs.</p>')
+        : '<button class="qm-primary qm-xl" id="qmJoin">🎮 Rejoindre</button>') +
       renderRoomTop(r.top);
-    body.innerHTML = html;
-    var startBtn = $("qmStart");
-    if (startBtn) startBtn.onclick = function () { if (socket) socket.emit("msg", { t: "demarrer" }); };
-    var joinBtn = $("qmJoin");
-    if (joinBtn) joinBtn.onclick = function () { if (socket && currentRoomId) socket.emit("join_room", { id: currentRoomId }); };
+    var sb = $("qmStart"); if (sb) sb.onclick = function () { if (socket) socket.emit("msg", { t: "demarrer" }); };
+    var jb = $("qmJoin"); if (jb) jb.onclick = function () { if (socket && currentRoomId) socket.emit("join_room", { id: currentRoomId }); };
   }
 
-  function renderPrerace(body, r, inRoom) {
-    var s = Math.ceil(r.prerace_remaining_ms / 1000);
+  function renderCountdown(body, r) {
+    var n = Math.ceil(r.countdown_remaining_ms / 1000);
     body.innerHTML =
-      '<div class="qm-section">' +
-        '<div class="qm-bigger">Démarrage dans ' + s + '</div>' +
-        '<p class="muted center">Le quiz commence dans quelques secondes — rejoins-nous !</p>' +
+      '<div class="qm-card qm-center-card">' +
+        '<div class="qm-go">' + (n > 0 ? n : "GO !") + '</div>' +
+        '<p class="qm-lead">Prépare-toi…</p>' +
       '</div>' +
-      '<div class="qm-section">' +
-        '<h3>👥 Présents (' + r.players.length + ')</h3>' +
-        renderPlayerPills(r.players) +
-      '</div>' +
-      (inRoom ? '' :
-        '<button class="qm-primary" id="qmJoin">🎮 Rejoindre cette salle</button>') +
-      renderRoomTop(r.top);
-    var joinBtn = $("qmJoin");
-    if (joinBtn) joinBtn.onclick = function () { if (socket && currentRoomId) socket.emit("join_room", { id: currentRoomId }); };
+      '<div class="qm-card"><h3>Joueurs (' + (r.players || []).length + ')</h3>' + renderPills(r.players) + '</div>';
   }
 
-  function renderRaceParticipant(body, r) {
-    if (r.mode === "quiz_solo") renderSoloParticipant(body, r);
-    else renderQuizParticipant(body, r);
-  }
+  function renderPlaying(body, r) {
+    var qs = r.questions || [];
+    var timeLeft = Math.max(0, r.time_left_ms || 0);
+    var secs = Math.ceil(timeLeft / 1000);
+    var pct = r.blitz_total_ms ? Math.max(0, Math.min(100, (timeLeft / r.blitz_total_ms) * 100)) : 0;
+    var myScore = play.correct - play.wrong;
 
-  function renderRaceSpectator(body, r) {
-    var remain = "—";
-    if (r.mode === "quiz" && r.round && r.round.time_left_ms != null) {
-      remain = Math.ceil(r.round.time_left_ms / 1000) + " s sur cette question";
+    if (play.locked) {
+      // shouldn't happen during playing (locked only at time-up), but be safe
+      renderSpectator(body, r); return;
     }
+
+    var q = qs.length ? qs[play.idx % qs.length] : null;
+    var timerCls = secs <= 5 ? " danger" : (secs <= 10 ? " warn" : "");
     body.innerHTML =
-      '<div class="qm-section">' +
-        '<div class="qm-big">🔥 Course en cours</div>' +
-        '<p class="muted center">Tu rejoindras la prochaine course. ' + escapeHtml(remain) + '</p>' +
+      '<div class="qm-timerbar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="qm-playhead">' +
+        '<div class="qm-clock' + timerCls + '">' + secs + ' s</div>' +
+        '<div class="qm-myscore">Score <b>' + myScore + '</b></div>' +
       '</div>' +
-      '<div class="qm-section">' +
-        '<h3>👥 Participants</h3>' +
-        renderLiveProgress(r) +
+      '<div class="qm-card qm-qcard">' +
+        '<div class="qm-q">' + (q ? esc(q.q) : "…") + '</div>' +
+        '<div class="qm-choices" id="qmChoices">' +
+          (q ? q.choices.map(function (o, i) { return '<button class="qm-choice" data-i="' + i + '">' + esc(o) + '</button>'; }).join("") : "") +
+        '</div>' +
+        '<button class="qm-skip" id="qmSkip">Je passe ⏭️</button>' +
       '</div>' +
-      renderRoomTop(r.top);
-  }
+      '<div class="qm-card"><h3>Classement en direct</h3>' + renderLiveStandings(r) + '</div>';
 
-  // --- Contre-la-montre participant ---
-  function renderSoloParticipant(body, r) {
-    var round = r.round || {};
-    var qs = round.questions || [];
-    var raceStart = round.race_start_at || 0;
-    var elapsed = raceStart ? Math.max(0, Date.now() - raceStart) : 0;
-    var done = (function () {
-      var myName = getPseudo();
-      var entry = (round.progress || []).find(function (p) { return p.name === myName; });
-      return entry && entry.finished_ms != null;
-    })();
-
-    // Pre-race countdown if race_start_at in the future
-    if (raceStart && Date.now() < raceStart) {
-      var n = Math.ceil((raceStart - Date.now()) / 1000);
-      body.innerHTML =
-        '<div class="qm-section">' +
-          '<div class="qm-bigger">' + (n > 0 ? n : "GO !") + '</div>' +
-          '<p class="muted center">Préparez-vous…</p>' +
-        '</div>' +
-        '<div class="qm-section"><h3>👥 Présents (' + r.players.length + ')</h3>' + renderPlayerPills(r.players) + '</div>';
-      return;
-    }
-
-    var q = qs[clientCorrect + clientWrong];
-    if (done) {
-      var entry = (round.progress || []).find(function (p) { return p.name === getPseudo(); });
-      var ms = entry ? entry.finished_ms : 0;
-      body.innerHTML =
-        '<div class="qm-section">' +
-          '<div class="qm-big">🏁 Bravo — tu as fini en ' + (ms / 1000).toFixed(2) + ' s !</div>' +
-          '<p class="muted center">Attends la fin de la course pour la prochaine.</p>' +
-        '</div>' +
-        '<div class="qm-section">' +
-          '<h3>👥 Progression</h3>' + renderLiveProgress(r) +
-        '</div>';
-      return;
-    }
-    if (!q) {
-      body.innerHTML = '<div class="qm-section"><div class="qm-big">Chargement…</div></div>';
-      return;
-    }
-    body.innerHTML =
-      '<div class="qm-section">' +
-        '<div class="qm-topbar-info"><span class="qm-time">' + (elapsed / 1000).toFixed(1) + ' s</span>' +
-        '<span class="muted">' + clientCorrect + ' / 5 bonnes</span></div>' +
-        '<div class="qm-q">' + escapeHtml(q.q) + '</div>' +
-        '<div class="qm-grid" id="qmGrid">' +
-          (q.choices || []).map(function (o, i) { return '<button data-idx="' + i + '">' + escapeHtml(o) + '</button>'; }).join("") +
-        '</div>' +
-      '</div>' +
-      '<div class="qm-section"><h3>👥 Progression</h3>' + renderLiveProgress(r) + '</div>';
-    var grid = $("qmGrid");
-    if (grid) {
-      Array.from(grid.querySelectorAll("button")).forEach(function (btn) {
+    var choices = $("qmChoices");
+    if (choices && q) {
+      Array.prototype.forEach.call(choices.querySelectorAll("button"), function (btn) {
         btn.onclick = function () {
-          var idx = parseInt(btn.getAttribute("data-idx"), 10);
-          if (idx === q.correct) { clientCorrect++; btn.classList.add("good"); }
-          else { clientWrong++; btn.classList.add("bad"); }
-          // Disable to prevent double-click; the next render will replace the grid.
-          Array.from(grid.querySelectorAll("button")).forEach(function (b) { b.disabled = true; });
-          socket.emit("msg", { t: "answer_progress", correct: clientCorrect, wrong: clientWrong });
+          var i = parseInt(btn.getAttribute("data-i"), 10);
+          var ok = i === q.correct;
+          if (ok) { play.correct++; play.curStreak++; if (play.curStreak > play.streak) play.streak = play.curStreak; }
+          else { play.wrong++; play.curStreak = 0; }
+          flashThenNext(btn, ok);
         };
       });
     }
+    var skip = $("qmSkip");
+    if (skip) skip.onclick = function () { play.skipped++; play.curStreak = 0; advance(); };
   }
 
-  // --- Speed Quiz participant ---
-  function renderQuizParticipant(body, r) {
-    var round = r.round || {};
-    var phase = r.engine_phase || "playing";
-    if (phase === "lobby") {
-      // Shouldn't really happen during racing, but be safe.
-      renderIdle(body, r, true);
-      return;
-    }
-    if (phase === "playing") {
-      var timeLeft = Math.max(0, round.time_left_ms || 0);
-      var totalQs = round.total || 10;
-      var idx = (round.idx || 0) + 1;
-      body.innerHTML =
-        '<div class="qm-section">' +
-          '<div class="qm-topbar-info">' +
-            '<span class="qm-time">' + (timeLeft / 1000).toFixed(1) + ' s</span>' +
-            '<span class="muted">Q' + idx + ' / ' + totalQs + '</span>' +
-            '<span class="qm-points">' + (round.points_now || 0) + ' pts</span>' +
-          '</div>' +
-          '<div class="qm-q">' + escapeHtml(round.q || "…") + '</div>' +
-          '<div class="qm-grid" id="qmGrid">' +
-            (round.options || []).map(function (o, i) { return '<button data-idx="' + i + '"' + (clientAnswered ? ' disabled' : '') + '>' + escapeHtml(o) + '</button>'; }).join("") +
-          '</div>' +
-          (clientAnswered ? '<p class="muted center">Réponse envoyée — on attend les autres…</p>' : '') +
-        '</div>' +
-        '<div class="qm-section"><h3>📊 Scores</h3>' + renderScoreList(r.players) + '</div>';
-      var grid = $("qmGrid");
-      if (grid) {
-        Array.from(grid.querySelectorAll("button")).forEach(function (btn) {
-          btn.onclick = function () {
-            if (clientAnswered) return;
-            var idx = parseInt(btn.getAttribute("data-idx"), 10);
-            clientAnswer = idx; clientAnswered = true;
-            socket.emit("msg", { t: "answer", choice: idx });
-            // Disable immediately for snappy feedback.
-            Array.from(grid.querySelectorAll("button")).forEach(function (b) { b.disabled = true; });
-            btn.style.outline = "2px solid #5b6cff";
-          };
-        });
-      }
-      return;
-    }
-    if (phase === "reveal") {
-      var correctIdx = round.correct;
-      body.innerHTML =
-        '<div class="qm-section">' +
-          '<div class="qm-q">' + escapeHtml(round.q || "") + '</div>' +
-          '<div class="qm-grid">' +
-            (round.options || []).map(function (o, i) {
-              var cls = "";
-              if (i === correctIdx) cls = "good";
-              else if (i === clientAnswer && i !== correctIdx) cls = "bad";
-              return '<button class="' + cls + '" disabled>' + escapeHtml(o) + '</button>';
-            }).join("") +
-          '</div>' +
-          '<p class="center" style="margin-top:10px">' +
-            (clientAnswer === correctIdx ? '<b style="color:#26890c">✅ Bonne réponse !</b>' : '<b style="color:#ff7a7a">❌ Raté</b>') +
-          '</p>' +
-        '</div>' +
-        '<div class="qm-section"><h3>📊 Scores</h3>' + renderScoreList(r.players) + '</div>';
-      clientAnswered = false; // reset for next Q
-      clientAnswer = -1;
-      return;
-    }
-    // finished — handled by podium screen state="podium" below
-    body.innerHTML = '<div class="qm-section"><div class="qm-big">Question terminée…</div></div>';
+  function flashThenNext(btn, ok) {
+    // brief visual feedback, then advance. Lock the grid to prevent double-tap.
+    var grid = $("qmChoices");
+    if (grid) Array.prototype.forEach.call(grid.querySelectorAll("button"), function (b) { b.disabled = true; });
+    btn.classList.add(ok ? "good" : "bad");
+    if (navigator.vibrate) { try { navigator.vibrate(ok ? 25 : [30, 30, 30]); } catch (e) {} }
+    setTimeout(advance, 180);
+  }
+
+  function advance() {
+    play.idx++;
+    sendProgress();
+    // Re-render immediately (optimistic) so the next question shows fast.
+    if (lastRoom && lastRoom.state === "playing") renderRoom();
+  }
+
+  function sendProgress() {
+    if (socket) socket.emit("msg", { t: "progress", correct: play.correct, wrong: play.wrong, skipped: play.skipped, streak: play.streak });
+  }
+
+  function renderSpectator(body, r) {
+    var secs = Math.ceil((r.time_left_ms || 0) / 1000);
+    body.innerHTML =
+      '<div class="qm-card qm-center-card">' +
+        '<div class="qm-big">🔥 Partie en cours</div>' +
+        '<p class="qm-lead">Tu joueras à la prochaine manche' + (secs ? ' (' + secs + ' s restantes)' : '') + '.</p>' +
+      '</div>' +
+      '<div class="qm-card"><h3>Classement en direct</h3>' + renderLiveStandings(r) + '</div>' +
+      renderRoomTop(r.top);
   }
 
   function renderPodium(body, r) {
     var s = Math.ceil(r.podium_remaining_ms / 1000);
-    var sum = r.last_summary || {};
-    var medals = ["🥇", "🥈", "🥉"];
-    var rows = "";
-    if (r.mode === "quiz_solo" && sum.progress) {
-      // Sort by finished_ms (lowest first), then by correct desc.
-      var sorted = (sum.progress || []).slice().sort(function (a, b) {
-        var af = a.finished_ms == null ? Infinity : a.finished_ms;
-        var bf = b.finished_ms == null ? Infinity : b.finished_ms;
-        if (af !== bf) return af - bf;
-        return (b.correct || 0) - (a.correct || 0);
-      });
-      rows = sorted.slice(0, 5).map(function (p, i) {
-        var rank = medals[i] || ("#" + (i + 1));
-        var v = p.finished_ms != null ? (p.finished_ms / 1000).toFixed(2) + " s" : (p.correct || 0) + "/5";
-        return '<div class="qm-podium-row' + (i === 0 ? ' gold' : '') + '">' +
-          '<span class="rank">' + rank + '</span>' +
-          '<span class="who">' + escapeHtml(p.name) + '</span>' +
-          '<span class="pts">' + v + '</span></div>';
-      }).join("");
-    } else {
-      var ps = (sum.players || []).slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
-      rows = ps.slice(0, 5).map(function (p, i) {
-        var rank = medals[i] || ("#" + (i + 1));
-        return '<div class="qm-podium-row' + (i === 0 ? ' gold' : '') + '">' +
-          '<span class="rank">' + rank + '</span>' +
-          '<span class="who">' + escapeHtml(p.name) + '</span>' +
-          '<span class="pts">' + (p.score || 0) + ' pts</span></div>';
-      }).join("");
-    }
-    if (!rows) rows = '<p class="muted center">Personne n\'a marqué.</p>';
+    var sum = r.summary || {};
+    var st = sum.standings || [];
+    var me = getPseudo();
+    var mvp = sum.mvp;
+    var extras = sum.extras || [];
+    var totals = sum.totals || {};
+
+    var mvpHtml = mvp
+      ? '<div class="qm-mvp"><div class="qm-mvp-emoji">' + esc(mvp.emoji) + '</div>' +
+        '<div class="qm-mvp-label">' + esc(mvp.label) + '</div>' +
+        '<div class="qm-mvp-name">' + esc(mvp.name) + '</div>' +
+        '<div class="qm-mvp-val">' + esc(mvp.value) + '</div></div>'
+      : '';
+
+    var extrasHtml = extras.length
+      ? '<div class="qm-extras">' + extras.map(function (x) {
+          return '<div class="qm-extra"><span class="e">' + esc(x.emoji) + '</span>' +
+            '<span class="l">' + esc(x.label) + '</span>' +
+            '<span class="n">' + esc(x.name) + '</span>' +
+            '<span class="v">' + esc(x.value) + '</span></div>';
+        }).join("") + '</div>'
+      : '';
+
+    var rowsHtml = st.length
+      ? '<div class="qm-standings">' + st.map(function (row, i) {
+          return '<div class="qm-srow' + (row.name === me ? " me" : "") + (i === 0 ? " gold" : "") + '">' +
+            '<span class="rank">' + medal(i) + '</span>' +
+            '<span class="who">' + esc(row.name) + '</span>' +
+            '<span class="detail">' + row.correct + '✓ ' + row.wrong + '✗ · ' + row.accuracy + '%</span>' +
+            '<b class="score">' + (row.score > 0 ? "+" : "") + row.score + '</b></div>';
+        }).join("") + '</div>'
+      : '<p class="qm-hint">Aucun joueur.</p>';
+
+    var totalsHtml = totals.total_seen
+      ? '<p class="qm-hint">' + totals.total_seen + ' questions vues · ' + totals.total_correct + ' bonnes au total</p>'
+      : '';
+
     body.innerHTML =
-      '<div class="qm-section">' +
-        '<div class="qm-big">🏁 Course terminée</div>' +
-        '<div class="qm-progress" style="margin-top:12px">' + rows + '</div>' +
-        '<p class="muted center" style="margin-top:10px">Prochaine course dans ' + s + ' s.</p>' +
-      '</div>' +
+      '<div class="qm-card qm-center-card"><div class="qm-big">🏁 Terminé !</div></div>' +
+      (mvpHtml ? '<div class="qm-card">' + mvpHtml + '</div>' : '') +
+      (extrasHtml ? '<div class="qm-card">' + extrasHtml + '</div>' : '') +
+      '<div class="qm-card"><h3>Classement</h3>' + rowsHtml + totalsHtml + '</div>' +
+      '<p class="qm-hint">Nouvelle manche dans ' + s + ' s…</p>' +
       renderRoomTop(r.top);
   }
 
-  // ---- shared building blocks ----
-  function renderPlayerPills(players) {
+  // ---------- shared blocks ----------
+  function renderPills(players) {
     var me = getPseudo();
-    if (!players || !players.length) return '<p class="muted">—</p>';
-    return '<div class="qm-player-pills">' +
-      players.map(function (p) {
-        return '<span class="qm-pill' + (p.name === me ? ' me' : '') + '">' + escapeHtml(p.name) + '</span>';
-      }).join("") + '</div>';
+    if (!players || !players.length) return '<p class="qm-hint">—</p>';
+    return '<div class="qm-pills">' + players.map(function (p) {
+      return '<span class="qm-pill' + (p.name === me ? " me" : "") + '">' + esc(p.name) + '</span>';
+    }).join("") + '</div>';
   }
 
-  function renderScoreList(players) {
+  function renderLiveStandings(r) {
     var me = getPseudo();
-    var sorted = (players || []).slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
-    return '<div class="qm-progress">' +
-      sorted.map(function (p) {
-        return '<div class="qm-progress-row' + (p.name === me ? ' me' : '') + '">' +
-          '<span class="who">' + escapeHtml(p.name) + '</span>' +
-          '<span class="qm-points">' + (p.score || 0) + ' pts</span></div>';
-      }).join("") + '</div>';
-  }
-
-  function renderLiveProgress(r) {
-    var me = getPseudo();
-    if (r.mode === "quiz_solo") {
-      var prog = (r.round && r.round.progress) || [];
-      return '<div class="qm-progress">' +
-        prog.map(function (p) {
-          var pips = "";
-          for (var i = 0; i < 5; i++) pips += '<span class="qm-pip ' + (i < (p.correct || 0) ? "on" : "") + '"></span>';
-          var v = p.finished_ms != null ? '<span class="qm-finish-ms">' + (p.finished_ms / 1000).toFixed(2) + ' s</span>' : '<span class="muted">' + (p.correct || 0) + '/5</span>';
-          return '<div class="qm-progress-row' + (p.name === me ? ' me' : '') + '">' +
-            '<span class="who">' + escapeHtml(p.name) + '</span>' +
-            '<span class="qm-pips">' + pips + '</span>' +
-            v + '</div>';
-        }).join("") + '</div>';
+    var st = (r.standings || []).slice();
+    // During play, fold in my own optimistic score so I see myself move instantly.
+    if (play && r.state === "playing") {
+      var mine = st.find(function (x) { return x.name === me; });
+      var myScore = play.correct - play.wrong;
+      if (mine) { mine.correct = play.correct; mine.wrong = play.wrong; mine.score = myScore; }
+      st.sort(function (a, b) { return (b.score || 0) - (a.score || 0) || (a.wrong || 0) - (b.wrong || 0); });
     }
-    return renderScoreList(r.players);
+    if (!st.length) return '<p class="qm-hint">—</p>';
+    return '<div class="qm-standings">' + st.map(function (row, i) {
+      return '<div class="qm-srow' + (row.name === me ? " me" : "") + '">' +
+        '<span class="rank">' + medal(i) + '</span>' +
+        '<span class="who">' + esc(row.name) + '</span>' +
+        '<b class="score">' + ((row.score || 0) > 0 ? "+" : "") + (row.score || 0) + '</b></div>';
+    }).join("") + '</div>';
   }
 
   function renderRoomTop(top) {
-    if (!top || !top.length) return '<div class="qm-section"><h3>🏆 Top 10 du thème</h3><p class="muted center">Aucun score pour cette salle. Sois le premier !</p></div>';
-    var medals = ["🥇", "🥈", "🥉"];
-    var rows = top.map(function (e, i) {
-      var rank = medals[i] || ("#" + (i + 1));
-      return '<li><span class="rank">' + rank + '</span>' +
-             '<span class="who">' + escapeHtml(e.name) + '</span>' +
-             '<b class="pts">' + escapeHtml(e.displayValue || "") + '</b></li>';
-    }).join("");
-    return '<div class="qm-section"><h3>🏆 Top 10 du thème</h3><ol class="qm-top-list">' + rows + '</ol></div>';
+    if (!top || !top.length) return '<div class="qm-card"><h3>🏆 Records du thème</h3><p class="qm-hint">Aucun record. Sois le premier !</p></div>';
+    return '<div class="qm-card"><h3>🏆 Records du thème</h3><ol class="qm-top-list">' + top.map(function (e, i) {
+      return '<li><span class="rank">' + medal(i) + '</span><span class="who">' + esc(e.name) + '</span><b class="pts">' + esc(e.displayValue || "") + '</b></li>';
+    }).join("") + '</ol></div>';
   }
 
-  // ---- stopwatch tick (smooth countdowns when no state event arrives) ----
-  function startStopwatch() {
-    if (stopwatchTick) return;
-    stopwatchTick = setInterval(function () {
-      if (!lastRoom) return;
-      // Tick down the visible countdowns locally between server broadcasts.
-      // Easiest: just re-render the room. It's cheap enough at 250 ms cadence.
-      renderRoom();
-    }, 250);
-  }
-  function stopStopwatch() {
-    if (stopwatchTick) { clearInterval(stopwatchTick); stopwatchTick = null; }
-  }
+  // ---------- refresh loop (smooth countdowns) ----------
+  function startRefresh() { if (refreshTick) return; refreshTick = setInterval(function () { if (lastRoom) renderRoom(); }, 250); }
+  function stopRefresh() { if (refreshTick) { clearInterval(refreshTick); refreshTick = null; } }
 
-  // ---- bootstrap ----
+  // ---------- bootstrap ----------
   document.addEventListener("DOMContentLoaded", function () {
     setWho();
     setupPseudo();
     $("qmBack").onclick = leaveRoom;
     connect();
-    if (getPseudo()) {
-      enterHall();
-    } else {
-      show("s-pseudo");
-    }
+    if (getPseudo()) enterHall(); else show("s-pseudo");
   });
 })();
