@@ -67,9 +67,10 @@
         li0.innerHTML = '<span style="color:#9aa">Personne n\'a vote</span><b>&nbsp;</b>';
         ol.appendChild(li0);
       } else {
-        votes.forEach(function (v) {
+        votes.forEach(function (v, i) {
+          var medal = (i === 0) ? "🥇 " : (i === 1 ? "🥈 " : (i === 2 ? "🥉 " : ""));
           var li = document.createElement("li");
-          li.innerHTML = "<span>" + h.escapeHtml(v.name) + "</span><b>" + v.count + " vote" + (v.count > 1 ? "s" : "") + "</b>";
+          li.innerHTML = "<span>" + medal + h.escapeHtml(v.name) + "</span><b>" + v.count + " vote" + (v.count > 1 ? "s" : "") + "</b>";
           ol.appendChild(li);
         });
       }
@@ -81,12 +82,13 @@
   window.GamesHub.register("most_likely", {
     name:   "Le plus susceptible",
     emoji:  "😈",
-    desc:   "10 questions parmi 130 — vote secret, qui est le plus susceptible de... ?",
+    desc:   "10 questions parmi 220+ — vote secret, qui colle le mieux ? (intègre les anciens Superlatifs)",
     minPlayers: 3,
-    rules:  "<b>Vote secret</b> : qui dans le groupe colle le mieux a la phrase \"Qui est le plus susceptible de...\" ?<br>" +
-            "Tout le monde vote <b>en meme temps</b>, sans voir les autres choix.<br>" +
-            "Le reveal montre le classement complet des votes par personne.<br>" +
-            "<b>Format :</b> 10 questions par partie, tirées au hasard dans une banque de 130 — pas deux soirées pareilles.<br>" +
+    rules:  "<b>Vote secret</b> : qui dans le groupe colle le mieux à la phrase ?<br>" +
+            "Les questions mélangent deux styles : <b>« Qui est le plus susceptible de… »</b> et <b>« Le/la plus X du groupe »</b> (catégorie : drôle, style, organisé, voyageur…).<br>" +
+            "Tout le monde vote <b>en même temps</b>, sans voir les autres choix.<br>" +
+            "Le reveal montre le classement complet des votes 🥇🥈🥉.<br>" +
+            "<b>Format :</b> 10 questions par partie, tirées au hasard dans une banque de 220+.<br>" +
             "<b>Stats de fin de partie :</b><br>" +
             "• <b>😈 Le plus voté de la soirée</b> — qui a récolté le plus de votes au total.<br>" +
             "• <b>🥈 L'outsider</b> — la médaille d'argent : 2ᵉ joueur le plus voté.<br>" +
