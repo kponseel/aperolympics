@@ -70,6 +70,21 @@
       $("qmLocked").style.display = "block";
     });
     socket.on("pin_set", function () { myProtected = true; updateNameBadge(); toast("🔒 Nom protégé !"); });
+    socket.on("rename_ok", function (m) {
+      var newName = m && m.name; if (!newName) return;
+      setPseudo(newName);
+      myProtected = !!(m && m.protected);
+      setWho(); updateNameBadge();
+      toast("✏️ Nom mis à jour : " + newName);
+    });
+    socket.on("rename_failed", function (m) {
+      var r = m && m.reason;
+      if (r === "name_taken") toast("Ce nom est déjà pris.");
+      else if (r === "not_owner") toast("Tu n'es pas propriétaire de ce compte.");
+      else if (r === "same_name") toast("C'est déjà ton nom 🙂");
+      else if (r === "no_account") toast("Aucun compte à renommer.");
+      else toast("Renommage refusé.");
+    });
     socket.on("error_msg", function (m) {
       var code = m && m.msg;
       if (code === "bad_identity" || code === "no_identity") return;
@@ -161,6 +176,16 @@
     pin = String(pin).trim();
     if (!/^\d{4}$/.test(pin)) { toast("Le PIN doit faire exactement 4 chiffres."); return; }
     if (socket) socket.emit("set_pin", { pin: pin });
+  }
+
+  // ---------- rename (keeps PIN + stats) ----------
+  function renameMe() {
+    var next = prompt("Nouveau prénom (16 caractères max). Tes stats et ton PIN sont conservés :", getPseudo());
+    if (next == null) return;
+    next = String(next).trim().slice(0, 16);
+    if (!next) { toast("Entre un prénom."); return; }
+    if (next.toLowerCase() === getPseudo().toLowerCase()) { toast("C'est déjà ton nom 🙂"); return; }
+    if (socket) socket.emit("rename", { name: next });
   }
 
   // ---------- hall ----------
@@ -495,6 +520,7 @@
     $("qmSheetClose").onclick = closeHelp;
     $("qmOverlay").addEventListener("click", function (e) { if (e.target === $("qmOverlay")) closeHelp(); });
     $("qmProtect").onclick = protectName;
+    $("qmRename").onclick = renameMe;
     // delegated (?) info buttons
     document.addEventListener("click", function (e) {
       var t = e.target;

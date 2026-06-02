@@ -66,6 +66,28 @@ function setPin(name, pin) {
   return true;
 }
 
+// Rename an existing account. Requires the requester (`cid`) to be the owner.
+// Returns:
+//   { ok: true, account } on success (stats + PIN + theme bests are carried over)
+//   { ok: false, reason: "bad_name" | "same_name" | "not_owner" | "name_taken" | "no_account" }
+function rename(oldName, newName, cid) {
+  const oldK = key(oldName), newK = key(newName);
+  if (!oldK || !newK) return { ok: false, reason: "bad_name" };
+  if (oldK === newK) return { ok: false, reason: "same_name" };
+  const a = data.byName[oldK];
+  if (!a) return { ok: false, reason: "no_account" };
+  if (a.ownerCid && a.ownerCid !== cid) return { ok: false, reason: "not_owner" };
+  if (data.byName[newK]) return { ok: false, reason: "name_taken" };
+  // Move the entry under the new key, keep everything (stats, PIN, themeBest, ownerCid).
+  const display = String(newName).trim().slice(0, 16);
+  a.name = display;
+  data.byName[newK] = a;
+  delete data.byName[oldK];
+  data.updated_at = Date.now();
+  save();
+  return { ok: true, account: a };
+}
+
 // Resolve a connection attempt. Returns:
 //   { ok: true, account }
 //   { ok: false, reason: "pin_required" }
@@ -150,4 +172,4 @@ function themeTop(theme) {
 
 function _reset() { data = emptyData(); try { fs.unlinkSync(FILE); } catch (e) {} }
 
-module.exports = { authenticate, isProtected, getAccount, setPin, recordGame, globalRanking, themeTop, TOP_N, PIN_RE, _reset };
+module.exports = { authenticate, isProtected, getAccount, setPin, rename, recordGame, globalRanking, themeTop, TOP_N, PIN_RE, _reset };
