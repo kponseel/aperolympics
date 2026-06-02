@@ -62,13 +62,10 @@
       enterPinMode(m && m.name, "❌ Code incorrect. Il te reste " + (m && m.attempts_left) + " essai" + ((m && m.attempts_left) > 1 ? "s" : "") + ".");
       var pin = $("qmPin"); if (pin) { pin.value = ""; pin.focus(); }
     });
-    socket.on("identity_locked", function (m) {
+    socket.on("identity_locked", function () {
       pinMode = false; show("s-pseudo");
       $("qmPseudoError").textContent = "";
       $("qmLocked").style.display = "block";
-      var wa = $("qmWhats");
-      if (m && m.whatsapp) { wa.href = "https://wa.me/" + String(m.whatsapp).replace(/\D/g, ""); wa.style.display = ""; }
-      else { wa.href = "mailto:kevin.ponseel@gmail.com"; wa.textContent = "✉️ Contacter Kevin P."; }
     });
     socket.on("pin_set", function () { myProtected = true; updateNameBadge(); toast("🔒 Nom protégé !"); });
     socket.on("error_msg", function (m) {

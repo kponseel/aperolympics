@@ -13,9 +13,6 @@ const players = require("./players");
 
 const TICK_MS = 500;
 const MAX_PIN_ATTEMPTS = 5;
-// Support contact surfaced when a player can't unlock a protected name.
-// TODO(kevin): set the real WhatsApp number (digits only, intl format).
-const SUPPORT_WHATSAPP = process.env.QM_SUPPORT_WHATSAPP || "";
 
 function mount({ app, io }) {
   const allRooms = roomsModule.buildAll();
@@ -83,7 +80,7 @@ function mount({ app, io }) {
       const key = name.toLowerCase();
       // Per-name lockout once the player has burned all attempts this session.
       if ((sess.pinFails[key] || 0) >= MAX_PIN_ATTEMPTS) {
-        socket.emit("identity_locked", { name, whatsapp: SUPPORT_WHATSAPP });
+        socket.emit("identity_locked", { name });
         return;
       }
 
@@ -102,7 +99,7 @@ function mount({ app, io }) {
       if (res.reason === "pin_wrong") {
         sess.pinFails[key] = (sess.pinFails[key] || 0) + 1;
         const left = Math.max(0, MAX_PIN_ATTEMPTS - sess.pinFails[key]);
-        if (left <= 0) socket.emit("identity_locked", { name, whatsapp: SUPPORT_WHATSAPP });
+        if (left <= 0) socket.emit("identity_locked", { name });
         else socket.emit("pin_wrong", { name, attempts_left: left });
         return;
       }
