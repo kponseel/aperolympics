@@ -165,3 +165,14 @@ input#qmPin:focus { outline: none; border-color: #6c7cff; }
 .qm-install-btn { flex: none; background: #5b6cff; color: #fff; border: none; border-radius: 10px; padding: 12px 16px; font-size: 1rem; font-weight: 800; cursor: pointer; min-height: 44px; }
 .qm-install-btn:active { background: #4757e0; }
 .qm-install-x { flex: none; width: 36px; height: 36px; border-radius: 999px; background: transparent; color: #9aa3d6; border: none; font-size: 1.1rem; cursor: pointer; }
+
+/* ===== sheet form inputs (rename / protect-name modals) ===== */
+.qm-sheet-body input[type="text"],
+.qm-sheet-body input[type="tel"] {
+  display: block; width: 100%; padding: 16px; margin: 10px 0;
+  font-size: 1.25rem; background: #1d2152; border: 2px solid #3a4080;
+  border-radius: 12px; color: #fff; box-sizing: border-box;
+}
+.qm-sheet-body input[type="tel"] { letter-spacing: 0.5em; text-align: center; font-size: 1.6rem; }
+.qm-sheet-body input:focus { outline: none; border-color: #6c7cff; }
+.qm-sheet-body .qm-primary { margin-top: 12px; }
