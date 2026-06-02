@@ -14,7 +14,7 @@
 
 const themes = require("./themes");
 const blitz = require("./blitz");
-const leaderboard = require("./leaderboard");
+const players = require("./players");
 
 const COUNTDOWN_MS = Number(process.env.QM_COUNTDOWN_MS) > 0 ? Number(process.env.QM_COUNTDOWN_MS) : 3000;
 const BLITZ_MS = Number(process.env.QM_BLITZ_MS) > 0 ? Number(process.env.QM_BLITZ_MS) : 30000;
@@ -24,7 +24,7 @@ const AUTO_START_AFTER_MS = Number(process.env.QM_AUTOSTART_MS) > 0 ? Number(pro
 function makeRoom(themeDef) {
   const id = themeDef.id;
   const engine = blitz.create(themeDef.bank);
-  const players = new Map();   // cid -> { cid, name, socketId, score }
+  const playerMap = new Map();   // cid -> { cid, name, socketId, score }
   let state = "idle";          // "idle" | "countdown" | "playing" | "podium"
   let goAt = 0;                // absolute Date.now() of GO (countdown end)
   let endAt = 0;               // absolute end of the 30 s blitz
@@ -32,18 +32,18 @@ function makeRoom(themeDef) {
   let lastIdleSince = Date.now();
   let lastSummary = null;
 
-  function activePlayers() { return [...players.values()].filter((p) => p.socketId); }
+  function activePlayers() { return [...playerMap.values()].filter((p) => p.socketId); }
 
   function addPlayer(cid, name, socketId) {
     if (!cid || !name) return null;
-    let p = players.get(cid);
+    let p = playerMap.get(cid);
     if (p) { p.name = name; p.socketId = socketId; }
-    else { p = { cid, name, socketId, score: 0 }; players.set(cid, p); }
+    else { p = { cid, name, socketId, score: 0 }; playerMap.set(cid, p); }
     return p;
   }
 
   function removePlayer(cid) {
-    players.delete(cid);
+    playerMap.delete(cid);
     if (state === "idle" && activePlayers().length === 0) lastIdleSince = Date.now();
   }
 
@@ -56,17 +56,12 @@ function makeRoom(themeDef) {
     return true;
   }
 
-  function recordToLeaderboard() {
+  function recordResults() {
     engine.standings().forEach((r) => {
-      const p = [...players.values()].find((x) => x.name === r.name && x.socketId);
+      const p = [...playerMap.values()].find((x) => x.name === r.name && x.socketId);
       if (!p) return;
-      // Only positive scores make the board (a negative run isn't a record).
-      if (r.score <= 0) return;
-      leaderboard.record(id, "blitz", {
-        cid: p.cid, name: p.name,
-        value: r.score,
-        displayValue: r.score + " pt" + (r.score > 1 ? "s" : "") + " (" + r.correct + "✓)",
-        at: Date.now(),
+      players.recordGame(p.name, p.cid, themeDef.id, {
+        score: r.score, correct: r.correct, wrong: r.wrong, skipped: r.skipped,
       });
     });
   }
@@ -82,7 +77,7 @@ function makeRoom(themeDef) {
 
     if (state === "playing" && now >= endAt) {
       lastSummary = engine.summary();
-      recordToLeaderboard();
+      recordResults();
       state = "podium";
       podiumEndAt = now + PODIUM_MS;
       dirty = true;
@@ -90,7 +85,7 @@ function makeRoom(themeDef) {
 
     if (state === "podium" && now >= podiumEndAt) {
       engine.reset();
-      players.forEach((p) => { p.score = 0; });
+      playerMap.forEach((p) => { p.score = 0; });
       lastSummary = null;
       state = "idle";
       lastIdleSince = now;
@@ -107,7 +102,7 @@ function makeRoom(themeDef) {
   }
 
   function handleMessage(cid, msg) {
-    const p = players.get(cid);
+    const p = playerMap.get(cid);
     if (!p) return false;
     if (msg && msg.t === "demarrer") return trigger(Date.now());
     if (msg && msg.t === "progress" && state === "playing") {
@@ -129,7 +124,7 @@ function makeRoom(themeDef) {
       auto_start_in_ms: (state === "idle" && active.length >= 2) ? Math.max(0, AUTO_START_AFTER_MS - (now - lastIdleSince)) : 0,
       players: active.map((p) => ({ cid: p.cid, name: p.name })),
       standings: (state === "playing" || state === "podium") ? engine.standings() : [],
-      top: leaderboard.top(id),
+      top: players.themeTop(themeDef.id),
       summary: state === "podium" ? lastSummary : null,
     };
     if (state === "countdown" || state === "playing") snap.questions = engine.questions();
@@ -151,7 +146,7 @@ function makeRoom(themeDef) {
   return {
     id, theme: themeDef.id,
     addPlayer, removePlayer, handleMessage, tick, snapshot, lobbyCard,
-    hasPlayer: (cid) => players.has(cid),
+    hasPlayer: (cid) => playerMap.has(cid),
   };
 }
 

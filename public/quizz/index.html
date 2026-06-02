@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <title>QuizzMaster</title>
   <meta name="theme-color" content="#0f1020" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,12 +17,13 @@
   <header class="qm-topbar">
     <button type="button" class="qm-back" id="qmBack" style="display:none">← Salles</button>
     <div class="qm-brand">🧠 <span>QuizzMaster</span></div>
+    <button type="button" class="qm-help" id="qmHelp" aria-label="Aide et règles">?</button>
     <div class="qm-who" id="qmWho"></div>
   </header>
   <div class="qm-sub center" id="qmStatus">Connexion…</div>
 
   <main class="qm-main">
-    <!-- Étape 1 : pseudo -->
+    <!-- Étape 1 : pseudo (+ PIN optionnel) -->
     <section class="qm-screen on" id="s-pseudo">
       <div class="qm-hero">
         <div class="qm-hero-emoji">🧠</div>
@@ -31,12 +32,27 @@
       </div>
       <label class="qm-label" for="qmName">Ton prénom</label>
       <input id="qmName" placeholder="Ex : Marie" maxlength="16" autocomplete="off" inputmode="text" />
+
+      <label class="qm-label" for="qmPin" id="qmPinLabel">
+        🔒 Code PIN <span class="qm-soft">(4 chiffres — facultatif)</span>
+        <button type="button" class="qm-info" data-help="pin" aria-label="À quoi sert le PIN ?">?</button>
+      </label>
+      <input id="qmPin" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
+
       <button class="qm-primary" id="qmContinue">C'est parti →</button>
       <div class="qm-error center" id="qmPseudoError"></div>
+
+      <!-- Locked-out actions (hidden until needed) -->
+      <div id="qmLocked" class="qm-locked" style="display:none">
+        <p class="qm-lead center">Trop d'essais. Ce nom est protégé.</p>
+        <button class="qm-primary" id="qmNewName">Choisir un autre nom</button>
+        <a id="qmWhats" class="qm-secondary" href="#" target="_blank" rel="noopener">💬 Contacter Kevin P.</a>
+      </div>
+
       <ol class="qm-steps">
         <li><span class="num">1</span> Choisis un <b>thème</b>.</li>
-        <li><span class="num">2</span> Tu as <b>30 secondes</b> : <b>bonne</b> réponse +1, <b>mauvaise</b> −1, <b>« Je passe »</b> 0.</li>
-        <li><span class="num">3</span> Le <b>classement</b> est gardé pour de bon. Bats ton record !</li>
+        <li><span class="num">2</span> <b>30 s</b> : bonne <b class="g">+1</b>, mauvaise <b class="r">−1</b>, « Je passe » <b>0</b>.</li>
+        <li><span class="num">3</span> Tes <b>stats</b> et ton <b>classement</b> sont gardés. Protège ton nom avec un PIN 🔒.</li>
       </ol>
     </section>
 
@@ -45,10 +61,14 @@
       <div class="qm-hall-head">
         <h2>Choisis ton thème</h2>
         <p class="qm-lead">30 s chrono · seul ou à plusieurs</p>
+        <div class="qm-name-row">
+          <span id="qmNameBadge" class="qm-name-badge"></span>
+          <button type="button" class="qm-mini" id="qmProtect">🔒 Protéger mon nom</button>
+        </div>
       </div>
       <div class="qm-rooms" id="qmRooms"></div>
       <div class="qm-global">
-        <h3>🏆 Top 10 général</h3>
+        <h3>🏆 Classement général <button type="button" class="qm-info" data-help="ranking" aria-label="Comment marche le classement ?">?</button></h3>
         <ol class="qm-top-list" id="qmGlobalTop"></ol>
       </div>
     </section>
@@ -62,6 +82,14 @@
       <div id="qmRoomBody"></div>
     </section>
   </main>
+
+  <!-- Aide / overlay -->
+  <div class="qm-overlay" id="qmOverlay" style="display:none">
+    <div class="qm-sheet">
+      <div class="qm-sheet-head"><h2 id="qmSheetTitle">Aide</h2><button type="button" class="qm-close" id="qmSheetClose" aria-label="Fermer">✕</button></div>
+      <div class="qm-sheet-body" id="qmSheetBody"></div>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/quizz/app.js"></script>

@@ -124,3 +124,37 @@ input#qmName:focus { outline: none; border-color: #6c7cff; }
   html { font-size: 17px; }
   .qm-rooms { grid-template-columns: 1fr 1fr; }
 }
+
+/* ===== v2 additions: PIN, help, stats, locked-out ===== */
+.qm-help { margin-left: 4px; width: 40px; height: 40px; border-radius: 999px; background: #1d2152; color: #fff; border: 2px solid #3a4080; font-size: 1.2rem; font-weight: 800; cursor: pointer; }
+.qm-help:active { background: #2a2f5c; }
+.qm-info { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 999px; background: #2a2f5c; color: #cdd3ff; border: 1px solid #3a4080; font-size: 0.85rem; font-weight: 800; cursor: pointer; vertical-align: middle; margin-left: 6px; }
+.qm-soft { color: #9aa3d6; font-weight: 400; font-size: 0.9rem; }
+
+input#qmPin { display: block; width: 100%; padding: 16px; margin-top: 6px; font-size: 1.6rem; letter-spacing: 0.5em; text-align: center; background: #161830; border: 2px solid #3a4080; border-radius: 14px; color: #fff; }
+input#qmPin:focus { outline: none; border-color: #6c7cff; }
+.qm-error.warn { color: #ffd23f; font-weight: 700; }
+
+.qm-secondary { display: block; width: 100%; padding: 16px; margin-top: 10px; text-align: center; font-size: 1.05rem; font-weight: 700; background: #1d2152; color: #fff; border: 2px solid #3a4080; border-radius: 14px; text-decoration: none; }
+.qm-locked { margin-top: 14px; padding: 16px; background: #2a1f0f; border: 2px solid #c80; border-radius: 14px; }
+
+.qm-name-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.qm-name-badge { font-weight: 800; font-size: 1.05rem; }
+.qm-mini { background: #1d2152; color: #cdd3ff; border: 1px solid #3a4080; border-radius: 999px; padding: 8px 14px; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+.qm-mini:active { background: #2a2f5c; }
+
+/* per-player stats line in the global ranking */
+.qm-top-list li .qm-pstats { flex-basis: 100%; order: 3; color: #9aa3d6; font-size: 0.85rem; margin-top: 2px; }
+.qm-top-list li { flex-wrap: wrap; }
+.qm-top-list li.me { border-color: #6c7cff; background: #1d2152; }
+
+/* help overlay */
+.qm-overlay { position: fixed; inset: 0; background: rgba(8,9,20,0.78); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
+.qm-sheet { background: #161830; border: 1px solid #2a2f5c; border-radius: 18px 18px 0 0; width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
+.qm-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 18px; border-bottom: 1px solid #2a2f5c; position: sticky; top: 0; background: #161830; }
+.qm-sheet-head h2 { margin: 0; font-size: 1.3rem; }
+.qm-close { width: 44px; height: 44px; border-radius: 999px; background: #1d2152; color: #fff; border: 2px solid #3a4080; font-size: 1.1rem; cursor: pointer; }
+.qm-sheet-body { padding: 18px; font-size: 1.05rem; line-height: 1.5; }
+.qm-sheet-body ul { padding-left: 20px; }
+.qm-sheet-body li { margin: 6px 0; }
+@media (min-width: 600px) { .qm-overlay { align-items: center; } .qm-sheet { border-radius: 18px; } }
