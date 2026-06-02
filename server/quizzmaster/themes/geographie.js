@@ -1,4 +1,4 @@
-// QuizzMaster — thème 🌍 Géographie. 295 questions.
+// QuizzMaster — thème 🌍 Géographie. 300 questions.
 
 module.exports = [
   { text: "Quelle est la capitale de la France ?", options: ["Londres","Paris","Bucarest","Le Caire"], correct: 1 },
@@ -289,11 +289,16 @@ module.exports = [
   { text: "Quelle monnaie utilise la Corée du Sud ?", options: ["l'euro","le won","le yen","la livre sterling"], correct: 1 },
   { text: "Quelle monnaie utilise le Vietnam ?", options: ["le yen","le dong","la livre sterling","le franc suisse"], correct: 1 },
   { text: "Quelle monnaie utilise l'Égypte ?", options: ["la livre sterling","la livre égyptienne","le franc suisse","le dollar"], correct: 1 },
-  { text: "Quelle monnaie utilise le Canada ?", options: ["le franc suisse","le dollar canadien","le dollar","le yuan"], correct: 1 },
+  { text: "Quelle monnaie utilise le Canada ?", options: ["le franc suisse","le dollar canadien","le yuan","la roupie"], correct: 1 },
   { text: "Quelle monnaie utilise l'Australie ?", options: ["l'euro","le dollar australien","le yen","la livre sterling"], correct: 1 },
   { text: "Quelle monnaie utilise la Norvège ?", options: ["le yen","la couronne","la livre sterling","le franc suisse"], correct: 1 },
   { text: "Quelle monnaie utilise Israël ?", options: ["la livre sterling","le shekel","le franc suisse","le dollar"], correct: 1 },
   { text: "Quelle monnaie utilise l'Arabie saoudite ?", options: ["le franc suisse","le riyal","le dollar","le yuan"], correct: 1 },
   { text: "Quelle monnaie utilise le Nigeria ?", options: ["l'euro","le naira","le yen","la livre sterling"], correct: 1 },
   { text: "Quelle monnaie utilise le Kenya ?", options: ["le yen","le shilling","la livre sterling","le franc suisse"], correct: 1 },
+  { text: "Quel pays africain est traversé par l'équateur et abrite une grande forêt ?", options: ["Égypte","RD Congo","Maroc","Algérie"], correct: 1 },
+  { text: "Quelle est la plus longue frontière terrestre du monde (entre 2 pays) ?", options: ["USA-Mexique","Canada-États-Unis","Russie-Chine","Argentine-Chili"], correct: 1 },
+  { text: "Quel pays compte le plus grand nombre d'îles ?", options: ["Indonésie","Suède","Philippines","Japon"], correct: 1 },
+  { text: "Quelle ville est la plus peuplée du monde (aire urbaine) ?", options: ["New York","Tokyo","Shanghai","Delhi"], correct: 1 },
+  { text: "Quel pays a pour capitale Wellington ?", options: ["Australie","Nouvelle-Zélande","Fidji","Samoa"], correct: 1 },
 ];
