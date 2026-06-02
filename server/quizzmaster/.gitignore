@@ -1,0 +1,6 @@
+# Runtime player data (accounts + PIN + stats) — generated at runtime, never committed.
+players.json
+players.json.tmp
+# legacy
+scores.json
+scores.json.tmp

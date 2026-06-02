@@ -12,7 +12,7 @@ const COUNTDOWN_MS = Number(process.env.QUIZ_SOLO_COUNTDOWN_MS) > 0
   ? Number(process.env.QUIZ_SOLO_COUNTDOWN_MS)
   : 3500;  // host taps Démarrer → 3-2-1-GO → race starts
 
-function create() {
+function create({ bank = QUESTION_BANK } = {}) {
   let phase = "lobby";
   let questions = [];        // shared pool for the current race
   let progress = {};         // name -> correct count (live)
@@ -29,7 +29,7 @@ function create() {
   }
 
   function makePool() {
-    const arr = QUESTION_BANK.slice();
+    const arr = bank.slice();
     if (process.env.QUIZ_SOLO_NO_SHUFFLE !== "1") {
       for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
     }
