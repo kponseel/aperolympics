@@ -1,6 +1,6 @@
-// QuizzMaster — moteur "Blitz 30 secondes".
+// QuizzMaster — moteur "Blitz 60 secondes".
 //
-// Règle unique : pendant 30 s, chaque joueur enchaîne un maximum de questions.
+// Règle unique : pendant 60 s, chaque joueur enchaîne un maximum de questions.
 // Chaque question = 4 choix + un bouton « Je passe ».
 //   bonne réponse  = +1 point
 //   mauvaise       = −1 point

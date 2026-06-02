@@ -1,7 +1,7 @@
 // QuizzMaster — sub-app wired into the main Aperolympics server.
 //   - Express static at /quizz/* (SPA fallback to index.html)
 //   - Socket.IO namespace /qm
-//   - 10 persistent rooms (one per theme), single "Blitz 30 s" mode
+//   - 10 persistent rooms (one per theme), single "Blitz 60 s" mode
 //   - Persistent players (accounts + PIN + lifetime stats) in players.json
 //
 // Wire-up: at the bottom of server/index.js, call

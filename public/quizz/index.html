@@ -28,7 +28,7 @@
       <div class="qm-hero">
         <div class="qm-hero-emoji">🧠</div>
         <h1>QuizzMaster</h1>
-        <p class="qm-lead">30 secondes pour enchaîner un maximum de bonnes réponses.</p>
+        <p class="qm-lead">60 secondes pour enchaîner un maximum de bonnes réponses.</p>
       </div>
       <label class="qm-label" for="qmName">Ton prénom</label>
       <input id="qmName" placeholder="Ex : Marie" maxlength="16" autocomplete="off" inputmode="text" />
@@ -51,16 +51,22 @@
 
       <ol class="qm-steps">
         <li><span class="num">1</span> Choisis un <b>thème</b>.</li>
-        <li><span class="num">2</span> <b>30 s</b> : bonne <b class="g">+1</b>, mauvaise <b class="r">−1</b>, « Je passe » <b>0</b>.</li>
+        <li><span class="num">2</span> <b>60 s</b> : bonne <b class="g">+1</b>, mauvaise <b class="r">−1</b>, « Je passe » <b>0</b>.</li>
         <li><span class="num">3</span> Tes <b>stats</b> et ton <b>classement</b> sont gardés. Protège ton nom avec un PIN 🔒.</li>
       </ol>
     </section>
 
     <!-- Étape 2 : choix du thème (10 salles) -->
     <section class="qm-screen" id="s-hall">
+      <!-- Bannière d'installation PWA (masquée si déjà installée) -->
+      <div id="qmInstall" class="qm-install" style="display:none">
+        <span class="qm-install-txt" id="qmInstallTxt">📲 Installe QuizzMaster sur ton écran d'accueil pour jouer en plein écran.</span>
+        <button type="button" class="qm-install-btn" id="qmInstallBtn">Installer</button>
+        <button type="button" class="qm-install-x" id="qmInstallX" aria-label="Fermer">✕</button>
+      </div>
       <div class="qm-hall-head">
         <h2>Choisis ton thème</h2>
-        <p class="qm-lead">30 s chrono · seul ou à plusieurs</p>
+        <p class="qm-lead">60 s chrono · seul ou à plusieurs</p>
         <div class="qm-name-row">
           <span id="qmNameBadge" class="qm-name-badge"></span>
           <button type="button" class="qm-mini" id="qmProtect">🔒 Protéger mon nom</button>
