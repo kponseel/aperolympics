@@ -98,7 +98,7 @@ module.exports = [
   { text: "Quelle ville antique a été détruite par l'éruption du Vésuve en 79 ?", options: ["Rome","Pompéi","Carthage","Athènes"], correct: 1 },
   { text: "Quel pays a lancé le premier satellite artificiel (Spoutnik) en 1957 ?", options: ["États-Unis","URSS","France","Chine"], correct: 1 },
   { text: "Quelle grande épidémie a frappé le monde en 1918-1919 ?", options: ["Peste noire","Grippe espagnole","Choléra","Variole"], correct: 1 },
-  { text: "Quel roi de Macédoine fut le précepteur d'Alexandre, philosophe grec ?", options: ["Platon","Aristote","Socrate","Diogène"], correct: 1 },
+  { text: "Quel philosophe grec, élève de Platon, fut le précepteur d'Alexandre le Grand ?", options: ["Platon","Aristote","Socrate","Diogène"], correct: 1 },
   { text: "Quel pays a été le théâtre de la révolution des Œillets en 1974 ?", options: ["Espagne","Portugal","Grèce","Italie"], correct: 1 },
   { text: "Quel président français a été au pouvoir de 1981 à 1995 ?", options: ["Giscard d'Estaing","Mitterrand","Chirac","Pompidou"], correct: 1 },
   { text: "Quel empire précolombien avait Tenochtitlan pour capitale ?", options: ["Inca","Aztèque","Maya","Toltèque"], correct: 1 },
