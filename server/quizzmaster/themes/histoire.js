@@ -1,4 +1,4 @@
-// QuizzMaster — thème 📜 Histoire. 189 questions.
+// QuizzMaster — thème 📜 Histoire. 205 questions.
 
 module.exports = [
   { text: "En quelle année a commencé la Première Guerre mondiale ?", options: ["1912","1914","1916","1918"], correct: 1 },
@@ -190,4 +190,20 @@ module.exports = [
   { text: "Quelle ville a vu la chute d'un mur célèbre en 1989 ?", options: ["Berlin","Vienne","Prague","Budapest"], correct: 0 },
   { text: "Quelle révolution de velours a eu lieu en 1989 en Tchécoslovaquie ?", options: ["Révolution d'Octobre","Révolution de velours","Printemps de Prague","Révolution orange"], correct: 1 },
   { text: "Quel empereur a fait construire un immense tombeau gardé par une armée de terre cuite ?", options: ["Qin Shi Huang","Wu Zetian","Kangxi","Hongwu"], correct: 0 },
+  { text: "Quel pharaon a fait construire la plus grande pyramide de Gizeh ?", options: ["Khéphren","Khéops","Mykérinos","Djéser"], correct: 1 },
+  { text: "Quelle écriture les Égyptiens anciens utilisaient-ils ?", options: ["Cunéiforme","Hiéroglyphes","Alphabet latin","Runes"], correct: 1 },
+  { text: "Quel peuple antique a inventé l'alphabet diffusé en Méditerranée ?", options: ["Les Phéniciens","Les Romains","Les Perses","Les Hittites"], correct: 0 },
+  { text: "Quelle cité-État grecque était célèbre pour ses guerriers ?", options: ["Athènes","Sparte","Thèbes","Corinthe"], correct: 1 },
+  { text: "Quel empereur a fait du christianisme la religion d'État romaine ?", options: ["Constantin","Théodose","Néron","Auguste"], correct: 1 },
+  { text: "Quel navigateur a contourné l'Afrique (cap de Bonne-Espérance) ?", options: ["Vasco de Gama","Bartolomeu Dias","Magellan","Cabral"], correct: 1 },
+  { text: "Quelle guerre a opposé la France et l'Angleterre de 1337 à 1453 ?", options: ["Guerre de Cent Ans","Croisades","Guerre de Trente Ans","Fronde"], correct: 0 },
+  { text: "Qui a peint le plafond de la chapelle Sixtine ?", options: ["Raphaël","Michel-Ange","Botticelli","Titien"], correct: 1 },
+  { text: "Quel scientifique a été condamné par l'Église pour l'héliocentrisme ?", options: ["Newton","Galilée","Kepler","Copernic"], correct: 1 },
+  { text: "Quelle reine d'Angleterre a vaincu l'Invincible Armada en 1588 ?", options: ["Marie Ire","Élisabeth Ire","Victoria","Anne"], correct: 1 },
+  { text: "Quel pays a déclaré son indépendance le 4 juillet 1776 ?", options: ["Le Canada","Les États-Unis","Le Mexique","Le Brésil"], correct: 1 },
+  { text: "Quel empereur a vendu la Louisiane aux États-Unis en 1803 ?", options: ["Louis XVI","Napoléon Ier","Charles X","Louis-Philippe"], correct: 1 },
+  { text: "Quelle ville japonaise a subi la première bombe atomique ?", options: ["Nagasaki","Hiroshima","Tokyo","Kyoto"], correct: 1 },
+  { text: "Quel mur de fer séparait l'Europe en deux blocs selon Churchill ?", options: ["Le mur de Berlin","Le rideau de fer","La ligne Maginot","Le limes"], correct: 1 },
+  { text: "Quelle dynastie chinoise a précédé la République en 1912 ?", options: ["Ming","Qing","Han","Tang"], correct: 1 },
+  { text: "Quel roi français était surnommé « le Bien-Aimé » ?", options: ["Louis XIII","Louis XV","Louis XVI","Henri IV"], correct: 1 },
 ];
