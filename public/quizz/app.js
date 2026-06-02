@@ -169,23 +169,62 @@
     show("s-hall");
   }
 
+  // ---------- in-app sheet (replaces window.prompt — more reliable in PWA standalone mode) ----------
+  // Opens the existing overlay with custom title + body HTML; `onMount` is
+  // called with the body element so the caller can wire form events.
+  function openSheet(title, bodyHtml, onMount) {
+    $("qmSheetTitle").textContent = title;
+    var body = $("qmSheetBody"); body.innerHTML = bodyHtml;
+    $("qmOverlay").style.display = "flex";
+    if (typeof onMount === "function") onMount(body);
+  }
+
   // ---------- protect-name (set PIN) ----------
   function protectName() {
-    var pin = prompt("Choisis un code PIN à 4 chiffres pour protéger « " + getPseudo() + " » :");
-    if (pin == null) return;
-    pin = String(pin).trim();
-    if (!/^\d{4}$/.test(pin)) { toast("Le PIN doit faire exactement 4 chiffres."); return; }
-    if (socket) socket.emit("set_pin", { pin: pin });
+    openSheet("🔒 Protéger « " + getPseudo() + " »",
+      '<p>Choisis un code PIN à 4 chiffres. Tu en auras besoin pour utiliser ton prénom depuis un autre appareil.</p>' +
+      '<input id="qmFormPin" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" pattern="[0-9]*" />' +
+      '<button type="button" class="qm-primary" id="qmFormSubmit">🔒 Protéger</button>' +
+      '<div class="qm-error center" id="qmFormErr"></div>',
+      function (body) {
+        var input = body.querySelector("#qmFormPin");
+        var submit = body.querySelector("#qmFormSubmit");
+        var err = body.querySelector("#qmFormErr");
+        setTimeout(function () { input.focus(); }, 80);
+        function go() {
+          var pin = (input.value || "").trim();
+          if (!/^\d{4}$/.test(pin)) { err.textContent = "Le PIN doit faire 4 chiffres."; input.focus(); return; }
+          if (socket) socket.emit("set_pin", { pin: pin });
+          closeHelp();
+        }
+        submit.onclick = go;
+        input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
+      });
   }
 
   // ---------- rename (keeps PIN + stats) ----------
   function renameMe() {
-    var next = prompt("Nouveau prénom (16 caractères max). Tes stats et ton PIN sont conservés :", getPseudo());
-    if (next == null) return;
-    next = String(next).trim().slice(0, 16);
-    if (!next) { toast("Entre un prénom."); return; }
-    if (next.toLowerCase() === getPseudo().toLowerCase()) { toast("C'est déjà ton nom 🙂"); return; }
-    if (socket) socket.emit("rename", { name: next });
+    openSheet("✏️ Renommer mon compte",
+      '<p>Choisis un nouveau prénom (16 caractères max). <b>Tes stats et ton PIN sont conservés.</b></p>' +
+      '<input id="qmFormName" type="text" maxlength="16" autocomplete="off" />' +
+      '<button type="button" class="qm-primary" id="qmFormSubmit">✏️ Renommer</button>' +
+      '<div class="qm-error center" id="qmFormErr"></div>',
+      function (body) {
+        var input = body.querySelector("#qmFormName");
+        var submit = body.querySelector("#qmFormSubmit");
+        var err = body.querySelector("#qmFormErr");
+        input.value = getPseudo();
+        setTimeout(function () { input.focus(); input.select(); }, 80);
+        function go() {
+          var next = (input.value || "").trim().slice(0, 16);
+          if (!next) { err.textContent = "Entre un prénom."; return; }
+          if (next.toLowerCase() === getPseudo().toLowerCase()) { err.textContent = "C'est déjà ton nom."; return; }
+          if (socket) socket.emit("rename", { name: next });
+          closeHelp();
+        }
+        submit.onclick = go;
+        input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
+      });
   }
 
   // ---------- hall ----------
