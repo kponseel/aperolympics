@@ -31,6 +31,8 @@
   var socket = null, connected = false;
   var lastLobby = null, lastRoom = null, currentRoomId = null;
   var refreshTick = null;
+  var clockSkewMs = 0;                // server_now - client_now, refreshed on each state
+  function serverNow() { return Date.now() + clockSkewMs; }
   var myProtected = false;           // is my current name PIN-protected?
   var pinMode = false;               // pseudo screen is asking for a PIN to unlock
   var play = null;                   // local blitz state
@@ -78,6 +80,11 @@
     socket.on("lobby_state", function (m) { lastLobby = m || {}; renderLobby(); });
     socket.on("room_state", function (m) {
       var prev = lastRoom; lastRoom = m || {}; window.__qmLastRoom = lastRoom;
+      // Track clock skew (server_now - client_now) so the client can compute
+      // local "remaining ms" from absolute server timestamps without drifting.
+      if (lastRoom && lastRoom.server_now_ms) {
+        clockSkewMs = lastRoom.server_now_ms - Date.now();
+      }
       if (lastRoom.state === "countdown" && (!prev || prev.state === "idle" || prev.state === "podium")) {
         play = { idx: 0, correct: 0, wrong: 0, skipped: 0, streak: 0, curStreak: 0 };
       }
@@ -246,10 +253,21 @@
   }
 
   function renderCountdown(r) {
-    var n = Math.ceil(r.countdown_remaining_ms / 1000);
-    $("qmRoomBody").innerHTML =
-      '<div class="qm-card qm-center-card"><div class="qm-go">' + (n > 0 ? n : "GO !") + '</div><p class="qm-lead">Prépare-toi…</p></div>' +
-      '<div class="qm-card"><h3>Joueurs (' + (r.players || []).length + ')</h3>' + renderPills(r.players) + '</div>';
+    // Compute remaining locally from the absolute go_at_ms timestamp so the
+    // countdown ticks down smoothly between server broadcasts.
+    var remain = r.go_at_ms ? Math.max(0, r.go_at_ms - serverNow()) : (r.countdown_remaining_ms || 0);
+    var n = Math.ceil(remain / 1000);
+    // Split structure (built once) from the live number (updated each tick)
+    // so the big digit is independent of the rest.
+    var sig = "countdown:" + (r.players || []).length;
+    if (roomStructSig !== sig) {
+      roomStructSig = sig;
+      $("qmRoomBody").innerHTML =
+        '<div class="qm-card qm-center-card"><div class="qm-go" id="qmGo">' + (n > 0 ? n : "GO !") + '</div><p class="qm-lead">Prépare-toi…</p></div>' +
+        '<div class="qm-card"><h3>Joueurs (' + (r.players || []).length + ')</h3>' + renderPills(r.players) + '</div>';
+    } else {
+      var g = $("qmGo"); if (g) g.textContent = (n > 0 ? n : "GO !");
+    }
   }
 
   // Split render: build the static structure once per question; update the
@@ -295,7 +313,9 @@
   }
 
   function updatePlayingLive(r) {
-    var timeLeft = Math.max(0, r.time_left_ms || 0);
+    // Prefer absolute end_at_ms (computed locally) over the snapshot's
+    // server-side remaining_ms, which is stale between broadcasts.
+    var timeLeft = r.end_at_ms ? Math.max(0, r.end_at_ms - serverNow()) : Math.max(0, r.time_left_ms || 0);
     var secs = Math.ceil(timeLeft / 1000);
     var clock = $("qmClock");
     if (clock) {
@@ -315,7 +335,8 @@
   }
 
   function renderSpectator(r) {
-    var secs = Math.ceil((r.time_left_ms || 0) / 1000);
+    var remain = r.end_at_ms ? Math.max(0, r.end_at_ms - serverNow()) : Math.max(0, r.time_left_ms || 0);
+    var secs = Math.ceil(remain / 1000);
     var sig = "spec";
     if (roomStructSig !== sig) {
       roomStructSig = sig;
@@ -329,7 +350,8 @@
   }
 
   function renderPodium(r) {
-    var s = Math.ceil(r.podium_remaining_ms / 1000);
+    var podRemain = r.podium_end_at_ms ? Math.max(0, r.podium_end_at_ms - serverNow()) : Math.max(0, r.podium_remaining_ms || 0);
+    var s = Math.ceil(podRemain / 1000);
     var sum = r.summary || {};
     var st = sum.standings || [];
     var me = getPseudo();

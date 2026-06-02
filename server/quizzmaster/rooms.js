@@ -117,6 +117,15 @@ function makeRoom(themeDef) {
     const snap = {
       id, theme: themeDef.id, theme_name: themeDef.name, theme_emoji: themeDef.emoji,
       state,
+      // Absolute timestamps so clients can compute remaining locally between
+      // broadcasts (no need for the server to re-emit every 250 ms during a
+      // 3-second countdown).
+      go_at_ms: state === "countdown" ? goAt : 0,
+      end_at_ms: state === "playing" ? endAt : 0,
+      podium_end_at_ms: state === "podium" ? podiumEndAt : 0,
+      server_now_ms: now,
+      // Compatibility values (initial snapshot is correct; clients should
+      // prefer the absolute timestamps above for live countdowns).
       countdown_remaining_ms: state === "countdown" ? Math.max(0, goAt - now) : 0,
       time_left_ms: state === "playing" ? Math.max(0, endAt - now) : 0,
       blitz_total_ms: BLITZ_MS,
@@ -137,6 +146,10 @@ function makeRoom(themeDef) {
       id, theme: themeDef.id, theme_name: themeDef.name, theme_emoji: themeDef.emoji,
       state,
       player_count: activePlayers().length,
+      go_at_ms: state === "countdown" ? goAt : 0,
+      end_at_ms: state === "playing" ? endAt : 0,
+      podium_end_at_ms: state === "podium" ? podiumEndAt : 0,
+      server_now_ms: now,
       countdown_remaining_ms: state === "countdown" ? Math.max(0, goAt - now) : 0,
       time_left_ms: state === "playing" ? Math.max(0, endAt - now) : 0,
       podium_remaining_ms: state === "podium" ? Math.max(0, podiumEndAt - now) : 0,
