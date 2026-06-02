@@ -1,20 +1,27 @@
-// "Quiz contre-la-montre" — race to 5 correct answers. Each player gets a
-// random pool from Speed Quiz's 150-question bank; the stopwatch starts at 0
-// and stops the moment they hit their 5th correct answer. Server tracks the
-// per-player best time and broadcasts a sorted "classement de la salle"
-// ranking — same pattern as Réflexe (parallel multiplayer). At 🏁 the
-// fastest run takes the MVP card.
+// "Quiz contre-la-montre" — synchronised race to 5 correct answers. Every
+// player gets the SAME 30 random questions (drawn once per race from the
+// 150-question bank), the host triggers a 3-2-1-GO countdown that fires on
+// every screen at the same instant, and progress ("3/5", "5/5 — 7.42 s")
+// streams live to the room. First to 5 wins; race stays open until everyone
+// finishes or the host taps 🏁. v49.
 
 const { QUESTION_BANK } = require("./quiz");
-const POOL_SIZE = 30;       // 30 random Qs per run (plenty of buffer to land 5 correct)
-const TARGET_CORRECT = 5;   // how many right answers ends a run
+const POOL_SIZE = 30;       // 30 shared Qs per race (plenty of buffer past 5)
+const TARGET_CORRECT = 5;   // how many right answers to win
+const COUNTDOWN_MS = Number(process.env.QUIZ_SOLO_COUNTDOWN_MS) > 0
+  ? Number(process.env.QUIZ_SOLO_COUNTDOWN_MS)
+  : 3500;  // host taps Démarrer → 3-2-1-GO → race starts
 
 function create() {
   let phase = "lobby";
-  let perPlayerPool = {};   // name -> [{q,choices,correct}]
-  let bestMs = {};          // name -> best time-to-5-correct in ms
-  let lastMs = {};          // name -> most recent run time
-  let runs = {};            // name -> # of completed runs
+  let questions = [];        // shared pool for the current race
+  let progress = {};         // name -> correct count (live)
+  let wrongCount = {};       // name -> wrong count (live)
+  let finishedAt = {};       // name -> ms since race start when they hit 5
+  let raceStartAt = 0;       // absolute Date.now() of the GO moment
+  let winner = null;         // first to hit 5
+  let eligibleNames = [];    // snapshot of names racing this round
+  let bestMs = {};           // name -> best time-to-5 across the soirée (drives 🏆 score)
 
   function inversedScore(ms) { return ms > 0 ? Math.max(0, 60000 - ms) : 0; }
   function applyScores(room) {
@@ -30,71 +37,104 @@ function create() {
       .map((q) => ({ q: q.text, choices: q.options.slice(), correct: q.correct }));
   }
 
-  function poolFor(name) {
-    if (!perPlayerPool[name]) perPlayerPool[name] = makePool();
-    return perPlayerPool[name];
+  function resetRace() {
+    questions = []; progress = {}; wrongCount = {}; finishedAt = {};
+    winner = null; eligibleNames = []; raceStartAt = 0;
   }
 
-  function topRuns(room) {
-    const present = new Set();
-    room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
-    const list = [];
-    for (const n in bestMs) {
-      if (!bestMs[n]) continue;
-      list.push({ name: n, best_ms: bestMs[n], last_ms: lastMs[n] || 0, runs: runs[n] || 0 });
-    }
-    list.sort((a, b) => a.best_ms - b.best_ms);
+  function startCountdown(room) {
+    resetRace();
+    questions = makePool();
+    eligibleNames = room.activePlayers().map((p) => p.name).filter(Boolean);
+    eligibleNames.forEach((n) => { progress[n] = 0; wrongCount[n] = 0; });
+    raceStartAt = Date.now() + COUNTDOWN_MS;
+    phase = "countdown";
+  }
+
+  function progressList() {
+    const list = eligibleNames.map((n) => ({
+      name: n,
+      correct: progress[n] || 0,
+      wrong: wrongCount[n] || 0,
+      finished_ms: finishedAt[n] != null ? finishedAt[n] : null,
+    }));
+    list.sort((a, b) => {
+      const af = a.finished_ms == null ? Infinity : a.finished_ms;
+      const bf = b.finished_ms == null ? Infinity : b.finished_ms;
+      if (af !== bf) return af - bf;
+      if (b.correct !== a.correct) return b.correct - a.correct;
+      return a.name.localeCompare(b.name);
+    });
     return list;
   }
 
-  function clearAll(room) {
-    perPlayerPool = {}; bestMs = {}; lastMs = {}; runs = {};
-    if (room && room.players) applyScores(room);
+  function allFinished() {
+    if (!eligibleNames.length) return false;
+    return eligibleNames.every((n) => finishedAt[n] != null);
   }
 
   return {
     phase: () => phase,
-    onSelect: (room) => { phase = "lobby"; clearAll(room); },
-    onStart: (room) => { phase = "playing"; clearAll(room); },
-    onAdvance: (room) => { if (phase === "lobby") { phase = "playing"; clearAll(room); } },
-    onReset: (room) => { phase = "lobby"; clearAll(room); },
-    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
-    onMessage: (room, p, msg) => {
-      if (!p || !p.name || phase === "lobby") return;
-      if (msg.t === "run_done") {
-        // Client reports: { ms, correct } when they hit TARGET_CORRECT.
-        const ms = Number(msg.ms);
-        const correct = Number(msg.correct);
-        if (!isFinite(ms) || ms <= 0 || ms > 600000) return;
-        if (correct < TARGET_CORRECT) return; // only count completed runs
-        lastMs[p.name] = ms;
-        if (!bestMs[p.name] || ms < bestMs[p.name]) bestMs[p.name] = ms;
-        runs[p.name] = (runs[p.name] || 0) + 1;
-        // Hand them a fresh pool for the next run.
-        perPlayerPool[p.name] = makePool();
+    onSelect: (room) => { phase = "lobby"; resetRace(); bestMs = {}; applyScores(room); },
+    onAdvance: (room) => {
+      if (phase === "lobby" || phase === "finished") {
+        startCountdown(room);
         applyScores(room);
       }
     },
-    // Public state: just the ranking. Each player's private pool of questions
-    // is delivered via serializePrivate so peers don't get to peek at the
-    // correct answer.
-    serializeRound: (room) => {
-      const top = topRuns(room);
-      const r = { solo: true, target: TARGET_CORRECT, top: top };
-      if (phase === "finished" && top.length) {
-        r.mvp = { label: "Cerveau le plus rapide", emoji: "🧠", name: top[0].name, value: (top[0].best_ms / 1000).toFixed(2) + " s" };
-        if (top.length > 1) {
-          r.extras = [{ emoji: "🥈", label: "Vice-champion(ne) quiz", name: top[1].name, value: (top[1].best_ms / 1000).toFixed(2) + " s" }];
-          if (top.length > 2) r.extras.push({ emoji: "🥉", label: "3ᵉ marche du podium", name: top[2].name, value: (top[2].best_ms / 1000).toFixed(2) + " s" });
+    onReset: (room) => { phase = "lobby"; resetRace(); bestMs = {}; applyScores(room); },
+    onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
+    onMessage: (room, p, msg) => {
+      if (!p || !p.name) return;
+      if (msg.t !== "answer_progress" || phase !== "playing") return;
+      if (finishedAt[p.name] != null) return;        // already done
+      if (eligibleNames.indexOf(p.name) < 0) return; // not in this race
+      const c = Number(msg.correct);
+      const w = Number(msg.wrong);
+      if (!isFinite(c) || c < 0 || c > TARGET_CORRECT) return;
+      if (!isFinite(w) || w < 0 || w > 200) return;
+      progress[p.name] = c;
+      wrongCount[p.name] = w;
+      if (c >= TARGET_CORRECT) {
+        const ms = Date.now() - raceStartAt;
+        finishedAt[p.name] = ms > 0 ? ms : 1;
+        if (!winner) winner = p.name;
+        if (!bestMs[p.name] || finishedAt[p.name] < bestMs[p.name]) bestMs[p.name] = finishedAt[p.name];
+        applyScores(room);
+        if (allFinished()) phase = "finished";
+      }
+    },
+    tick: (room, now) => {
+      if (phase === "countdown" && now >= raceStartAt) { phase = "playing"; return true; }
+      return false;
+    },
+    serializeRound: () => {
+      const list = progressList();
+      const r = {
+        solo: true,
+        phase: phase,
+        target: TARGET_CORRECT,
+        race_start_at: raceStartAt,
+        progress: list,
+        winner: winner,
+      };
+      if (phase === "countdown" || phase === "playing") r.questions = questions;
+      if (phase === "finished") {
+        const finishers = list.filter((x) => x.finished_ms != null);
+        if (finishers.length) {
+          const top = finishers[0];
+          r.mvp = { label: "Cerveau le plus rapide", emoji: "🧠", name: top.name, value: (top.finished_ms / 1000).toFixed(2) + " s" };
+          if (finishers.length > 1) {
+            r.extras = [{ emoji: "🥈", label: "Vice-champion(ne) quiz", name: finishers[1].name, value: (finishers[1].finished_ms / 1000).toFixed(2) + " s" }];
+            if (finishers.length > 2) r.extras.push({ emoji: "🥉", label: "3ᵉ marche du podium", name: finishers[2].name, value: (finishers[2].finished_ms / 1000).toFixed(2) + " s" });
+          }
+        } else if (list.length) {
+          const top = list[0];
+          r.mvp = { label: "Le plus avancé", emoji: "🧠", name: top.name, value: top.correct + " / " + TARGET_CORRECT };
         }
       }
       return r;
     },
-    serializePrivate: (room, viewer) => {
-      if (!viewer || !viewer.name || phase !== "playing") return {};
-      return { questions: poolFor(viewer.name), target: TARGET_CORRECT };
-    },
-    tick: () => false,
   };
 }
 
@@ -102,6 +142,6 @@ module.exports = {
   id: "quiz_solo",
   name: "Quiz Contre-la-montre",
   emoji: "🔢",
-  desc: "Premier arrivé à 5 bonnes réponses gagne — questions tirées au hasard parmi 150.",
+  desc: "Course synchronisée à 5 bonnes — mêmes questions, progression en direct.",
   create,
 };
