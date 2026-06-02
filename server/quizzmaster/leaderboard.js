@@ -3,8 +3,7 @@
 // JSON file on disk (scores.json); per-room top 10 + a derived global top 10.
 // Atomic writes via fs.rename so a crash mid-save never leaves a partial file.
 // Each entry: { name, cid, value, displayValue, at }
-//   - value: numeric score used for sorting (higher = better for "quiz",
-//            lower = better for "quiz_solo" since it's a time in ms).
+//   - value: numeric score used for sorting (higher = better — Blitz points).
 //   - displayValue: pre-formatted string shown in the UI.
 //   - cid: client-id (uuid v4 in localStorage) → recognises a returning player
 //          so we keep only their personal best per room.
@@ -40,17 +39,15 @@ function save() {
   }
 }
 
-// Record one player's score in a room. Keeps the best score per (room, cid).
-// `mode` controls sort direction: "quiz" → desc, "quiz_solo" → asc.
+// Record one player's score in a room. Keeps the BEST score per (room, cid).
+// Blitz score = points (higher is better), so it's always a descending board.
+// `mode` is kept in the signature for forward-compat but isn't used today.
 function record(roomId, mode, entry) {
   if (!entry || !entry.cid || !entry.name) return false;
-  const sortAsc = mode === "quiz_solo";
   const arr = data.by_room[roomId] = data.by_room[roomId] || [];
   const existingIdx = arr.findIndex((e) => e.cid === entry.cid);
   if (existingIdx >= 0) {
-    const cur = arr[existingIdx];
-    const better = sortAsc ? entry.value < cur.value : entry.value > cur.value;
-    if (!better) return false; // existing best is at least as good
+    if (entry.value <= arr[existingIdx].value) return false; // existing best stands
     arr.splice(existingIdx, 1);
   }
   arr.push({
@@ -60,7 +57,7 @@ function record(roomId, mode, entry) {
     displayValue: String(entry.displayValue || ""),
     at: Number(entry.at) || Date.now(),
   });
-  arr.sort((a, b) => sortAsc ? a.value - b.value : b.value - a.value);
+  arr.sort((a, b) => b.value - a.value);
   if (arr.length > TOP_N) arr.length = TOP_N;
   data.updated_at = Date.now();
   save();
