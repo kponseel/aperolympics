@@ -10,6 +10,12 @@
 const path = require("path");
 const roomsModule = require("./rooms");
 const players = require("./players");
+const themes = require("./themes");
+
+// Lightweight map used to enrich playerStats with display name + emoji.
+const THEMES_META = Object.fromEntries(
+  Object.values(themes).map((t) => [t.id, { name: t.name, emoji: t.emoji }])
+);
 
 const TICK_MS = 500;
 const MAX_PIN_ATTEMPTS = 5;
@@ -140,6 +146,17 @@ function mount({ app, io }) {
           broadcastRoom(room);
         }
       }
+    });
+
+    // Profile card request — any client can ask for any name's stats (it's a
+    // public leaderboard; nothing secret in here). Replies with `stats` or
+    // `stats` { ok: false } if the name doesn't exist yet.
+    socket.on("get_stats", (m) => {
+      const name = String((m && m.name) || "").trim().slice(0, 16);
+      if (!name) { socket.emit("stats", { ok: false, reason: "bad_name" }); return; }
+      const s = players.playerStats(name, THEMES_META);
+      if (!s) { socket.emit("stats", { ok: false, name, reason: "no_account" }); return; }
+      socket.emit("stats", { ok: true, stats: s });
     });
 
     socket.on("join_lobby", () => {

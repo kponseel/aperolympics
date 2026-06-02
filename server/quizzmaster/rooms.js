@@ -57,11 +57,14 @@ function makeRoom(themeDef) {
   }
 
   function recordResults() {
-    engine.standings().forEach((r) => {
+    const st = engine.standings();
+    const totalPlayers = st.length;
+    st.forEach((r, i) => {
       const p = [...playerMap.values()].find((x) => x.name === r.name && x.socketId);
       if (!p) return;
       players.recordGame(p.name, p.cid, themeDef.id, {
         score: r.score, correct: r.correct, wrong: r.wrong, skipped: r.skipped,
+        streak: r.streak, rank: i + 1, totalPlayers,
       });
     });
   }
