@@ -69,6 +69,7 @@
     socket.on("lobby_state", function (m) { lastLobby = m || {}; renderLobby(); });
     socket.on("room_state", function (m) {
       lastRoom = m || {};
+      window.__qmLastRoom = lastRoom; // debug/test hook
       // Reset local answer tracking when a new race starts (engine phase
       // transitions from non-playing → playing).
       var ep = lastRoom.engine_phase;
@@ -319,7 +320,7 @@
         '<span class="muted">' + clientCorrect + ' / 5 bonnes</span></div>' +
         '<div class="qm-q">' + escapeHtml(q.q) + '</div>' +
         '<div class="qm-grid" id="qmGrid">' +
-          q.options.map(function (o, i) { return '<button data-idx="' + i + '">' + escapeHtml(o) + '</button>'; }).join("") +
+          (q.choices || []).map(function (o, i) { return '<button data-idx="' + i + '">' + escapeHtml(o) + '</button>'; }).join("") +
         '</div>' +
       '</div>' +
       '<div class="qm-section"><h3>👥 Progression</h3>' + renderLiveProgress(r) + '</div>';

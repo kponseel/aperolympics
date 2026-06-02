@@ -17,9 +17,9 @@ const quizSoloMod = require("../games/quiz_solo");
 const themes = require("./themes");
 const leaderboard = require("./leaderboard");
 
-const PRERACE_MS = 15000;
-const PODIUM_MS = 8000;
-const AUTO_START_AFTER_MS = 60000;  // 2+ players idle this long → auto-démarrer
+const PRERACE_MS = Number(process.env.QM_PRERACE_MS) > 0 ? Number(process.env.QM_PRERACE_MS) : 15000;
+const PODIUM_MS = Number(process.env.QM_PODIUM_MS) > 0 ? Number(process.env.QM_PODIUM_MS) : 8000;
+const AUTO_START_AFTER_MS = Number(process.env.QM_AUTOSTART_MS) > 0 ? Number(process.env.QM_AUTOSTART_MS) : 60000;
 const MODES = [
   { id: "quiz",      name: "Speed Quiz",         emoji: "🧠", module: quizMod,     scoreLabel: "pts" },
   { id: "quiz_solo", name: "Contre-la-montre",   emoji: "🔢", module: quizSoloMod, scoreLabel: "s" },
