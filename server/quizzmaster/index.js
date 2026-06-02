@@ -119,6 +119,29 @@ function mount({ app, io }) {
       socket.emit("pin_set", { name: sess.name });
     });
 
+    // Rename the currently-identified account. The new name must be free and
+    // we must be the account's owner (same cid). Stats, PIN and theme bests
+    // are carried over.
+    socket.on("rename", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.cid || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      const newName = String((m && m.name) || "").trim().slice(0, 16);
+      if (!newName) { socket.emit("rename_failed", { reason: "bad_name" }); return; }
+      const res = players.rename(sess.name, newName, sess.cid);
+      if (!res.ok) { socket.emit("rename_failed", { reason: res.reason }); return; }
+      sess.name = res.account.name;
+      socket.emit("rename_ok", { name: sess.name, protected: !!res.account.pinHash });
+      broadcastLobby();
+      if (sess.roomId) {
+        const room = roomById.get(sess.roomId);
+        if (room) {
+          // Reflect the new name inside the room as well — re-add the player.
+          room.addPlayer(sess.cid, sess.name, socket.id);
+          broadcastRoom(room);
+        }
+      }
+    });
+
     socket.on("join_lobby", () => {
       const sess = sessions.get(socket.id);
       if (!sess) return;
