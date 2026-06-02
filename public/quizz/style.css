@@ -1,0 +1,135 @@
+/* QuizzMaster — self-contained styling, dark theme. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; min-height: 100vh; background: #0f1020; color: #e9ecff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { padding-bottom: env(safe-area-inset-bottom); }
+button, input { font-family: inherit; touch-action: manipulation; }
+.center { text-align: center; }
+.muted { color: #9aa3d6; }
+.qm-error { color: #ff7a7a; min-height: 1.4em; margin-top: 8px; }
+
+.qm-topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top));
+  background: #161830; border-bottom: 1px solid #262a52;
+}
+.qm-brand { font-weight: 800; font-size: 1.15rem; }
+.qm-brand span { margin-left: 4px; }
+.qm-back { background: transparent; color: #e9ecff; border: 1px solid #262a52; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.qm-back:hover { background: #1d2152; }
+.qm-who { margin-left: auto; color: #9aa3d6; font-size: 0.9rem; }
+.qm-sub { padding: 10px 16px; color: #9aa3d6; font-size: 0.9rem; }
+
+.qm-main { max-width: 720px; margin: 0 auto; padding: 0 16px 40px; }
+.qm-screen { display: none; }
+.qm-screen.on { display: block; }
+
+/* ----- Pseudo screen ----- */
+.qm-hero { text-align: center; padding: 30px 0 20px; }
+.qm-hero-emoji { font-size: 4rem; margin-bottom: 6px; }
+.qm-hero h1 { margin: 4px 0 6px; font-size: 2.2rem; }
+.qm-label { display: block; margin: 14px 0 6px; font-weight: 600; }
+input#qmName {
+  display: block; width: 100%; padding: 14px 16px; font-size: 1.05rem;
+  background: #161830; border: 1px solid #262a52; border-radius: 12px; color: #e9ecff;
+}
+input#qmName:focus { outline: none; border-color: #5b6cff; }
+.qm-primary {
+  display: block; width: 100%; padding: 14px; margin-top: 12px;
+  font-size: 1.05rem; font-weight: 700;
+  background: #5b6cff; color: white; border: none; border-radius: 12px; cursor: pointer;
+}
+.qm-primary:hover { background: #6c7cff; }
+.qm-primary:disabled { background: #353a72; cursor: not-allowed; }
+.qm-steps { list-style: none; padding: 0; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.qm-steps li { display: flex; gap: 10px; align-items: flex-start; background: #161830; padding: 12px 14px; border-radius: 10px; border: 1px solid #262a52; }
+.qm-steps .num { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; border-radius: 999px; background: #5b6cff; color: white; font-weight: 800; }
+
+/* ----- Hall ----- */
+.qm-hall-head { margin: 18px 0 14px; text-align: center; }
+.qm-hall-head h2 { margin: 0; }
+.qm-mode-group { margin-bottom: 24px; }
+.qm-mode-head { font-size: 1.05rem; margin: 12px 0 8px; }
+.qm-mode-desc { font-weight: 400; color: #9aa3d6; font-size: 0.85rem; margin-left: 6px; }
+.qm-rooms { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.qm-room-card {
+  display: flex; flex-direction: column; gap: 6px;
+  background: #161830; border: 1px solid #262a52; border-radius: 12px;
+  padding: 14px; text-align: left; color: #e9ecff; cursor: pointer; transition: background-color .1s, border-color .1s;
+}
+.qm-room-card:hover { background: #1d2152; border-color: #5b6cff; }
+.qm-room-card.live { border-color: #ffcc4d; background: #2a1f0f; }
+.qm-room-card .qm-rc-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.qm-room-card .qm-rc-emoji { font-size: 1.4rem; }
+.qm-room-card .qm-rc-state { font-size: 0.82rem; color: #9aa3d6; }
+.qm-room-card .qm-rc-state.live { color: #ffcc4d; font-weight: 700; }
+.qm-room-card .qm-rc-state.prerace { color: #26890c; font-weight: 700; }
+.qm-room-card .qm-rc-state.podium { color: #5b6cff; font-weight: 700; }
+
+.qm-global { background: #161830; border: 1px solid #262a52; border-radius: 12px; padding: 14px; margin-top: 20px; }
+.qm-global h3 { margin: 0 0 10px; }
+.qm-top-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.qm-top-list li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #1b1d35; border: 1px solid #262a52; border-radius: 8px; }
+.qm-top-list .rank { font-weight: 800; min-width: 28px; text-align: center; }
+.qm-top-list .who { flex: 1; }
+.qm-top-list .pts { font-weight: 800; color: #ffd23f; }
+.qm-top-empty { padding: 14px; text-align: center; color: #9aa3d6; }
+
+/* ----- Room screen ----- */
+.qm-room-head { display: flex; align-items: center; gap: 12px; margin: 14px 0; padding: 14px; background: #161830; border-radius: 12px; border: 1px solid #262a52; }
+.qm-room-emoji { font-size: 2rem; }
+.qm-room-title h2 { margin: 0; font-size: 1.25rem; }
+.qm-room-title p { margin: 2px 0 0; font-size: 0.9rem; }
+
+.qm-section { background: #161830; border: 1px solid #262a52; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.qm-section h3 { margin: 0 0 10px; font-size: 1.05rem; }
+.qm-section .center { padding: 8px 0; }
+
+.qm-big { font-size: 1.4rem; font-weight: 800; text-align: center; padding: 10px 0; }
+.qm-bigger { font-size: 4rem; font-weight: 900; text-align: center; color: #ffd23f; text-shadow: 0 2px 12px #0008; }
+
+.qm-player-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.qm-pill { padding: 6px 10px; border-radius: 999px; background: #1d2152; border: 1px solid #5b6cff; font-size: 0.9rem; }
+.qm-pill.me { background: #5b6cff; color: white; }
+
+/* Answer grid (Speed Quiz / Contre-la-montre) */
+.qm-q { font-size: 1.3rem; text-align: center; margin: 6px 0 14px; word-break: break-word; min-height: 1.6em; }
+.qm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.qm-grid button {
+  font-size: 1.1rem; min-height: 78px; padding: 12px;
+  background: #1d2152; border: 1px solid #353a72; border-radius: 10px; color: #e9ecff; cursor: pointer; word-break: break-word;
+}
+.qm-grid button:hover:not(:disabled) { background: #2a2f5c; }
+.qm-grid button:disabled { opacity: 0.7; cursor: not-allowed; }
+.qm-grid button.good { background: #1a4d10; border-color: #26890c; }
+.qm-grid button.bad { background: #4d1a1a; border-color: #c43; }
+
+.qm-topbar-info { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.qm-time { font-weight: 800; color: #ffd23f; min-width: 60px; }
+.qm-points { font-weight: 800; }
+
+.qm-progress { display: flex; flex-direction: column; gap: 6px; }
+.qm-progress-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #1b1d35; border: 1px solid #262a52; border-radius: 8px; }
+.qm-progress-row.me { border-color: #5b6cff; background: #1d2152; }
+.qm-progress-row .who { flex: 1; }
+.qm-pips { display: inline-flex; gap: 4px; align-items: center; }
+.qm-pip { display: inline-block; width: 10px; height: 10px; border-radius: 999px; background: #2a2f5c; }
+.qm-pip.on { background: #26890c; box-shadow: 0 0 4px #26890c80; }
+.qm-finish-ms { font-weight: 800; color: #ffd23f; min-width: 60px; text-align: right; }
+
+.qm-countdown { display: flex; align-items: center; justify-content: center; padding: 24px 0; font-size: 4.5rem; font-weight: 900; color: #ffd23f; text-shadow: 0 2px 12px #0008; }
+
+.qm-podium-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #1b1d35; border: 1px solid #262a52; border-radius: 10px; }
+.qm-podium-row.gold { border-color: #ffd23f; background: #2a230f; }
+.qm-podium-row .rank { font-weight: 800; min-width: 36px; font-size: 1.2rem; }
+.qm-podium-row .who { flex: 1; font-weight: 700; }
+.qm-podium-row .pts { font-weight: 800; color: #ffd23f; }
+
+.qm-toast { padding: 8px 12px; background: #1a4d10; border: 1px solid #26890c; border-radius: 8px; text-align: center; margin: 6px 0; }
+.qm-toast.warn { background: #4d3010; border-color: #c80; }
+
+@media (max-width: 540px) {
+  .qm-rooms { grid-template-columns: 1fr; }
+  .qm-hero h1 { font-size: 1.8rem; }
+  .qm-bigger { font-size: 3rem; }
+}

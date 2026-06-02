@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>QuizzMaster</title>
+  <meta name="theme-color" content="#0f1020" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="QuizzMaster" />
+  <link rel="manifest" href="/quizz/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+  <link rel="stylesheet" href="/quizz/style.css" />
+</head>
+<body>
+  <header class="qm-topbar">
+    <button type="button" class="qm-back" id="qmBack" style="display:none">← Hall</button>
+    <div class="qm-brand">🧠 <span>QuizzMaster</span></div>
+    <div class="qm-who" id="qmWho"></div>
+  </header>
+  <div class="qm-sub center" id="qmStatus">Connexion…</div>
+
+  <main class="qm-main">
+    <!-- Stage 1: pseudo input -->
+    <section class="qm-screen on" id="s-pseudo">
+      <div class="qm-hero">
+        <div class="qm-hero-emoji">🧠</div>
+        <h1>QuizzMaster</h1>
+        <p class="muted">Quiz en ligne, multijoueur ou solo — classement permanent.</p>
+      </div>
+      <label class="qm-label" for="qmName">Ton pseudo</label>
+      <input id="qmName" placeholder="Ton pseudo" maxlength="16" autocomplete="off" />
+      <button class="qm-primary" id="qmContinue">Entrer →</button>
+      <div class="qm-error center" id="qmPseudoError"></div>
+      <ol class="qm-steps">
+        <li><span class="num">1</span> Choisis ton <b>thème</b> et ton <b>mode</b>.</li>
+        <li><span class="num">2</span> Tu peux lancer une course <b>seul</b> ou attendre que d'autres rejoignent.</li>
+        <li><span class="num">3</span> Tes meilleurs scores sont gardés dans le <b>classement permanent</b>.</li>
+      </ol>
+    </section>
+
+    <!-- Stage 2: the hall — list of 20 rooms + global top 10 -->
+    <section class="qm-screen" id="s-hall">
+      <div class="qm-hall-head">
+        <h2>🎯 Choisis ta course</h2>
+        <p class="muted">2 modes × 10 thèmes — chaque salle est ouverte 24/7</p>
+      </div>
+      <div class="qm-mode-group">
+        <h3 class="qm-mode-head">🧠 Speed Quiz <span class="qm-mode-desc">10 questions au chrono</span></h3>
+        <div class="qm-rooms" id="qmRoomsQuiz"></div>
+      </div>
+      <div class="qm-mode-group">
+        <h3 class="qm-mode-head">🔢 Contre-la-montre <span class="qm-mode-desc">premier à 5 bonnes</span></h3>
+        <div class="qm-rooms" id="qmRoomsSolo"></div>
+      </div>
+      <div class="qm-global">
+        <h3>🏆 Top 10 général</h3>
+        <ol class="qm-top-list" id="qmGlobalTop"></ol>
+      </div>
+    </section>
+
+    <!-- Stage 3: in a room (state-driven inner content) -->
+    <section class="qm-screen" id="s-room">
+      <div class="qm-room-head">
+        <span class="qm-room-emoji" id="qmRoomEmoji">🎯</span>
+        <div class="qm-room-title">
+          <h2 id="qmRoomTitle">…</h2>
+          <p class="muted" id="qmRoomSub">…</p>
+        </div>
+      </div>
+      <div id="qmRoomBody"><!-- swapped by app.js per state --></div>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/quizz/app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/quizz/sw.js", { scope: "/quizz/" });
+  </script>
+</body>
+</html>
