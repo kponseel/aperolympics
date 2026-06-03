@@ -148,6 +148,24 @@ function mount({ app, io }) {
       }
     });
 
+    // Delete the currently-identified account permanently. Strict ownership +
+    // PIN re-entry when the account is protected. On success the client is
+    // booted out of any room and back to the pseudo screen.
+    socket.on("delete_account", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.cid || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      const pin = m && m.pin != null ? String(m.pin).trim() : "";
+      const res = players.deleteAccount(sess.name, sess.cid, pin);
+      if (!res.ok) { socket.emit("delete_failed", { reason: res.reason }); return; }
+      const deletedName = sess.name;
+      // Kick from any room and clear the identity on this socket.
+      leaveCurrentRoom(socket);
+      sess.name = null;
+      sess.pinFails = {};
+      socket.emit("account_deleted", { name: deletedName });
+      broadcastLobby();
+    });
+
     // Profile card request — any client can ask for any name's stats (it's a
     // public leaderboard; nothing secret in here). Replies with `stats` or
     // `stats` { ok: false } if the name doesn't exist yet.

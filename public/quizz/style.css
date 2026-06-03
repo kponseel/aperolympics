@@ -91,6 +91,11 @@ input#qmName:focus { outline: none; border-color: #6c7cff; }
 .qm-prof-theme .emo { font-size: 1.4rem; }
 .qm-prof-theme .nm { font-weight: 700; font-size: 0.9rem; }
 .qm-prof-theme .meta { color: #9aa3d6; font-size: 0.78rem; }
+.qm-prof-danger { margin-top: 18px; padding-top: 14px; border-top: 1px solid #2a2f5c; text-align: center; }
+.qm-prof-danger .qm-hint { margin: 8px 0 0; font-size: 0.85rem; }
+.qm-danger { display: block; width: 100%; padding: 14px; font-size: 1rem; font-weight: 700; background: #4a1f1f; color: #ffb3b3; border: 2px solid #c84545; border-radius: 12px; cursor: pointer; min-height: 50px; }
+.qm-danger:hover { background: #5c2727; color: #fff; }
+.qm-danger:active { background: #7a1d1d; }
 
 /* ----- room ----- */
 .qm-room-head { display: flex; align-items: center; gap: 12px; margin: 18px 0; }

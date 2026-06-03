@@ -1,7 +1,7 @@
 // QuizzMaster service worker — caches the shell, scoped to /quizz/.
 // Independent of Aperolympics' SW. Versioning: `qm-vN`.
 
-const CACHE = "qm-v11";
+const CACHE = "qm-v12";
 const ASSETS = [
   "/quizz/", "/quizz/index.html", "/quizz/app.js", "/quizz/style.css",
   "/quizz/manifest.webmanifest",
