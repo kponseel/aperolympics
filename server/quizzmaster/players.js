@@ -98,6 +98,29 @@ function setPin(name, pin) {
   return true;
 }
 
+// Delete an account permanently. Strict ownership: the requester must be the
+// owner device (cid match) AND, if the account is PIN-protected, supply the
+// correct PIN as a second factor — so a stolen/borrowed phone in someone's
+// pocket can't nuke the account by tapping a button.
+// Returns:
+//   { ok: true } on success (account erased from disk)
+//   { ok: false, reason: "no_account" | "not_owner" | "pin_required" | "pin_wrong" }
+function deleteAccount(name, cid, pin) {
+  const k = key(name);
+  if (!k) return { ok: false, reason: "no_account" };
+  const a = data.byName[k];
+  if (!a) return { ok: false, reason: "no_account" };
+  if (!a.ownerCid || a.ownerCid !== cid) return { ok: false, reason: "not_owner" };
+  if (a.pinHash) {
+    if (!pin) return { ok: false, reason: "pin_required" };
+    if (!PIN_RE.test(String(pin)) || hashPin(pin, a.salt) !== a.pinHash) return { ok: false, reason: "pin_wrong" };
+  }
+  delete data.byName[k];
+  data.updated_at = Date.now();
+  save();
+  return { ok: true };
+}
+
 // Rename an existing account. Requires the requester (`cid`) to be the owner.
 // Returns:
 //   { ok: true, account } on success (stats + PIN + theme bests are carried over)
@@ -331,6 +354,6 @@ function playerStats(name, themesMap) {
 function _reset() { data = emptyData(); try { fs.unlinkSync(FILE); } catch (e) {} }
 
 module.exports = {
-  authenticate, isProtected, getAccount, setPin, rename, recordGame,
+  authenticate, isProtected, getAccount, setPin, rename, deleteAccount, recordGame,
   globalRanking, themeTop, playerStats, TOP_N, PIN_RE, _reset,
 };

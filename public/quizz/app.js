@@ -94,6 +94,33 @@
       else if (r === "no_account") toast("Aucun compte à renommer.");
       else toast("Renommage refusé.");
     });
+    socket.on("account_deleted", function (m) {
+      var name = (m && m.name) || "";
+      // Wipe everything tied to this identity so the next session opens fresh.
+      try { localStorage.removeItem("qm.pseudo"); } catch (e) {}
+      myProtected = false;
+      currentRoomId = null; lastRoom = null; pinMode = false;
+      closeHelp();
+      setWho(); updateNameBadge();
+      toast("🗑️ Compte « " + name + " » supprimé.");
+      // Bounce back to the pseudo screen — they can register a fresh name now.
+      $("qmName").value = "";
+      $("qmPin").value = "";
+      $("qmPseudoError").textContent = "";
+      $("qmContinue").textContent = "C'est parti →";
+      show("s-pseudo");
+    });
+    socket.on("delete_failed", function (m) {
+      var r = m && m.reason;
+      var err = $("qmDelErr");
+      var msg = (r === "pin_required") ? "Saisis ton PIN à 4 chiffres."
+              : (r === "pin_wrong") ? "PIN incorrect."
+              : (r === "not_owner") ? "Tu n'es pas propriétaire de ce compte."
+              : (r === "no_account") ? "Aucun compte à supprimer."
+              : "Suppression refusée.";
+      if (err) err.textContent = msg;
+      else toast(msg);
+    });
     socket.on("error_msg", function (m) {
       var code = m && m.msg;
       if (code === "bad_identity" || code === "no_identity") return;
@@ -602,8 +629,47 @@
       ? '<p class="qm-hint">Aucune partie terminée pour l\'instant.</p>'
       : "";
 
-    $("qmSheetBody").innerHTML = '<div class="qm-profile">' + head + trophiesHtml + favHtml + nemHtml + allHtml + emptyHtml + '</div>';
+    // Self-destruct button — only visible on the user's own profile.
+    var dangerHtml = isMe
+      ? '<div class="qm-prof-danger"><button type="button" class="qm-danger" id="qmDelete">🗑️ Supprimer mon compte</button>' +
+        '<p class="qm-hint">Efface définitivement ton pseudo, ton PIN, tes stats et tes records.</p></div>'
+      : '';
+
+    $("qmSheetBody").innerHTML = '<div class="qm-profile">' + head + trophiesHtml + favHtml + nemHtml + allHtml + emptyHtml + dangerHtml + '</div>';
     $("qmOverlay").style.display = "flex";
+    if (isMe) {
+      var del = $("qmDelete");
+      if (del) del.onclick = function () { confirmDelete(s); };
+    }
+  }
+
+  // Two-step confirmation for account deletion. PIN-protected accounts must
+  // re-enter their PIN as a second factor (so a borrowed phone can't nuke the
+  // account in one tap).
+  function confirmDelete(s) {
+    var locked = !!s.locked;
+    openSheet("🗑️ Supprimer « " + getPseudo() + " »",
+      '<p class="warn"><b>Action définitive.</b> Tu perdras ton pseudo, ton PIN, tes stats et tous tes records. Personne ne pourra les récupérer.</p>' +
+      (locked
+        ? '<p>Ce pseudo est protégé. Saisis ton PIN pour confirmer :</p>' +
+          '<input id="qmDelPin" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" pattern="[0-9]*" />'
+        : '') +
+      '<button type="button" class="qm-danger" id="qmDelGo">🗑️ Oui, supprimer définitivement</button>' +
+      '<button type="button" class="qm-secondary" id="qmDelCancel">Annuler</button>' +
+      '<div class="qm-error center" id="qmDelErr"></div>',
+      function (body) {
+        var pinInput = body.querySelector("#qmDelPin");
+        var go = body.querySelector("#qmDelGo");
+        var cancel = body.querySelector("#qmDelCancel");
+        var err = body.querySelector("#qmDelErr");
+        if (pinInput) setTimeout(function () { pinInput.focus(); }, 80);
+        cancel.onclick = closeHelp;
+        go.onclick = function () {
+          var pin = pinInput ? (pinInput.value || "").trim() : "";
+          if (locked && !/^\d{4}$/.test(pin)) { err.textContent = "Saisis ton PIN à 4 chiffres."; if (pinInput) pinInput.focus(); return; }
+          if (socket) socket.emit("delete_account", { pin: pin });
+        };
+      });
   }
 
   // ---------- refresh loop ----------
