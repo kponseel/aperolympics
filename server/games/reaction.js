@@ -27,7 +27,10 @@ function create() {
     room.activePlayers().forEach((p) => { if (p.name) present.add(p.name); });
     const list = [];
     for (const n in bestMs) {
-      if (!present.has(n) && !bestMs[n]) continue;
+      // Only show currently-connected players in the live ranking — keeping
+      // departed players in here clutters the board and rewards a player who
+      // already left.
+      if (!present.has(n)) continue;
       if (!bestMs[n]) continue;
       list.push({ name: n, best_ms: bestMs[n], attempts: attempts[n] || 0, runs: runs[n] || 0 });
     }

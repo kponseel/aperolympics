@@ -1,8 +1,12 @@
 // Bluff — type a fake answer, then vote the real one out of the shuffled pool.
 
 (function () {
+  // Reset on every mount — keeping it at module scope leaked state between two
+  // consecutive matches (input pre-filled with the previous match's last typed
+  // answer because the idx still matched).
   var lastQIdx = -1;
   function build(area, h) {
+    lastQIdx = -1;
     area.innerHTML =
       '<div class="screen on" id="bl-submit">' +
         '<div class="muted center" id="blIdxS"></div>' +

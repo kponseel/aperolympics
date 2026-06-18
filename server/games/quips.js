@@ -156,16 +156,21 @@ function create() {
   function awardWinner(room) {
     const a = contestantA && room.players.get(contestantA.toLowerCase());
     const b = contestantB && room.players.get(contestantB.toLowerCase());
+    // A contestant who bailed before the vote (forcing advance() to fill
+    // "(pas de reponse)") shouldn't pocket points or a round-win. We still
+    // give the opponent their gain.
+    const aIn = !!(a && a.active);
+    const bIn = !!(b && b.active);
     lastGain = {};
     if (votesA === votesB) {
-      if (a) { a.score += 100; lastGain[contestantA] = 100; }
-      if (b) { b.score += 100; lastGain[contestantB] = 100; }
+      if (aIn) { a.score += 100; lastGain[contestantA] = 100; }
+      if (bIn) { b.score += 100; lastGain[contestantB] = 100; }
     } else if (votesA > votesB) {
-      if (a) { a.score += 300; lastGain[contestantA] = 300; }
-      if (contestantA) roundWins[contestantA] = (roundWins[contestantA] || 0) + 1;
+      if (aIn) { a.score += 300; lastGain[contestantA] = 300; }
+      if (aIn && contestantA) roundWins[contestantA] = (roundWins[contestantA] || 0) + 1;
     } else {
-      if (b) { b.score += 300; lastGain[contestantB] = 300; }
-      if (contestantB) roundWins[contestantB] = (roundWins[contestantB] || 0) + 1;
+      if (bIn) { b.score += 300; lastGain[contestantB] = 300; }
+      if (bIn && contestantB) roundWins[contestantB] = (roundWins[contestantB] || 0) + 1;
     }
   }
 

@@ -36,7 +36,11 @@ function create() {
     },
     onReset: resetAll,
     onPlayerLeave: (room, p) => {
-      if (phase !== "playing" || !p || p.name !== holderName) return;
+      if (phase !== "playing") return;
+      // If we're down to a single player nobody can receive a pass — let the
+      // round end with no boom rather than corner the lone survivor.
+      if (room.activePlayers().length < 2) { phase = "lobby"; holderName = null; return; }
+      if (!p || p.name !== holderName) return;
       const next = randomActive(room, holderName);
       if (!next) { phase = "lobby"; holderName = null; return; }
       holderName = next;

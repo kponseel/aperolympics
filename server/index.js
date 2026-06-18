@@ -190,6 +190,24 @@ function joinRoom(socket, room, rawName, cid) {
 
 // --- realtime --------------------------------------------------------------
 io.on("connection", (socket) => {
+  // Socket.IO's `connectionStateRecovery` transparently restores the session
+  // after a short blip — the client doesn't re-send `t:join`. Reconcile our
+  // server-side state: refresh the player's socketId and clear any pending
+  // soft-disconnect, otherwise the next tick would evict them as a zombie
+  // (3 s post-drop) while their fully-working socket sits right here.
+  if (socket.recovered && socket.data.roomCode && socket.data.playerKey) {
+    const room = rooms.get(socket.data.roomCode);
+    const p = room && room.players.get(socket.data.playerKey);
+    if (p) {
+      p.socketId = socket.id;
+      p.disconnectedAt = 0;
+      p.active = true;
+      // The state may have advanced while they were dropped — push the latest
+      // snapshot (and private payload) so their UI reconverges immediately.
+      broadcast(room);
+    }
+  }
+
   socket.on("msg", (m) => {
     if (!m || typeof m.t !== "string") return;
 

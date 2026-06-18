@@ -44,7 +44,14 @@
     // mobile — onclick waits for touch-release and is cancelled by tiny
     // finger drift, which made pads feel unresponsive.
     h.$("siGrid").querySelectorAll(".simon-pad").forEach(function (b) {
-      var fire = function (e) { if (e && e.preventDefault) e.preventDefault(); padTap(h, parseInt(b.getAttribute("data-pad"), 10)); };
+      // isPrimary guards against multi-touch racing — 2 fingers on 2 pads at
+      // the same instant would otherwise queue 2 entries in S.input back-to-
+      // back and likely fail the level.
+      var fire = function (e) {
+        if (e && e.isPrimary === false) return;
+        if (e && e.preventDefault) e.preventDefault();
+        padTap(h, parseInt(b.getAttribute("data-pad"), 10));
+      };
       if ("onpointerdown" in window) b.addEventListener("pointerdown", fire);
       else b.addEventListener("click", fire);
     });

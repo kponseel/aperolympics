@@ -67,6 +67,7 @@ function create() {
     onPlayerLeave: (room) => { if (phase === "playing" && allVoted(room)) phase = "reveal"; },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.answered) return;
+      if (roleOf(p.name) === "spectator") return; // mid-round joiners don't vote
       if (msg.t !== "vote") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
       // Reject spectators (joined mid-round) and players who already left.
@@ -96,7 +97,12 @@ function create() {
         });
         if (spyName) {
           r.spy_name = spyName;
-          const caught = (votes[spyName] || 0) >= max && max > 0;
+          // Canonical Spyfall: civilians only catch the spy with a STRICT
+          // majority. A tie at the top protects the spy (the room couldn't
+          // agree).
+          let atMax = 0;
+          if (max > 0) entries.forEach((p) => { if ((votes[p.name] || 0) === max) atMax++; });
+          const caught = max > 0 && atMax === 1 && (votes[spyName] || 0) === max;
           r.winner = caught ? "civilians" : "spy";
         } else {
           r.winner = "spy";

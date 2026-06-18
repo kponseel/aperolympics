@@ -61,7 +61,10 @@
     if (ok) S.correct++;
     else S.wrong++;
     S.idx++;
-    if (S.idx >= qs.length) S.idx = 0;
+    // Don't wrap: revisiting Q1 lets a player memorise its answer on the way
+    // back round, distorting the race. Pool is sized (POOL_SIZE = 30) to
+    // comfortably outlast a 5-correct race.
+    if (S.idx >= qs.length) { S.done = true; }
     flash(h, ok);
     // Tell the server our new live counts on every tap so the room panel updates.
     try { h.send({ t: "answer_progress", correct: S.correct, wrong: S.wrong }); } catch (e) {}
@@ -229,7 +232,13 @@
     }
   }
 
-  function unmount() { clearTimers(); }
+  function unmount() {
+    clearTimers();
+    // The state was stashed on window for debug visibility; clear it on
+    // unmount so we don't pin the question pool + scoreboard in memory across
+    // multiple matches.
+    try { window.__lastState = null; } catch (e) {}
+  }
 
   window.GamesHub.register("quiz_solo", {
     name: "Quiz Contre-la-montre", emoji: "🔢",

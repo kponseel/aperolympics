@@ -146,8 +146,10 @@ function create() {
       if (msg.t !== "point") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
       // No self-point (nonsense reveal) and no targeting a player who has left
-      // (or is mid-disconnect) — would accuse someone not in the room.
-      if (!target || !target.name || target.name === whispererName || !target.active) return;
+      // (or is mid-disconnect) — would accuse someone not in the room. `active`
+      // stays true during the grace period, so we also gate on disconnectedAt
+      // (cf. bomb.js's identical guard).
+      if (!target || !target.name || target.name === whispererName || !target.active || target.disconnectedAt) return;
       accusedName = target.name;
       pointedAt[target.name] = (pointedAt[target.name] || 0) + 1;
       revealPrompt = Math.random() < 0.5; // 50/50 coin

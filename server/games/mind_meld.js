@@ -94,7 +94,7 @@ function create() {
     onEndSession: () => { if (phase !== "lobby" && phase !== "finished") phase = "finished"; },
     onPlayerLeave: (room) => { if (phase === "playing" && allAnswered(room)) toReveal(room); },
     onMessage: (room, p, msg) => {
-      if (!p || phase !== "playing" || msg.t !== "submit") return;
+      if (!p || !p.name || phase !== "playing" || msg.t !== "submit") return;
       if (p.answered) return;
       let text = String(msg.word == null ? "" : msg.word).trim().slice(0, 24);
       if (!text) return;
