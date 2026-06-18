@@ -9,4 +9,5 @@ module.exports = {
   geographie:        { id: "geographie",        name: "Géographie",            emoji: "🌍", bank: require("./geographie") },
   sciences:          { id: "sciences",          name: "Sciences & Tech",       emoji: "🔬", bank: require("./sciences") },
   docusign:          { id: "docusign",          name: "Docusign",              emoji: "✍️", bank: require("./docusign") },
+  olivier_agneray:   { id: "olivier_agneray",   name: "Olivier Agneray",       emoji: "🏃", bank: require("./olivier_agneray") },
 };
