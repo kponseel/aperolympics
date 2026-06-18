@@ -8,4 +8,5 @@ module.exports = {
   histoire:          { id: "histoire",          name: "Histoire",              emoji: "📜", bank: require("./histoire") },
   geographie:        { id: "geographie",        name: "Géographie",            emoji: "🌍", bank: require("./geographie") },
   sciences:          { id: "sciences",          name: "Sciences & Tech",       emoji: "🔬", bank: require("./sciences") },
+  docusign:          { id: "docusign",          name: "Docusign & e-signature", emoji: "✍️", bank: require("./docusign") },
 };
