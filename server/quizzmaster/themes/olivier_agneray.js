@@ -125,4 +125,37 @@ module.exports = [
 
   // ---------- Profil sportif global (100) ----------
   { text: "À quelle famille de courses du circuit UTMB du Mont-Blanc n'a-t-il PAS participé (d'après les données indexées) ?", options: ["UTMB / CCC / TDS / OCC","SwissPeaks","SaintéLyon","EcoTrail Paris"], correct: 0 },
+
+  // ---------- Équipe & relations (101-105) ----------
+  { text: "Quel SC de son équipe espagnole se prénomme Jaime ?", options: ["Jaime Pérez","Jaime Caldés Sánchez","Jaime Rodríguez","Jaime Martín"], correct: 1 },
+  { text: "Quel SC de son équipe espagnole se prénomme Nicolás ?", options: ["Nicolás Angaramo","Nicolás García","Nicolás Lopez","Nicolás Romero"], correct: 0 },
+  { text: "Quelle SC de son équipe espagnole se prénomme Isabel ?", options: ["Isabel Fernández","Isabel Sánchez","Isabel Guerrero López","Isabel Martín"], correct: 2 },
+  { text: "Quel collègue DocuSign (prénom Cormac) le cite comme co-présentateur de roadshow ?", options: ["O'Connor","Murphy","Walsh","McNamara"], correct: 1 },
+  { text: "Quelle collègue (prénom Mathilde) le cite également en co-présentation ?", options: ["Hott","Dubois","Leclerc","Roux"], correct: 0 },
+
+  // ---------- DORA & roadshow La Galerie Bourbon (106-110) ----------
+  { text: "Selon le pitch du webinaire DORA, le référentiel d'accords est piloté par…", options: ["l'IA","un consultant interne","un script bash","Excel"], correct: 0 },
+  { text: "Quelle solution DocuSign a-t-il présentée au roadshow de La Galerie Bourbon (Paris) ?", options: ["Intelligent Repository","DocuSign Print","DocuSign POS","DocuSign Notary"], correct: 0 },
+  { text: "Quelle autre solution figurait à l'ordre du jour de ce même roadshow ?", options: ["IDV Premier","Postal Hub","Print Service","Bulk Shipping"], correct: 0 },
+  { text: "Quel sujet stratégique complétait ce roadshow Paris ?", options: ["la roadmap IA","la réglementation TVA","la facturation papier","la migration mainframe"], correct: 0 },
+  { text: "L'intégration DocuSign × Workday présentée à Stockholm couvre principalement quelle phase RH ?", options: ["la paie","le départ en retraite","recruter / embaucher / onboarder","les évaluations annuelles"], correct: 2 },
+
+  // ---------- Sportives — IDs publics, géographie, contexte (111-122) ----------
+  { text: "Quel est son identifiant coureur sur UTMB World ?", options: ["1234567","4351816","9876543","7000000"], correct: 1 },
+  { text: "Quel est son ID ITRA RunnerSpace ?", options: ["4344914","4351816","4123456","4444444"], correct: 0 },
+  { text: "Dans quel comté irlandais se trouve Glendalough, où il a couru en 2022 ?", options: ["Cork","Galway","Wicklow","Donegal"], correct: 2 },
+  { text: "Glendalough est avant tout connu pour être…", options: ["une marque de whisky","un parc national d'Irlande","une plage atlantique","un studio de cinéma"], correct: 1 },
+  { text: "Entre quelles 2 villes se court la SaintéLyon (qu'il a faite 3 fois) ?", options: ["Lyon et Grenoble","Saint-Étienne et Lyon","Lyon et Annecy","Saint-Étienne et Clermont"], correct: 1 },
+  { text: "Quelle particularité fondamentale de la SaintéLyon ?", options: ["100 % en montée","course nocturne","strictement féminine","réservée aux Stéphanois"], correct: 1 },
+  { text: "Dans quelle station alpine se court La 6000D « Trail de Légende » qu'il a faite en 2025 ?", options: ["Chamonix","Les Arcs","Val Thorens","Tignes"], correct: 1 },
+  { text: "Quelle marque sponsorise l'EcoTrail Paris (présent dans le nom officiel) ?", options: ["Salomon","Hoka","On Running","Adidas"], correct: 0 },
+  { text: "Quelle est l'altitude MINIMALE atteinte sur le SwissPeaks 380 ?", options: ["72 m","372 m","772 m","1 372 m"], correct: 1 },
+  { text: "Combien de jours environ dure le SwissPeaks 380 pour un finisher comme lui ?", options: ["≈2 jours","≈5 jours","≈10 jours","≈14 jours"], correct: 1 },
+  { text: "À partir de quel ITRA Performance Index considère-t-on un homme « Top Elite » ?", options: ["600+","700+","800+","900+"], correct: 3 },
+  { text: "Que signifie l'acronyme UT4M de la course grenobloise ?", options: ["Ultra Tour des 4 Massifs","Ultra Trail du 4ᵉ Massif","Ultra Tour des Maquis","Ultra Trail 4M"], correct: 0 },
+
+  // ---------- Bonus : carrière + fact-check (123-125) ----------
+  { text: "En combien d'années (approx) Olivier a-t-il gravi les 4 niveaux SC chez DocuSign ?", options: ["≈3 ans","≈6 ans","≈10 ans","≈15 ans"], correct: 1 },
+  { text: "Olivier a obtenu son master à Melbourne en quelle année ?", options: ["2015","2016","2017","2018"], correct: 2 },
+  { text: "Le blog « Olivier Ultra Trail » mentionne un finish au Tor des Géants en quelle année (par Olivier Bourdais, pas Agneray) ?", options: ["2016","2018","2020","2022"], correct: 1 },
 ];
