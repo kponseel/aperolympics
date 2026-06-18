@@ -80,7 +80,7 @@
       var coin = r.coin || "sealed";
       var amAccused = !!(me && r.accused_id !== undefined && me.id === r.accused_id);
       h.$("paRevealMark").innerHTML = amAccused ? "&#x1F3AF;" : (coin === "open" ? "&#x1F513;" : "&#x1F512;");
-      h.$("paRevealMsg").innerHTML  = (r.whisperer_name || "?") + " a pointe <b>" + h.escapeHtml(r.accused_name || "?") + "</b>";
+      h.$("paRevealMsg").innerHTML  = h.escapeHtml(r.whisperer_name || "?") + " a pointe <b>" + h.escapeHtml(r.accused_name || "?") + "</b>";
       if (coin === "open" && r.prompt) {
         h.$("paPromptR").style.display = "block";
         h.$("paPromptR").textContent = "La question etait : " + r.prompt;

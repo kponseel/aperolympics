@@ -93,7 +93,10 @@ function create() {
     onPlayerLeave: (room, p) => {
       if (phase === "lobby" || phase === "finished") return;
       // If the démineur bails, the bomb can't be worked — fail the round.
-      if (p && p.name === defuserName) { phase = "finished"; result = "boom"; }
+      if (p && p.name === defuserName) { phase = "finished"; result = "boom"; return; }
+      // If the démineur is left alone (all experts gone), they have no manual
+      // to follow → also fails. Avoids a 3-minute soft-lock to the timer.
+      if (room.activePlayers().length < 2) { phase = "finished"; result = "boom"; }
     },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || msg.t !== "act") return;

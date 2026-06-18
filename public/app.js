@@ -22,8 +22,8 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v48";
-  var APP_BUILD = "2026-05-29";
+  var APP_VERSION = "v52";
+  var APP_BUILD = "2026-06-18";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
   var rejoinTries = 0, rejoinTimer = null; // reconnection retry state
@@ -511,8 +511,15 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     navMenu.style.display = showMenu ? "" : "none";
     var activePlay = showMenu && phase !== "lobby" && phase !== "finished";
     navMenu.classList.toggle("labeled", activePlay);
-    var menuHtml = activePlay ? '🏠 <span>Arrêter</span>' : '🏠';
-    if (navMenu.innerHTML !== menuHtml) navMenu.innerHTML = menuHtml;
+    // Compare via a scalar dataset flag: navMenu.innerHTML round-trips
+    // differently across browsers (Safari normalises whitespace, emoji
+    // entities, etc.) which made the test flap and re-write the DOM on every
+    // render — losing :focus-visible rings and reattaching listeners.
+    var wantLabeled = activePlay ? "1" : "0";
+    if (navMenu.dataset.labeled !== wantLabeled) {
+      navMenu.dataset.labeled = wantLabeled;
+      navMenu.innerHTML = activePlay ? '🏠 <span>Arrêter</span>' : '🏠';
+    }
     $("navHistoryBtn").style.display = (roomed && state && state.history && state.history.length) ? "" : "none";
     // 🏁 "Terminer la session" — only meaningful for loop-only games that
     // declare `endable: true` and only while playing/reveal (host's call).
@@ -621,15 +628,17 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // play), so a passed-around / watched party-game screen doesn't dim or sleep.
   // Guarded for unsupported browsers; the lock auto-releases when the tab is
   // backgrounded, so we re-acquire on visibilitychange.
-  var wakeLock = null;
+  var wakeLock = null, wakePending = false;
   function acquireWake() {
     try {
-      if (wakeLock || !navigator.wakeLock) return;
+      if (wakeLock || wakePending || !navigator.wakeLock) return;
+      wakePending = true;
       navigator.wakeLock.request("screen").then(function (wl) {
+        wakePending = false;
         wakeLock = wl;
         wl.addEventListener("release", function () { wakeLock = null; });
-      }).catch(function () {});
-    } catch (e) {}
+      }).catch(function () { wakePending = false; });
+    } catch (e) { wakePending = false; }
   }
   function releaseWake() { try { if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; } } catch (e) {} }
   function manageWake() {
@@ -752,7 +761,17 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     socket.on("state", function (m) {
       // Keep the private role payload across a reconnect re-render (same game +
       // phase) so hidden-role games don't flash "(privé)" before `private` lands.
-      var keepPriv = (state && state._private && state.game === m.game && state.phase === m.phase) ? state._private : null;
+      // Belt-and-suspenders for round-based games: include the round index in
+      // the equality test so a new round always drops the previous _private,
+      // preventing any chance of last-round role leakage into the new round.
+      var sameRoundIdx = state && state.round && m.round
+        ? (state.round.idx === m.round.idx && state.round.round_n === m.round.round_n && state.round.turn === m.round.turn)
+        : true;
+      var keepPriv = (state && state._private && state.game === m.game && state.phase === m.phase && sameRoundIdx) ? state._private : null;
+      // Force a results re-paint when we transition INTO the `finished` phase
+      // — otherwise a previously-seen "finished" signature from a prior match
+      // can accidentally suppress the new results screen.
+      if (state && m && state.phase !== "finished" && m.phase === "finished") lastResultsSig = "";
       state = m; myRoom = m.room || myRoom;
       if (keepPriv && !state._private) state._private = keepPriv;
       if (findMe()) { rejoining = false; rejoinTries = 0; clearTimeout(rejoinTimer); hideReconnecting(); saveSession(); stopPublicPoll(); }
@@ -902,6 +921,14 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
         tip = document.createElement("div");
         tip.className = "tipbubble";
         tip.textContent = trig.getAttribute("data-tip");
+        // Tapping the bubble itself dismisses it (and stops the click from
+        // re-bubbling to the document handler that would otherwise spawn a
+        // second tip in the same gesture).
+        tip.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+          tip = null;
+        });
         document.body.appendChild(tip);
         var r = trig.getBoundingClientRect();
         var left = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, r.left));
@@ -1048,7 +1075,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       deferredInstall = e;
       maybeShowInstall();
     });
-    window.addEventListener("appinstalled", function () { deferredInstall = null; hideInstall(); });
+    window.addEventListener("appinstalled", function () {
+      deferredInstall = null;
+      // Don't ask again on this device — even if PWA detection (display-mode:
+      // standalone) misfires (TWA / WebView), the banner won't re-spawn.
+      try { localStorage.setItem(INSTALL_KEY, "1"); } catch (e) {}
+      hideInstall();
+    });
     $("ibInstall").onclick = function () {
       if (!deferredInstall) return;
       var d = deferredInstall; deferredInstall = null; hideInstall();

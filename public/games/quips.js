@@ -1,8 +1,10 @@
 // Quips — Jackbox style. 2 contestants per round, room votes the funnier line.
 
 (function () {
+  // Reset on every mount — see bluff.js for the same fix rationale.
   var lastRoundN = -1;
   function build(area, h) {
+    lastRoundN = -1;
     area.innerHTML =
       '<div class="screen on" id="qp-state">' +
         '<div class="muted center" id="qpRound"></div>' +

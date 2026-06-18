@@ -142,6 +142,7 @@ function create() {
     onPlayerLeave: (room) => { if (phase === "playing" && allVoted(room)) phase = "reveal"; },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing" || p.answered) return;
+      if (roleOf(p.name) === "spectator") return; // mid-round joiners don't vote
       if (msg.t !== "vote") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
       // Reject spectators (joined mid-round) and players who already left.

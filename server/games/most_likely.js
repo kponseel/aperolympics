@@ -341,7 +341,9 @@ function create() {
       if (!p || phase !== "playing" || p.answered) return;
       if (msg.t !== "vote") return;
       const target = room.players.get(String(msg.target_id || "").toLowerCase());
-      if (!target || !target.name) return;
+      // Don't accept a vote on a player who has left — they wouldn't see the
+      // reveal, and naming a phantom as "le plus susceptible…" reads weirdly.
+      if (!target || !target.name || !target.active) return;
       p.answered = true;
       p.voteTarget = target.name;
       votes[target.name] = (votes[target.name] || 0) + 1;

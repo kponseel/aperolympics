@@ -72,12 +72,32 @@ function create() {
     if (wolves === 0) { winner = "villagers"; phase = "finished"; }
     else if (wolves >= village) { winner = "wolves"; phase = "finished"; }
   }
+  // No one left able to vote in the next sub-phase = the round can never
+  // resolve. `step` here is the UPCOMING step (0 = night → only wolves vote,
+  // 1 = day → any alive villager+wolf votes).
+  function noEligibleVoters(room, nextStep) {
+    const eligible = room.activePlayers().filter((p) =>
+      alive[p.name] && (roles[p.name] === "village" || roles[p.name] === "wolf") &&
+      !(nextStep === 0 && roles[p.name] !== "wolf")
+    );
+    return eligible.length === 0;
+  }
   function advance(room) {
     if (phase === "lobby") { startRound(room); return; }
     if (phase === "playing") { tallyAndKill(room); lastKillType = step === 0 ? "night" : "day"; phase = "reveal"; return; }
     if (phase === "reveal") {
       checkEnd(room);
       if (phase === "finished") return;
+      const nextStep = step === 0 ? 1 : 0;
+      if (noEligibleVoters(room, nextStep)) {
+        // Everyone who could vote has bailed mid-round → end the match rather
+        // than soft-lock waiting on a vote that can never arrive.
+        const wolves = countAlive(room, "wolf");
+        const village = countAlive(room, "village");
+        winner = wolves > 0 && wolves >= village ? "wolves" : (village > 0 ? "villagers" : "wolves");
+        phase = "finished";
+        return;
+      }
       if (step === 0) step = 1; else { step = 0; roundN++; }
       clearVotes(room); lastVictimName = null; lastKillType = "";
       phase = "playing";
