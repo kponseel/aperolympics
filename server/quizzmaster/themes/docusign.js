@@ -18,7 +18,7 @@ module.exports = [
   { text: "Combien DocuSign compte-t-elle approximativement de clients payants ?", options: ["~100 000","~500 000","~1,6 million","~10 millions"], correct: 2 },
   { text: "Quel acronyme désigne le produit DocuSign de gestion du cycle de vie des contrats ?", options: ["CRM","ERP","CLM","HRM"], correct: 2 },
   { text: "Quel concurrent majeur de DocuSign appartient au groupe Adobe ?", options: ["Yousign","Adobe Acrobat Sign","SignNow","PandaDoc"], correct: 1 },
-  { text: "Quel concurrent français de DocuSign est basé à Paris ?", options: ["PandaDoc","Adobe Sign","Yousign","HelloSign"], correct: 2 },
+  { text: "Quel concurrent français de DocuSign a son siège à Caen ?", options: ["PandaDoc","Adobe Sign","Yousign","HelloSign"], correct: 2 },
   { text: "Quel concurrent de DocuSign a été racheté par Dropbox (devenu Dropbox Sign) ?", options: ["Yousign","HelloSign","PandaDoc","SignNow"], correct: 1 },
   { text: "Quel est l'ordre de grandeur du chiffre d'affaires annuel de DocuSign récemment ?", options: ["~100 M$","~500 M$","~1 Md$","~2,5 Md$"], correct: 3 },
   { text: "En 2024, DocuSign a annoncé l'acquisition de Lexion, société utilisant…", options: ["la blockchain","l'IA générative pour les contrats","le KYC","l'IoT"], correct: 1 },
