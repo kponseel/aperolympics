@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin — Aperolympics</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    :root { --bg: #0f1020; --card: #161830; --border: #2a2f5c; --soft: #9aa3d6; --accent: #5b6cff; --danger: #c84545; --good: #2fc41f; --warn: #ffd23f; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: var(--bg); color: #fff; font: 15px/1.5 -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; background: var(--card); position: sticky; top: 0; z-index: 5; }
+    header h1 { margin: 0; font-size: 1.2rem; font-weight: 800; }
+    header .sub { color: var(--soft); font-size: 0.9rem; margin-left: auto; }
+    main { max-width: 1000px; margin: 0 auto; padding: 22px; display: grid; gap: 22px; }
+    section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    section h2 { margin: 0 0 4px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+    section .desc { color: var(--soft); font-size: 0.9rem; margin: 0 0 14px; }
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    input[type=text], input[type=search] { background: #1b1d35; border: 1px solid var(--border); border-radius: 10px; color: #fff; padding: 9px 12px; font-size: 0.95rem; min-width: 180px; }
+    input:focus { outline: none; border-color: var(--accent); }
+    button { background: #1d2152; color: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; font-size: 0.95rem; cursor: pointer; font-weight: 600; }
+    button:hover { background: #2a2f5c; }
+    button.refresh { background: var(--accent); border-color: var(--accent); }
+    button.refresh:hover { background: #4757e0; }
+    button.danger { background: #4a1f1f; color: #ffb3b3; border-color: var(--danger); }
+    button.danger:hover { background: #5c2727; color: #fff; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #1f223e; font-size: 0.92rem; vertical-align: middle; }
+    th { color: var(--soft); font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:last-child td { border-bottom: none; }
+    .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+    .row-actions button { padding: 6px 10px; font-size: 0.85rem; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+    .pill.live { background: #2a220f; color: var(--warn); border: 1px solid #c80; }
+    .pill.lobby { background: #1d2152; color: var(--soft); border: 1px solid var(--border); }
+    .pill.public { background: #1a2e1a; color: var(--good); border: 1px solid #2fc41f55; }
+    .pill.private { background: #2a2f5c; color: #cdd3ff; border: 1px solid var(--border); }
+    .pill.protected { background: #2a1d1d; color: #ffb3b3; border: 1px solid #c8454555; }
+    .empty { padding: 22px; text-align: center; color: var(--soft); font-style: italic; }
+    .err { color: var(--danger); margin-top: 10px; font-size: 0.9rem; }
+    .ok { color: var(--good); margin-top: 10px; font-size: 0.9rem; }
+    details { background: #1b1d35; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-top: 6px; font-size: 0.85rem; }
+    details summary { cursor: pointer; color: var(--soft); }
+    details .roster { margin-top: 8px; }
+    .roster .p { padding: 4px 0; display: flex; gap: 10px; align-items: center; }
+    .roster .p .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .roster .p .dot.on { background: var(--good); }
+    .roster .p .dot.off { background: var(--danger); opacity: 0.6; }
+    .roster .p .crown { color: var(--warn); }
+    .meta { color: var(--soft); font-size: 0.82rem; }
+    code { background: #1b1d35; padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛠️ Admin · Aperolympics</h1>
+    <span class="sub" id="status">Chargement…</span>
+  </header>
+
+  <main>
+    <!-- ===== Aperolympics: rooms ===== -->
+    <section>
+      <h2>🏠 Aperolympics — Salles actives</h2>
+      <p class="desc">Liste des salles en mémoire. Fermer une salle disconnecte tous ses joueurs et la purge du serveur.</p>
+      <div class="toolbar">
+        <button class="refresh" id="reloadRooms">⟳ Recharger</button>
+        <input type="search" id="filterRooms" placeholder="Filtrer par code, jeu, pseudo…" />
+        <span class="meta" id="roomsCount"></span>
+      </div>
+      <div id="roomsHost"></div>
+      <div id="roomsMsg"></div>
+    </section>
+
+    <!-- ===== QuizzMaster: players ===== -->
+    <section>
+      <h2>✍️ QuizzMaster — Comptes joueurs</h2>
+      <p class="desc">Tous les comptes persistés (<code>players.json</code>). Tu peux supprimer un compte (perte définitive des stats) ou réinitialiser son PIN (le joueur pourra en remettre un nouveau depuis n'importe quel appareil).</p>
+      <div class="toolbar">
+        <button class="refresh" id="reloadPlayers">⟳ Recharger</button>
+        <input type="search" id="filterPlayers" placeholder="Filtrer par pseudo…" />
+        <span class="meta" id="playersCount"></span>
+      </div>
+      <div id="playersHost"></div>
+      <div id="playersMsg"></div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+      var $ = function (id) { return document.getElementById(id); };
+      var esc = function (t) { var d = document.createElement("div"); d.textContent = String(t == null ? "" : t); return d.innerHTML; };
+      var setStatus = function (t, cls) { var el = $("status"); el.textContent = t || ""; el.className = "sub " + (cls || ""); };
+
+      var roomsCache = [], playersCache = [];
+
+      // --- API helpers ------------------------------------------------------
+      function api(path, opts) {
+        opts = opts || {};
+        var init = { method: opts.method || "GET", credentials: "same-origin", headers: {} };
+        if (opts.body) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opts.body); }
+        return fetch("/admin/api" + path, init).then(function (r) {
+          if (r.status === 401) { setStatus("Auth requise", "err"); throw new Error("auth"); }
+          if (!r.ok) return r.text().then(function (txt) { throw new Error(txt || ("HTTP " + r.status)); });
+          return r.json();
+        });
+      }
+
+      // --- Rooms (Aperolympics) ---------------------------------------------
+      function fmtPhase(p) {
+        if (p === "playing" || p === "countdown") return '<span class="pill live">🔥 ' + esc(p) + '</span>';
+        if (p === "podium" || p === "finished")   return '<span class="pill live">🏆 ' + esc(p) + '</span>';
+        return '<span class="pill lobby">' + esc(p || "lobby") + '</span>';
+      }
+      function fmtVisibility(v) {
+        return v === "private"
+          ? '<span class="pill private">🔒 privée</span>'
+          : '<span class="pill public">🌍 publique</span>';
+      }
+      function fmtAge(ms) {
+        var s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+        if (s < 60) return s + " s";
+        var m = Math.floor(s / 60);
+        if (m < 60) return m + " min";
+        var h = Math.floor(m / 60);
+        if (h < 48) return h + " h";
+        return Math.floor(h / 24) + " j";
+      }
+      function renderRoster(players) {
+        if (!players || !players.length) return '<div class="meta">(aucun joueur)</div>';
+        return '<div class="roster">' + players.map(function (p) {
+          return '<div class="p">' +
+            '<span class="dot ' + (p.active ? "on" : "off") + '" title="' + (p.active ? "connecté" : "hors-ligne") + '"></span>' +
+            (p.host ? '<span class="crown" title="hôte">👑</span> ' : '') +
+            '<span>' + esc(p.name) + '</span>' +
+            '<span class="meta">score ' + (p.score | 0) + '</span>' +
+          '</div>';
+        }).join("") + '</div>';
+      }
+      function renderRooms() {
+        var host = $("roomsHost");
+        var filter = ($("filterRooms").value || "").trim().toLowerCase();
+        var rows = roomsCache.filter(function (r) {
+          if (!filter) return true;
+          if (r.code.toLowerCase().includes(filter)) return true;
+          if ((r.gameId || "").toLowerCase().includes(filter)) return true;
+          if ((r.players || []).some(function (p) { return p.name.toLowerCase().includes(filter); })) return true;
+          return false;
+        });
+        $("roomsCount").textContent = rows.length + " / " + roomsCache.length + " salle" + (roomsCache.length > 1 ? "s" : "");
+        if (!rows.length) { host.innerHTML = '<div class="empty">Aucune salle.</div>'; return; }
+        host.innerHTML =
+          '<table><thead><tr>' +
+            '<th>Code</th>' +
+            '<th>Jeu</th>' +
+            '<th>Phase</th>' +
+            '<th>Visibilité</th>' +
+            '<th>Joueurs</th>' +
+            '<th>Âge</th>' +
+            '<th></th>' +
+          '</tr></thead><tbody>' +
+          rows.map(function (r) {
+            return '<tr>' +
+              '<td><code>' + esc(r.code) + '</code></td>' +
+              '<td>' + esc(r.gameId || "—") + '</td>' +
+              '<td>' + fmtPhase(r.phase) + '</td>' +
+              '<td>' + fmtVisibility(r.visibility) + '</td>' +
+              '<td>' + r.activeCount + ' / ' + r.totalCount + '</td>' +
+              '<td><span class="meta">' + fmtAge(r.createdAt) + '</span></td>' +
+              '<td class="row-actions"><button class="danger" data-act="close-room" data-code="' + esc(r.code) + '">🗑️ Fermer</button></td>' +
+            '</tr>' +
+            '<tr><td colspan="7"><details><summary>Détail roster (' + r.totalCount + ')</summary>' + renderRoster(r.players) + '</details></td></tr>';
+          }).join("") +
+          '</tbody></table>';
+      }
+      function loadRooms() {
+        $("roomsMsg").textContent = "";
+        api("/rooms").then(function (j) {
+          roomsCache = j.rooms || [];
+          renderRooms();
+        }).catch(function (e) {
+          $("roomsMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+        });
+      }
+
+      // --- Players (QuizzMaster) --------------------------------------------
+      function fmtLast(ms) {
+        if (!ms) return '<span class="meta">jamais</span>';
+        return '<span class="meta" title="' + esc(new Date(ms).toISOString()) + '">' + fmtAge(ms) + '</span>';
+      }
+      function renderPlayers() {
+        var host = $("playersHost");
+        var filter = ($("filterPlayers").value || "").trim().toLowerCase();
+        var rows = playersCache.filter(function (p) { return !filter || p.name.toLowerCase().includes(filter); });
+        $("playersCount").textContent = rows.length + " / " + playersCache.length + " compte" + (playersCache.length > 1 ? "s" : "");
+        if (!rows.length) { host.innerHTML = '<div class="empty">Aucun compte.</div>'; return; }
+        host.innerHTML =
+          '<table><thead><tr>' +
+            '<th>Pseudo</th>' +
+            '<th>PIN</th>' +
+            '<th>Parties</th>' +
+            '<th>Points</th>' +
+            '<th>Record</th>' +
+            '<th>Thèmes</th>' +
+            '<th>Dernière</th>' +
+            '<th></th>' +
+          '</tr></thead><tbody>' +
+          rows.map(function (p) {
+            return '<tr>' +
+              '<td><b>' + esc(p.name) + '</b></td>' +
+              '<td>' + (p.protected ? '<span class="pill protected">🔒 oui</span>' : '<span class="meta">non</span>') + '</td>' +
+              '<td>' + p.games + '</td>' +
+              '<td>' + p.points + '</td>' +
+              '<td>' + p.best + '</td>' +
+              '<td>' + p.themes + '</td>' +
+              '<td>' + fmtLast(p.lastAt) + '</td>' +
+              '<td class="row-actions">' +
+                (p.protected ? '<button data-act="reset-pin" data-name="' + esc(p.name) + '">🔓 Reset PIN</button>' : '') +
+                '<button class="danger" data-act="delete-player" data-name="' + esc(p.name) + '">🗑️ Supprimer</button>' +
+              '</td>' +
+            '</tr>';
+          }).join("") +
+          '</tbody></table>';
+      }
+      function loadPlayers() {
+        $("playersMsg").textContent = "";
+        api("/qm/players").then(function (j) {
+          playersCache = j.players || [];
+          renderPlayers();
+        }).catch(function (e) {
+          $("playersMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+        });
+      }
+
+      // --- Delegated click handler (all destructive actions confirm) --------
+      document.addEventListener("click", function (e) {
+        var b = e.target.closest && e.target.closest("[data-act]");
+        if (!b) return;
+        var act = b.getAttribute("data-act");
+        if (act === "close-room") {
+          var code = b.getAttribute("data-code");
+          if (!window.confirm("Fermer la salle " + code + " ? Tous les joueurs connectés vont être éjectés.")) return;
+          api("/rooms/delete", { method: "POST", body: { code: code } })
+            .then(function () { $("roomsMsg").innerHTML = '<div class="ok">Salle ' + esc(code) + ' fermée.</div>'; loadRooms(); })
+            .catch(function (err) { $("roomsMsg").innerHTML = '<div class="err">Erreur : ' + esc(err.message) + '</div>'; });
+        } else if (act === "reset-pin") {
+          var name = b.getAttribute("data-name");
+          if (!window.confirm("Réinitialiser le PIN de « " + name + " » ?\nLes stats sont conservées ; le joueur pourra remettre un nouveau PIN depuis n'importe quel appareil.")) return;
+          api("/qm/reset-pin", { method: "POST", body: { name: name } })
+            .then(function () { $("playersMsg").innerHTML = '<div class="ok">PIN de « ' + esc(name) + ' » réinitialisé.</div>'; loadPlayers(); })
+            .catch(function (err) { $("playersMsg").innerHTML = '<div class="err">Erreur : ' + esc(err.message) + '</div>'; });
+        } else if (act === "delete-player") {
+          var n = b.getAttribute("data-name");
+          if (!window.confirm("Supprimer définitivement le compte « " + n + " » ?\nStats, PIN et records seront perdus.")) return;
+          api("/qm/delete", { method: "POST", body: { name: n } })
+            .then(function () { $("playersMsg").innerHTML = '<div class="ok">Compte « ' + esc(n) + ' » supprimé.</div>'; loadPlayers(); })
+            .catch(function (err) { $("playersMsg").innerHTML = '<div class="err">Erreur : ' + esc(err.message) + '</div>'; });
+        }
+      });
+
+      // --- Wiring -----------------------------------------------------------
+      $("reloadRooms").onclick = loadRooms;
+      $("reloadPlayers").onclick = loadPlayers;
+      $("filterRooms").addEventListener("input", renderRooms);
+      $("filterPlayers").addEventListener("input", renderPlayers);
+      setStatus("Prêt");
+      loadRooms();
+      loadPlayers();
+    })();
+  </script>
+</body>
+</html>

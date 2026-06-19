@@ -2,7 +2,7 @@
 // opens instantly. Realtime traffic (/socket.io/) is never cached; gameplay
 // still requires a connection.
 
-const CACHE = "apero-v52";
+const CACHE = "apero-v53";
 const GAMES = [
   "quiz", "most_likely", "would_rather", "never", "bluff",
   "quips", "picolo", "bomb", "paranoia",
@@ -33,6 +33,10 @@ self.addEventListener("fetch", (e) => {
   // Only handle our own GETs; let Socket.IO and cross-origin pass straight through.
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   if (url.pathname.startsWith("/socket.io/")) return;
+  // Admin panel + JSON API: never cache nor fall back to the SPA shell.
+  // Otherwise an offline visitor would land on the main app, and auth headers
+  // would be mishandled. Let the network take care of it.
+  if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return;
 
   // Navigations (incl. /r/CODE): try network, fall back to cached shell offline.
   if (e.request.mode === "navigate") {

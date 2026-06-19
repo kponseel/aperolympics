@@ -62,6 +62,12 @@ module.exports = {
   all() {
     return [...rooms.values()];
   },
+  // Admin force-close: drop the in-memory record. Connected clients will hit
+  // "room not found" on their next message and bounce to the landing screen.
+  // Caller is responsible for emitting a `room_closed` notice beforehand.
+  delete(code) {
+    return rooms.delete(String(code || "").toUpperCase());
+  },
   // Periodic housekeeping: drop rooms that have had no connected player for a while.
   sweep() {
     const now = Date.now();

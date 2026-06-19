@@ -353,7 +353,52 @@ function playerStats(name, themesMap) {
 
 function _reset() { data = emptyData(); try { fs.unlinkSync(FILE); } catch (e) {} }
 
+// ---- Admin helpers (used by the web admin panel, bypass ownership/PIN). ----
+// Same semantics as the tools/qm-admin.js CLI: trust the caller because the
+// transport layer (HTTP Basic Auth on /admin/api/*) gates access.
+
+function adminList() {
+  return Object.values(data.byName).map((a) => {
+    ensureSchema(a);
+    const themes = Object.keys(a.themeBest || {}).filter((k) => (a.themeBest[k] | 0) >= 1).length;
+    return {
+      name: a.name,
+      protected: !!a.pinHash,
+      games: a.stats.games | 0,
+      points: a.stats.points | 0,
+      best: a.stats.bestScore | 0,
+      lastAt: a.stats.lastAt || 0,  // not `| 0` — timestamps overflow int32
+      themes,
+    };
+  }).sort((x, y) => x.name.localeCompare(y.name));
+}
+
+function adminDelete(name) {
+  const k = key(name);
+  if (!data.byName[k]) return false;
+  delete data.byName[k];
+  data.updated_at = Date.now();
+  save();
+  return true;
+}
+
+function adminResetPin(name) {
+  const k = key(name);
+  const a = data.byName[k];
+  if (!a) return false;
+  a.pinHash = null;
+  a.salt = null;
+  // Also drop ownerCid so the next device to use the name can claim it freely
+  // (the typical reason for a reset is "I forgot the PIN, I want to set it
+  // again from my phone").
+  a.ownerCid = null;
+  data.updated_at = Date.now();
+  save();
+  return true;
+}
+
 module.exports = {
   authenticate, isProtected, getAccount, setPin, rename, deleteAccount, recordGame,
   globalRanking, themeTop, playerStats, TOP_N, PIN_RE, _reset,
+  adminList, adminDelete, adminResetPin,
 };

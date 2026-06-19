@@ -309,6 +309,11 @@ setInterval(() => {
   rooms.sweep();
 }, 500);
 
+// Admin panel: gated by HTTP Basic Auth (ADMIN_PASSWORD env var). Mount before
+// QuizzMaster so the QuizzMaster SPA catch-all (regex on /quizz/*) doesn't
+// shadow /admin (it doesn't today, but order matters for any future catch-all).
+require("./admin")({ app, io, rooms });
+
 // QuizzMaster sub-app: serves /quizz/* + Socket.IO namespace /qm.
 require("./quizzmaster")({ app, io });
 
