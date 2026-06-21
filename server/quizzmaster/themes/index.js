@@ -10,5 +10,5 @@ module.exports = {
   sciences:          { id: "sciences",          name: "Sciences & Tech",       emoji: "🔬", bank: require("./sciences") },
   docusign:          { id: "docusign",          name: "Docusign",              emoji: "✍️", bank: require("./docusign") },
   olivier_agneray:   { id: "olivier_agneray",   name: "Olivier Agneray",       emoji: "🏃", bank: require("./olivier_agneray") },
-  bonnes_manieres:   { id: "bonnes_manieres",   name: "Bonnes manières",       emoji: "🎩", bank: require("./bonnes_manieres") },
+  bonnes_manieres:   { id: "bonnes_manieres",   name: "L'étiquette Française", emoji: "🎩", bank: require("./bonnes_manieres") },
 };
