@@ -112,4 +112,59 @@ module.exports = [
   { text: "« L'Almanach de Gotha » est…", options: ["un annuaire des familles royales et nobles d'Europe","un journal politique","un guide gastronomique","un calendrier liturgique"], correct: 0 },
   { text: "Le mot « courtoisie » vient de…", options: ["« cour » (du roi), donc les bonnes manières de la cour","« court » comme trajet","de l'anglais","du latin « court »"], correct: 0 },
   { text: "À la cour, il était interdit de tourner le dos…", options: ["au monarque","aux autres invités","aux serviteurs","au repas"], correct: 0 },
+
+  // ---------- Verres, champagne, spiritueux (91-98) ----------
+  { text: "Un verre à vin (servi) se tient par…", options: ["le pied","le calice","le ventre du verre","à deux mains"], correct: 0 },
+  { text: "Une flûte à champagne se tient idéalement par…", options: ["le pied (pour ne pas réchauffer la coupe)","la coupe à pleine main","la base seulement","à deux mains"], correct: 0 },
+  { text: "Selon l'étiquette CLASSIQUE, doit-on entrechoquer les flûtes de champagne ?", options: ["non — on les lève simplement","oui, systématiquement","seulement entre hommes","seulement en s'embrassant"], correct: 0 },
+  { text: "En trinquant, on regarde…", options: ["les yeux de la personne","le bord de son verre","en l'air","la table"], correct: 0 },
+  { text: "Pour ouvrir une bouteille de champagne proprement, on tient…", options: ["le bouchon et on tourne la bouteille","la bouteille et on tourne le bouchon","les deux","on cogne pour faire sauter"], correct: 0 },
+  { text: "Le cognac (verre tulipe) se réchauffe…", options: ["dans le creux de la main","au micro-ondes","au bain-marie","jamais"], correct: 0 },
+  { text: "Un grand single malt whisky se déguste traditionnellement…", options: ["sec ou très peu d'eau","avec beaucoup de glaçons et de cola","avec du sirop de menthe","avec du lait"], correct: 0 },
+  { text: "Pour porter un toast, l'invité d'honneur…", options: ["se lève (les autres restent assis ou se lèvent ensuite)","reste assis","grimpe sur sa chaise","fait le tour de la table"], correct: 0 },
+
+  // ---------- Voiture, taxi, transports (99-101) ----------
+  { text: "Dans une voiture avec chauffeur, la place D'HONNEUR est…", options: ["arrière droite","avant à côté du chauffeur","arrière gauche","milieu arrière"], correct: 0 },
+  { text: "Tenir la portière à une dame, c'est…", options: ["la lui ouvrir et la laisser monter en premier","obsolète, c'est désuet","réservé aux jeunes filles","valable uniquement la portière passager"], correct: 0 },
+  { text: "En taxi, l'homme et la dame qui voyagent ensemble…", options: ["la dame monte en premier, l'homme ferme la portière","l'homme entre en premier","peu importe","l'un devant l'autre derrière"], correct: 0 },
+
+  // ---------- Théâtre / opéra / spectacle (102-105) ----------
+  { text: "Pour passer devant des spectateurs déjà assis dans une rangée, on se place…", options: ["face à eux (de face)","de dos","de profil","en s'excusant juste verbalement"], correct: 0 },
+  { text: "Soirée de gala à l'opéra : tenue traditionnelle ?", options: ["smoking pour homme, robe longue pour dame","jean","costume clair de jour","tenue de sport"], correct: 0 },
+  { text: "Téléphone portable au théâtre :", options: ["éteint AVANT le lever de rideau","mode vibreur suffit","silencieux suffit","seulement pour les SMS"], correct: 0 },
+  { text: "Au cinéma classique, l'homme retire…", options: ["son chapeau","ses chaussures","son veston","ses lunettes"], correct: 0 },
+
+  // ---------- Cartes de visite (106-108) ----------
+  { text: "Sur une carte de visite, un coin corné en haut à gauche indique…", options: ["une visite déposée en personne","des condoléances","un mariage","un anniversaire"], correct: 0 },
+  { text: "L'abréviation « p.f. » sur une carte de visite signifie…", options: ["pour féliciter","pour finir","pour fâcher","payer franchement"], correct: 0 },
+  { text: "Et « p.p.c. » ?", options: ["pour prendre congé (avant un long voyage)","pour partir court","personne préférée client","pour parler clair"], correct: 0 },
+
+  // ---------- Bal, danse, salons (109-111) ----------
+  { text: "Inviter une dame à danser se fait…", options: ["par une légère inclinaison du buste + formule polie","en la prenant par le bras","en claquant des doigts","par SMS"], correct: 0 },
+  { text: "Après une danse, on reconduit la dame…", options: ["à sa place","au bar","on la laisse partir seule","sur la piste pour la suivante"], correct: 0 },
+  { text: "Au XIXᵉ, le « carnet de bal » servait à…", options: ["noter par avance ses partenaires de danse","compter les pas","noter ses dépenses","collectionner les fleurs"], correct: 0 },
+
+  // ---------- Royauté & protocole (112-114) ----------
+  { text: "On s'adresse à un roi ou une reine par…", options: ["« Votre Majesté »","« Cher Monsieur »","« Roi/Reine »","« Sire » en toute occasion"], correct: 0 },
+  { text: "Devant un membre de la famille royale britannique, une femme fait classiquement…", options: ["une révérence (curtsy)","une génuflexion","une accolade","un salut militaire"], correct: 0 },
+  { text: "On parle à un souverain…", options: ["seulement quand il/elle nous adresse la parole","en premier pour briser la glace","quand on a une question","jamais"], correct: 0 },
+
+  // ---------- Conversation, sujets tabous (115-119) ----------
+  { text: "Sujets à éviter à table en société classique :", options: ["politique, religion, argent","voyages, cuisine, art","sport, météo, vacances","cinéma, musique"], correct: 0 },
+  { text: "Couper la parole, c'est…", options: ["un vrai manque de politesse","efficace en société","la marque d'un esprit vif","obligatoire en débat"], correct: 0 },
+  { text: "Finir les phrases des autres, c'est…", options: ["à éviter","une marque d'écoute","un signe d'esprit","obligatoire"], correct: 0 },
+  { text: "L'usage classique préfère, comme pronom 1ʳᵉ pers. pluriel formel…", options: ["« nous » plutôt que « on »","« on » plutôt que « nous »","alterner sans règle","« je » triple"], correct: 0 },
+  { text: "Parler trop de soi en société est…", options: ["déconseillé (frise la vantardise)","obligatoire","élégant","encouragé"], correct: 0 },
+
+  // ---------- Mariage, cérémonies religieuses (120-123) ----------
+  { text: "Dans une église catholique en France, la famille de la mariée s'installe…", options: ["à gauche en regardant l'autel","à droite","au fond","à côté du clergé"], correct: 0 },
+  { text: "Un homme dans une église catholique :", options: ["enlève son chapeau","garde son chapeau","ôte sa veste","met ses lunettes de soleil"], correct: 0 },
+  { text: "Tenue convenable pour un enterrement :", options: ["noir ou très sobre","blanc immaculé","couleurs vives","jean décontracté"], correct: 0 },
+  { text: "Applaudir dans une église pendant la cérémonie est…", options: ["à proscrire (sauf consigne contraire)","obligatoire pour féliciter","réservé à la sortie","encouragé"], correct: 0 },
+
+  // ---------- Service à table avancé + escalier (124-127) ----------
+  { text: "Le maître d'hôtel sert les plats par…", options: ["la gauche du convive","la droite","par-dessus l'épaule","sans approcher"], correct: 0 },
+  { text: "Le service « à la française » signifie…", options: ["plats posés au centre, chacun se sert","portions individuelles préparées en cuisine","service debout","sans nappe"], correct: 0 },
+  { text: "Dans un escalier, l'homme se place toujours…", options: ["en dessous de la dame (pour la rattraper)","au-dessus systématiquement","en parallèle","à 3 marches d'écart"], correct: 0 },
+  { text: "Reculer une chaise pour qu'une dame s'asseye, c'est…", options: ["un geste classique du gentleman","du paternalisme dépassé","réservé à la cérémonie","réservé aux serveurs"], correct: 0 },
 ];
