@@ -27,9 +27,9 @@ module.exports = [
   { text: "L'assiette à pain se place…", options: ["à gauche de l'assiette","à droite","dans l'assiette","sur les genoux"], correct: 0 },
   { text: "La serviette se met…", options: ["sur les genoux","autour du cou","sur l'épaule","sous l'assiette"], correct: 0 },
   { text: "Pour signaler qu'on a fini son plat, on pose les couverts…", options: ["en parallèle, vers 4h30 sur l'assiette","en croix","à plat sur la nappe","sous l'assiette"], correct: 0 },
-  { text: "Pour signaler une simple pause (sans avoir fini), on les pose…", options: ["en croix sur l'assiette","en parallèle","sur la nappe","dans le verre"], correct: 0 },
+  { text: "Pour signaler une simple pause (sans avoir fini), on les pose…", options: ["en V inversé sur l'assiette (on ne CROISE JAMAIS les couverts)","en parallèle","sur la nappe","dans le verre"], correct: 0 },
   { text: "Servir le vin : par quel côté du convive ?", options: ["par la droite","par la gauche","par-devant","par-derrière"], correct: 0 },
-  { text: "Débarrasser une assiette : par quel côté ?", options: ["par la gauche","par la droite","par-devant","au choix"], correct: 0 },
+  { text: "Débarrasser une assiette (étiquette française classique) : par quel côté ?", options: ["par la gauche","par la droite","par-devant","au choix"], correct: 1 },
   { text: "Quel verre est le PLUS grand sur une table dressée à la française ?", options: ["le verre à eau","le verre à vin rouge","le verre à vin blanc","la flûte à champagne"], correct: 0 },
   { text: "Saler son plat AVANT de l'avoir goûté est…", options: ["une faute majeure","apprécié","obligatoire","une marque d'élégance"], correct: 0 },
   { text: "Saucer son assiette avec du pain en société formelle ?", options: ["à éviter","obligatoire","apprécié","la marque du connaisseur"], correct: 0 },
@@ -165,6 +165,201 @@ module.exports = [
   // ---------- Service à table avancé + escalier (124-127) ----------
   { text: "Le maître d'hôtel sert les plats par…", options: ["la gauche du convive","la droite","par-dessus l'épaule","sans approcher"], correct: 0 },
   { text: "Le service « à la française » signifie…", options: ["plats posés au centre, chacun se sert","portions individuelles préparées en cuisine","service debout","sans nappe"], correct: 0 },
-  { text: "Dans un escalier, l'homme se place toujours…", options: ["en dessous de la dame (pour la rattraper)","au-dessus systématiquement","en parallèle","à 3 marches d'écart"], correct: 0 },
+  { text: "Dans un escalier, selon l'étiquette française classique, l'homme…", options: ["précède la dame à la montée comme à la descente (pour la guider et la retenir)","reste toujours en dessous","marche en parallèle","reste 3 marches derrière"], correct: 0 },
   { text: "Reculer une chaise pour qu'une dame s'asseye, c'est…", options: ["un geste classique du gentleman","du paternalisme dépassé","réservé à la cérémonie","réservé aux serveurs"], correct: 0 },
+
+  // ===========================================================================
+  // EXTENSION exhaustive d'après le référentiel d'étiquette française classique
+  // (Baronne Staffe, Nadine de Rothschild, Bottin Mondain, sources mondaines).
+  // ===========================================================================
+
+  // ---------- Placement & art du couvert (à la française) (128-145) ----------
+  { text: "Espacement idéal entre deux convives à table ?", options: ["20 à 30 cm","60 à 70 cm","1 mètre","2 mètres"], correct: 1 },
+  { text: "À partir de combien de convives pose-t-on un marque-place ?", options: ["4","6","8","16"], correct: 2 },
+  { text: "Au-delà de combien de personnes prévoit-on plusieurs petites tables ?", options: ["10","14-16","25","50"], correct: 1 },
+  { text: "Lors d'un dîner, on sépare les conjoints SAUF…", options: ["les fiancés et jeunes mariés (<1 an)","les chefs d'État","les médecins","jamais"], correct: 0 },
+  { text: "Un ecclésiastique reçoit traditionnellement…", options: ["la place d'honneur (sauf si autorité supérieure)","la dernière place","peu importe","une chaise basse"], correct: 0 },
+  { text: "Où la maîtresse de maison non servie s'installe-t-elle ?", options: ["près de la porte de la cuisine (pour s'éclipser)","au bout opposé","au centre","derrière un paravent"], correct: 0 },
+  { text: "Combien de couverts MAXIMUM dispose-t-on de chaque côté de l'assiette ?", options: ["1","2","3","5"], correct: 2 },
+  { text: "L'assiette à pain se place…", options: ["en haut à gauche, au-dessus des fourchettes","en haut à droite","à droite du verre","au centre"], correct: 0 },
+  { text: "En France, la fourchette est posée avec les dents tournées…", options: ["vers la nappe (pour exposer les armoiries au dos)","vers le haut (à l'anglaise)","vers la droite","de profil"], correct: 0 },
+  { text: "La cuillère se place partie bombée vers…", options: ["le haut (le ciel)","le bas","de côté","peu importe"], correct: 0 },
+  { text: "Les verres à liqueur, cognac ou whisky se dressent-ils sur la table ?", options: ["jamais","oui systématiquement","seulement les liqueurs","selon l'hôte"], correct: 0 },
+  { text: "Un pain entier non coupé peut-il être posé sur la nappe ?", options: ["jamais","oui","seulement en famille","si fariné"], correct: 0 },
+  { text: "Les fromages se présentent traditionnellement en nombre…", options: ["impair","pair","exactement 12","aléatoire"], correct: 0 },
+  { text: "Un porte-couteau en repas formel est-il convenable ?", options: ["non (sous-entend qu'on réutilise le couteau, donc qu'on salit la nappe)","oui obligatoire","seulement au déjeuner","seulement en province"], correct: 0 },
+  { text: "Pour un DÎNER formel, la serviette se pose…", options: ["à gauche de l'assiette","sur l'assiette","à droite","sous l'assiette"], correct: 0 },
+  { text: "Pour un DÉJEUNER, la serviette se pose…", options: ["sur l'assiette","à gauche","à droite","sous le verre"], correct: 0 },
+  { text: "Tables rondes et ovales sont préférées car…", options: ["elles évitent les questions de préséance (pas de bouts)","elles tiennent moins de place","elles sont plus modernes","elles sont moins chères"], correct: 0 },
+  { text: "On réserve les places les plus confortables aux…", options: ["femmes","supérieurs hiérarchiques","plus jeunes","invités de loin"], correct: 0 },
+
+  // ---------- Position « terminé » (146-147) ----------
+  { text: "À la position « terminé », la lame du couteau est tournée…", options: ["vers l'intérieur de l'assiette","vers l'extérieur","vers soi","vers le voisin"], correct: 0 },
+  { text: "À la position « terminé », les dents de la fourchette sont…", options: ["vers le haut","vers la nappe","vers le voisin","peu importe"], correct: 0 },
+
+  // ---------- Service & ordre (148-150) ----------
+  { text: "L'ordre de service à un dîner ?", options: ["d'abord les dames, puis les messieurs, l'hôte en DERNIER","les hommes d'abord","de gauche à droite","par âge"], correct: 0 },
+  { text: "Le service « à la russe » (un plat après l'autre) s'est imposé au…", options: ["XVIIᵉ siècle","XIXᵉ siècle","XXᵉ siècle","XVᵉ siècle"], correct: 1 },
+  { text: "Avant le service à la russe, on servait à la française : tout était…", options: ["présenté simultanément sur la table","servi par étages","mangé debout","apporté en cuisine"], correct: 0 },
+
+  // ---------- Vin & verre à pied (Louis XIV, affaire des poisons) (151-154) ----------
+  { text: "Pourquoi le verre se tient-il par le pied ? Origine historique en France ?", options: ["Louis XIV l'a imposé à sa cour (méfiance après l'affaire des poisons)","ergonomie suédoise","tradition gallo-romaine","norme européenne 1850"], correct: 0 },
+  { text: "L'« affaire des poisons » qui a marqué la cour française se situe entre…", options: ["1679 et 1682","1714 et 1722","1788 et 1791","1860 et 1865"], correct: 0 },
+  { text: "Combien de personnes furent inculpées dans l'affaire des poisons ?", options: ["~42","~442","~4 200","~12 000"], correct: 1 },
+  { text: "Le verre de vin se remplit idéalement aux…", options: ["deux tiers","ras bord","trois quarts","une moitié strictement"], correct: 0 },
+
+  // ---------- Trinquer & toast (155-159) ----------
+  { text: "Croiser les verres en trinquant est traditionnellement…", options: ["proscrit (signe de croix involontaire porteur de malheur)","encouragé","élégant","obligatoire"], correct: 0 },
+  { text: "Trinquer avec de l'EAU ?", options: ["à éviter (superstition espagnole)","obligatoire","sans importance","élégant"], correct: 0 },
+  { text: "Dans un dîner officiel français, le toast se porte…", options: ["uniquement à la fin du repas","au début","à chaque plat","jamais"], correct: 0 },
+  { text: "Traditionnellement, qui porte un toast ?", options: ["les hommes","les femmes seulement","les enfants","l'aîné quel que soit le sexe"], correct: 0 },
+  { text: "L'expression « porter un toast » vient de l'ancien français « toste » : c'était…", options: ["une tranche de pain grillée trempée dans le vin pour honorer une dame","une coupe en or","un manteau de cour","un instrument de musique"], correct: 0 },
+
+  // ---------- Aliments délicats (160-167) ----------
+  { text: "L'artichaut se mange…", options: ["feuille à feuille à la main, foin retiré à la fourchette","entier au couteau","à la cuillère","en purée"], correct: 0 },
+  { text: "Les asperges (en dîner formel) se mangent…", options: ["à la fourchette","à la main systématiquement","à la cuillère","au couteau"], correct: 0 },
+  { text: "Le foie gras se…", options: ["découpe à la fourchette puis se dépose sur le toast","tartine comme un pâté","mange à la cuillère","mélange à la salade"], correct: 0 },
+  { text: "Les huîtres se prennent avec…", options: ["la fourchette à huîtres","les doigts","la cuillère à soupe","le couteau à poisson"], correct: 0 },
+  { text: "Les escargots se prennent avec…", options: ["pince et fourchette à escargots","les doigts","la cuillère","le couteau"], correct: 0 },
+  { text: "Les spaghettis se mangent…", options: ["enroulés à la fourchette, SANS cuillère","à la cuillère","au couteau","à la main"], correct: 0 },
+  { text: "Une pomme ou poire en société classique se…", options: ["coupe en quatre puis se pèle à la main au-dessus de l'assiette","mange à pleines dents","pèle à la cuillère","jette intacte"], correct: 0 },
+  { text: "Ronger les os d'une viande ?", options: ["à proscrire (on détache la chair au couteau)","obligatoire","apprécié","élégant"], correct: 0 },
+
+  // ---------- Fromage & dessert + Brillat-Savarin (168-173) ----------
+  { text: "En France, l'ordre classique est…", options: ["fromage AVANT le dessert","fromage APRÈS le dessert (anglais)","fromage en apéritif (américain)","pas de fromage"], correct: 0 },
+  { text: "Cette place du fromage est…", options: ["unique au monde — française","partagée avec l'Italie","reprise des Anglais","copiée des États-Unis"], correct: 0 },
+  { text: "L'adage médiéval « caseus claudit ventrem » signifie…", options: ["« le fromage ferme le ventre »","« le fromage est de Caen »","« le repas se signe »","« le fromage est complet »"], correct: 0 },
+  { text: "Brillat-Savarin écrit « Un … sans fromage est une belle à qui il manque un œil » : le mot d'origine est…", options: ["dessert","repas","apéritif","mariage"], correct: 0 },
+  { text: "Brillat-Savarin (auteur de la Physiologie du goût, 1825) était de profession…", options: ["magistrat (et gastronome)","cuisinier","évêque","ambassadeur"], correct: 0 },
+  { text: "Le plateau de fromage à un dîner formel…", options: ["ne circule qu'UNE fois (on ne se ressert pas)","circule à volonté","ne se présente jamais","reste à l'entrée"], correct: 0 },
+
+  // ---------- Comportement à table (suite Nadine) (174-180) ----------
+  { text: "Selon Nadine de Rothschild, dire « Bon appétit » est…", options: ["déconseillé (renvoie aux fonctions digestives)","obligatoire","réservé à l'hôte","la marque d'une bonne éducation"], correct: 0 },
+  { text: "Si on vous dit « Bon appétit », on répond…", options: ["par un sourire ou « merci »","« bon appétit » en retour","« santé »","rien — on l'ignore"], correct: 0 },
+  { text: "La salière se passe…", options: ["posée sur la table (on ne la passe jamais main en main)","main à main","par-dessus l'épaule","sous l'assiette"], correct: 0 },
+  { text: "Empiler les assiettes pour aider à débarrasser est…", options: ["un « réflexe de cantine » à éviter","apprécié","obligatoire en privé","élégant"], correct: 0 },
+  { text: "Se remaquiller ou se recoiffer à table…", options: ["à proscrire","élégant","obligatoire pour les femmes","au dessert seulement"], correct: 0 },
+  { text: "On touche au pain à partir de…", options: ["la fin du potage / l'arrivée de l'entrée","l'arrivée à la table","le verre de bienvenue","au dessert"], correct: 0 },
+  { text: "La FAUTE LA PLUS GRAVE en mondanités est…", options: ["ne pas honorer une invitation préalablement confirmée","manger trop","parler fort","arriver à l'heure"], correct: 0 },
+
+  // ---------- Présentations & tutoiement (suite) (181-186) ----------
+  { text: "Les présentations doivent se faire…", options: ["debout","assis","par téléphone","par écrit uniquement"], correct: 0 },
+  { text: "En présentant quelqu'un, il est conseillé d'ajouter…", options: ["sa fonction ou sa profession","son âge","son adresse","son salaire"], correct: 0 },
+  { text: "Le « vous » de politesse s'est imposé en France…", options: ["au XVIIᵉ siècle (sous la cour)","au XXᵉ siècle","au Moyen Âge","au XIXᵉ siècle"], correct: 0 },
+  { text: "Pendant la Révolution, qu'a-t-on tenté d'imposer brièvement ?", options: ["le tutoiement général (an II)","le baisemain obligatoire","le silence","le pseudonyme"], correct: 0 },
+  { text: "C'est… qui propose le tutoiement.", options: ["l'aîné / le supérieur / l'hôte","le plus jeune","le moins gradé","tout le monde en même temps"], correct: 0 },
+  { text: "En contexte protocolaire officiel, on conseille d'attendre… avant de tutoyer.", options: ["la quatrième rencontre","la première rencontre","jamais","la dixième année"], correct: 0 },
+
+  // ---------- Baisemain (suite) (187-190) ----------
+  { text: "Lors du baisemain, c'est…", options: ["la femme qui prend l'initiative et tend la main","l'homme qui prend la main","peu importe","les deux en même temps"], correct: 0 },
+  { text: "Lors d'un baisemain, l'homme…", options: ["se dégante la main droite (la femme peut garder son gant en soirée)","garde les deux gants","embrasse à pleine bouche","s'agenouille"], correct: 0 },
+  { text: "Combien de mots prononce-t-on PENDANT un baisemain ?", options: ["aucun","une formule de politesse","trois mots","un compliment court"], correct: 0 },
+  { text: "Faire un baisemain à la mariée à la sortie de l'église ?", options: ["non — théoriquement jeune fille jusqu'au lendemain","oui obligatoire","selon les régions","seulement à la sortie de la mairie"], correct: 0 },
+
+  // ---------- Titres de noblesse (191-200) ----------
+  { text: "Hiérarchie des titres en France, dans l'ordre décroissant ?", options: ["duc > marquis > comte > vicomte > baron","baron > vicomte > comte > marquis > duc","comte > duc > vicomte > marquis > baron","égalité absolue"], correct: 0 },
+  { text: "En France, qui prime entre un duc et un prince (hors famille royale) ?", options: ["le duc","le prince","égalité","selon le département"], correct: 0 },
+  { text: "À l'oral, comment s'adresse-t-on à un duc, marquis ou comte ?", options: ["« Monsieur » / « Madame »","« Monsieur le Duc »","« Votre Grâce »","« Cher Comte »"], correct: 0 },
+  { text: "À un cardinal, on s'adresse par…", options: ["« Éminence »","« Votre Majesté »","« Monseigneur »","« Père »"], correct: 0 },
+  { text: "Au Pape, on écrit en s'adressant à lui par…", options: ["« Très Saint-Père »","« Votre Majesté »","« Monsieur le Pape »","« Maître »"], correct: 0 },
+  { text: "Le fils aîné d'un duc porte traditionnellement…", options: ["un titre subsidiaire du père (ex. marquis)","aucun titre","le même titre que son père","« prince »"], correct: 0 },
+  { text: "La particule « de » fait-elle la noblesse à elle seule ?", options: ["non — elle marquait la terre, pas le rang","oui obligatoire","oui depuis 1789","seulement avec un « van »"], correct: 0 },
+  { text: "En 1789, combien de titres réguliers d'Ancien Régime subsistaient en France ?", options: ["~172","~1 720","~17 000","~5"], correct: 0 },
+  { text: "Selon Régis Valette (Robert Laffont, 2007), combien de familles nobles subsistantes en France ?", options: ["~3 092","~30 092","~92","~300 000"], correct: 0 },
+  { text: "Selon Pierre-Marie Dioudonnat (Sedopols, 2012), combien de familles PORTENT une particule SANS être nobles ?", options: ["5 000 à 6 000","50 à 60","environ 100","aucune"], correct: 0 },
+
+  // ---------- Cartes de visite — sigles classiques (201-207) ----------
+  { text: "Une carte de visite mondaine s'écrit traditionnellement…", options: ["à la troisième personne","à la première personne","en italique","en chiffres"], correct: 0 },
+  { text: "Une carte de visite mondaine se signe-t-elle ?", options: ["JAMAIS","toujours","seulement les hommes","au crayon"], correct: 0 },
+  { text: "Sur une carte de visite : « p.c. » signifie…", options: ["pour condoléances","prier le client","poste centrale","peu correct"], correct: 0 },
+  { text: "« p.r. » sur une carte de visite signifie…", options: ["pour remercier","pour rire","par recommandation","prêt à recevoir"], correct: 0 },
+  { text: "« p.p. » sur une carte de visite signifie…", options: ["pour présenter (recommander quelqu'un)","poste préférée","prix particulier","pour parler"], correct: 0 },
+  { text: "« p.f.c. » sur une carte de visite signifie…", options: ["pour faire connaissance","pour féliciter le couple","prix fixe communiqué","pour fortifier la confiance"], correct: 0 },
+  { text: "« p.p.n. » sur une carte de visite signifie…", options: ["pour prendre des nouvelles","pour partir n'importe quand","pour préparer le notaire","pas plus nécessaire"], correct: 0 },
+
+  // ---------- Formules épistolaires graduées (208-214) ----------
+  { text: "La formule de clôture d'une lettre formelle doit…", options: ["reprendre exactement la formule d'APPEL","être plus longue","ne pas citer le destinataire","être en italique"], correct: 0 },
+  { text: "Une femme adresse-t-elle des « sentiments » à un homme (hors époux) ?", options: ["non, elle préfère « salutations » ou « considération »","oui systématiquement","oui sauf à un prêtre","seulement entre 18 et 25 ans"], correct: 0 },
+  { text: "Pour une relation neutre / commerciale, on emploie…", options: ["« mes salutations distinguées »","« ma haute considération »","« mes sentiments amoureux »","« bisous »"], correct: 0 },
+  { text: "Pour marquer la déférence à un supérieur, on dit plutôt…", options: ["« l'expression de ma considération distinguée »","« mes salutations distinguées »","« cordialement »","« ciao »"], correct: 0 },
+  { text: "Pour une très haute personnalité, on écrit…", options: ["« l'expression de ma (très) haute considération »","« mes sentiments »","« amicalement »","« bien à vous »"], correct: 0 },
+  { text: "On s'adresse à un avocat, notaire ou huissier par…", options: ["« Maître »","« Monsieur »","« Madame »","« Cher Confrère »"], correct: 0 },
+  { text: "Un avocat se présente-t-il LUI-MÊME comme « Maître » ?", options: ["non — c'est aux autres de lui donner ce titre","oui systématiquement","seulement à l'audience","seulement à l'écrit"], correct: 0 },
+
+  // ---------- Lettre de château & invitations (215-218) ----------
+  { text: "Une « lettre de château » s'envoie…", options: ["à la maîtresse de maison après un séjour","au régisseur","au notaire","au cuisinier"], correct: 0 },
+  { text: "Délai pour envoyer une lettre de château ?", options: ["3 jours à 3 semaines après le séjour","le jour même","sous 24 h","6 mois après"], correct: 0 },
+  { text: "Une lettre soignée NE COMMENCE JAMAIS par…", options: ["« Je »","« Cher »","« Monsieur »","« Veuillez »"], correct: 0 },
+  { text: "Une invitation formelle se lance au minimum… avant l'événement.", options: ["3 semaines","la veille","2 jours","6 mois"], correct: 0 },
+
+  // ---------- Dressing & smoking — origine et détails (219-228) ----------
+  { text: "« Tenue de ville » sur un carton d'invitation = ?", options: ["costume sombre pour homme, robe courte habillée pour femme","short et T-shirt","smoking","habit"], correct: 0 },
+  { text: "Le smoking est né vers 1860 grâce au tailleur…", options: ["Henry Poole","Cifonelli","Brioni","Hermès"], correct: 0 },
+  { text: "Pour qui ce tailleur a-t-il créé la veste de smoking ?", options: ["le prince de Galles (futur Édouard VII)","Napoléon III","Charlemagne","Louis XIV"], correct: 0 },
+  { text: "Les revers en soie du smoking servaient à l'origine à…", options: ["faire glisser les cendres de cigare","afficher le rang","absorber la sueur","tenir au chaud"], correct: 0 },
+  { text: "Le pantalon de smoking porte traditionnellement…", options: ["un galon de soie sur la couture","une boucle dorée","des rivets","un revers retroussé"], correct: 0 },
+  { text: "Un pantalon de smoking ne se tient JAMAIS par…", options: ["une ceinture en cuir classique (préférer cummerbund ou bretelles)","des bretelles","un cummerbund","un gilet"], correct: 0 },
+  { text: "La chemise de smoking porte…", options: ["un plastron piqué (Marcella) + poignets mousquetaires","une cravate kraft","un col Mao","une poche poitrine"], correct: 0 },
+  { text: "Chaussettes d'un gentleman : couleur assortie à…", options: ["la couleur des CHAUSSURES (pas du pantalon)","la couleur de la cravate","la couleur du veston","aucune règle"], correct: 0 },
+  { text: "Le poignet de chemise doit dépasser de la manche de veste de…", options: ["2 à 3 cm","10 cm","aucun (manchette cachée)","exactement 5 cm"], correct: 0 },
+  { text: "La pochette d'un veston doit-elle être assortie à la cravate ?", options: ["non — c'est la seule fantaisie autorisée, on ose","oui strictement","seulement les soirs","par couleur exacte"], correct: 0 },
+
+  // ---------- Accessoires interdits / vulgarités (229-232) ----------
+  { text: "Pour un gentleman, quels bijoux sont tolérés ?", options: ["la chevalière (pas de gourmette, chaîne, ni bague à l'index)","tous selon le goût","les gourmettes en or","aucun bijou jamais"], correct: 0 },
+  { text: "Une chemise à manches courtes sous une veste est…", options: ["proscrite","la norme estivale","élégante","obligatoire en bureau"], correct: 0 },
+  { text: "Les logos visibles d'une marque de luxe sur un costume sont…", options: ["considérés vulgaires (même de luxe)","la marque du raffinement","obligatoires","réservés aux soirées"], correct: 0 },
+  { text: "Les armoiries familiales se brodent traditionnellement…", options: ["uniquement sur le linge de maison","sur la cravate","sur la pochette","sur les chaussettes"], correct: 0 },
+
+  // ---------- Conversation, compliments, Baronne Staffe (233-237) ----------
+  { text: "Quel sujet est LE tabou absolu de la haute société française ?", options: ["l'argent","la cuisine","les voyages","le sport"], correct: 0 },
+  { text: "Selon la Baronne Staffe, en société…", options: ["« il faut faire intervenir son moi le moins possible »","« il faut tout dire de soi »","« il faut briller en se mettant en avant »","« il faut couper la parole pour qu'on vous écoute »"], correct: 0 },
+  { text: "Le « name-dropping » (citer des noms importants pour se valoriser) est…", options: ["mal vu — discrétion et understatement","élégant","apprécié","obligatoire"], correct: 0 },
+  { text: "Selon Nadine de Rothschild, un compliment réussi…", options: ["contient le prénom et porte sur la PERSONNE, pas sur un objet","commence toujours par « ta robe… »","est neutre et général","est ironique"], correct: 0 },
+  { text: "Exemple de compliment « bien fait » à la Rothschild ?", options: ["« Charlotte, tu es magnifique »","« Belle robe »","« Joli chapeau »","« Sympa la coiffure »"], correct: 0 },
+
+  // ---------- Fleurs, apéritif, cadeaux mariage (238-243) ----------
+  { text: "Quelle fleur évoque traditionnellement le malheur en France ?", options: ["l'œillet","la pivoine","le lys","l'iris"], correct: 0 },
+  { text: "Pourquoi éviter les roses rouges à une jeune fille ?", options: ["c'est la fleur de la passion (équivoque)","elles tachent","elles coûtent cher","elles sont trop banales"], correct: 0 },
+  { text: "Quel nombre de roses rouges fait exception à la règle du « nombre impair » ?", options: ["12 roses rouges","100 roses","6 roses","aucune exception"], correct: 0 },
+  { text: "À l'apéritif, on sert les boissons dès…", options: ["l'arrivée du premier invité","l'arrivée du dernier invité","le départ vers la table","minuit"], correct: 0 },
+  { text: "À l'apéritif, les amuse-bouches arrivent…", options: ["à l'arrivée du DERNIER convive","tout de suite","au dessert","jamais"], correct: 0 },
+  { text: "Les cadeaux de mariage se…", options: ["font livrer ou poster AVANT la cérémonie","apportent le jour du mariage","envoient 1 an après","laissent dans la voiture"], correct: 0 },
+
+  // ---------- Rallye / vie mondaine bourgeoise (244-248) ----------
+  { text: "Un « rallye » dans la haute bourgeoisie française est…", options: ["une série de soirées dansantes organisées pour les jeunes","une course automobile","une réunion politique","une fête religieuse"], correct: 0 },
+  { text: "Les « rallyes-goûters » s'adressent aux jeunes de…", options: ["12-13 ans","16-17 ans","20-22 ans","30+ ans"], correct: 0 },
+  { text: "Vers 15 ans, on passe aux…", options: ["rallyes-bridges","rallyes-goûters","rallyes-vins","rallyes-foot"], correct: 0 },
+  { text: "Vers 16 ans, on accède aux…", options: ["rallyes mondains (dansants)","rallyes-cocktails","rallyes du dimanche","rallyes scientifiques"], correct: 0 },
+  { text: "Quels sociologues ont étudié les rallyes comme dispositif d'entre-soi (CNRS) ?", options: ["Michel et Monique Pinçon-Charlot","Pierre Bourdieu seul","Frédéric Lordon","aucun"], correct: 0 },
+
+  // ---------- Galanterie & restaurant (249-253) ----------
+  { text: "Au restaurant, qui entre traditionnellement en premier ?", options: ["l'homme (pour s'assurer du lieu)","la femme","peu importe","le maître d'hôtel"], correct: 0 },
+  { text: "Qui commande en premier au restaurant en société classique ?", options: ["la femme","l'homme","le plus âgé","l'hôte"], correct: 0 },
+  { text: "Dans les grands restaurants, la carte de la femme…", options: ["ne porte pas les prix","est plus petite","est en italique","n'existe pas"], correct: 0 },
+  { text: "Pour appeler un serveur, on dit…", options: ["« Monsieur, s'il vous plaît »","« Garçon ! »","« Hé ! »","« Patron »"], correct: 0 },
+  { text: "Au restaurant, qui goûte le vin commandé pour la table ?", options: ["l'homme qui invite","la femme","le plus âgé","le plus jeune"], correct: 0 },
+
+  // ---------- Pourboires en France (254-259) ----------
+  { text: "En France, le service est…", options: ["compris dans l'addition","ajouté à 15 % obligatoire","exclu et chacun le calcule","interdit"], correct: 0 },
+  { text: "Le pourboire en France est…", options: ["facultatif","obligatoire à 10 %","obligatoire à 20 %","interdit"], correct: 0 },
+  { text: "Pourboire usuel restaurant si on est très satisfait ?", options: ["5 à 10 %","30 %","aucun","20 % minimum"], correct: 0 },
+  { text: "Pourboire usuel pour une ouvreuse de théâtre ?", options: ["1 à 2 €","20 €","50 €","aucun"], correct: 0 },
+  { text: "Pourboire usuel pour une femme de chambre d'hôtel ?", options: ["2 à 5 € par nuit","20 € par nuit","aucun","50 € à l'arrivée"], correct: 0 },
+  { text: "Pourboire usuel pour un voiturier ou bagagiste ?", options: ["1 à 2 €","aucun","10 €","20 €"], correct: 0 },
+
+  // ---------- Nadine de Rothschild — biographie & doctrine (260-266) ----------
+  { text: "Nadine de Rothschild orthographie « savoir vivre »…", options: ["sans trait d'union (pour alléger la charge protocolaire)","avec trait d'union obligatoire","en deux mots majuscules","en italique"], correct: 0 },
+  { text: "Le nom de naissance de Nadine de Rothschild est…", options: ["Nadine Lhopitalier","Nadine Dupont","Nadine de Rothschild","Nadine Soyer"], correct: 0 },
+  { text: "Nadine de Rothschild est née en quelle année ?", options: ["1932","1925","1945","1955"], correct: 0 },
+  { text: "Dans quelle ville française est-elle née ?", options: ["Saint-Quentin (Aisne)","Paris","Strasbourg","Lyon"], correct: 0 },
+  { text: "Avant son mariage, Nadine a exercé quelles professions ?", options: ["ouvrière à 14 ans puis actrice","journaliste","institutrice","médecin"], correct: 0 },
+  { text: "Elle a épousé le baron Edmond de Rothschild en…", options: ["1963","1953","1973","1983"], correct: 0 },
+  { text: "Selon Nadine, les 4 règles du « savoir-vivre financier » sont :", options: ["discrétion, discernement, sens du patrimoine, sens du mécénat","économie, austérité, jeûne, transmission","luxe, ostentation, voyage, démonstration","tout dépenser, ne rien garder, prêter, oublier"], correct: 0 },
+
+  // ---------- Baronne Staffe & Bottin Mondain (267-271) ----------
+  { text: "Le pseudonyme « Baronne Staffe » désigne…", options: ["Blanche-Augustine-Angèle Soyer","Geneviève d'Angenstein","la Comtesse de Gencé","une véritable baronne"], correct: 0 },
+  { text: "Date de publication de son célèbre « Usages du monde » ?", options: ["1889","1789","1925","1965"], correct: 0 },
+  { text: "Le sous-titre exact de l'ouvrage est…", options: ["« Règles du savoir-vivre dans la société moderne »","« Le bon goût français »","« Les codes du gentleman »","« Manuel de la haute société »"], correct: 0 },
+  { text: "Le « Bottin Mondain » est…", options: ["un annuaire & guide de la vie mondaine française","un magazine mensuel","une chaîne de télé","un restaurant parisien"], correct: 0 },
+  { text: "La Baronne Staffe a vécu de…", options: ["1843 à 1911","1900 à 1970","1789 à 1855","1750 à 1820"], correct: 0 },
 ];
