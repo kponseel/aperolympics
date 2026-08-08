@@ -341,20 +341,37 @@
       if (amParticipant(r) && play) renderPlaying(r); else renderSpectator(r);
       return;
     }
-    if (r.state === "podium") { startRefresh(); renderPodium(r); return; }
+    if (r.state === "podium") {
+      startRefresh();
+      // Les late-joiners (pas dans les standings du round qui vient de
+      // finir) restent sur l'écran d'attente avec compte à rebours vers
+      // la prochaine manche, plutôt que de voir un podium qui ne les
+      // concerne pas.
+      if (amParticipant(r)) renderPodium(r); else renderSpectator(r);
+      return;
+    }
   }
 
   function renderIdle(r) {
     var body = $("qmRoomBody");
     var me = getPseudo();
     var inRoom = (r.players || []).some(function (p) { return p.name === me; });
+    var hostName = r.host_name || "";
+    var amHost = !!(inRoom && hostName && hostName === me);
     var auto = r.auto_start_in_ms > 0 ? Math.ceil(r.auto_start_in_ms / 1000) : 0;
     body.innerHTML =
       '<div class="qm-card"><p class="qm-rule">60 secondes · <b class="g">bonne +1</b> · <b class="r">mauvaise −1</b> · <b>passe 0</b></p></div>' +
-      '<div class="qm-card"><h3>Joueurs (' + (r.players || []).length + ')</h3>' + renderPills(r.players) + '</div>' +
+      '<div class="qm-card"><h3>Joueurs (' + (r.players || []).length + ')</h3>' + renderPills(r.players, hostName) + '</div>' +
       (inRoom
-        ? '<button class="qm-primary qm-xl" id="qmStart">▶️ Démarrer</button>' +
-          (auto > 0 ? '<p class="qm-hint">Départ auto dans ' + auto + ' s</p>' : '<p class="qm-hint">Tu peux lancer seul, ou attendre des joueurs.</p>')
+        ? (amHost
+          // Hôte : voit le bouton Démarrer et contrôle le lancement.
+          ? '<button class="qm-primary qm-xl" id="qmStart">▶️ Démarrer</button>' +
+            (auto > 0 ? '<p class="qm-hint">Sinon départ auto dans ' + auto + ' s.</p>' : '<p class="qm-hint">Lance la partie quand tu veux 👑.</p>')
+          // Non-hôte présent dans la salle : attend que l'hôte lance.
+          : '<div class="qm-card qm-center-card"><div class="qm-big">⏳</div>' +
+              '<p class="qm-lead">En attente de <b>👑 ' + esc(hostName || "l\'hôte") + '</b>…</p>' +
+              (auto > 0 ? '<p class="qm-hint">Départ automatique dans ' + auto + ' s.</p>' : '<p class="qm-hint">Seul l\'hôte peut lancer la partie.</p>') +
+            '</div>')
         : '<button class="qm-primary qm-xl" id="qmJoin">🎮 Rejoindre</button>') +
       renderRoomTop(r.top);
     var sb = $("qmStart"); if (sb) sb.onclick = function () { if (socket) socket.emit("msg", { t: "demarrer" }); };
@@ -443,18 +460,45 @@
     if (lastRoom && lastRoom.state === "playing") { roomStructSig = ""; renderRoom(); }
   }
 
+  // Écran d'attente pour qui rejoint la salle pendant un round en cours
+  // (state = playing OU podium). Affiche un gros compte à rebours jusqu'à la
+  // prochaine manche + le classement live des joueurs actuels, pour patienter
+  // utilement.
   function renderSpectator(r) {
-    var remain = r.end_at_ms ? Math.max(0, r.end_at_ms - serverNow()) : Math.max(0, r.time_left_ms || 0);
-    var secs = Math.ceil(remain / 1000);
-    var sig = "spec";
+    var sig = "spec:" + r.state;
     if (roomStructSig !== sig) {
       roomStructSig = sig;
+      var bigEmoji = r.state === "playing" ? "🔥" : "🏁";
+      var bigLabel = r.state === "playing" ? "Partie en cours" : "Fin de la manche";
+      var subLabel = r.state === "playing" ? "Prochaine manche dans" : "Nouvelle manche dans";
       $("qmRoomBody").innerHTML =
-        '<div class="qm-card qm-center-card"><div class="qm-big">🔥 Partie en cours</div><p class="qm-lead" id="qmSpecMsg"></p></div>' +
-        '<div class="qm-card"><h3>Classement en direct</h3><div id="qmLive"></div></div>' +
+        '<div class="qm-card qm-center-card qm-spec-card">' +
+          '<div class="qm-spec-emoji">' + bigEmoji + '</div>' +
+          '<div class="qm-spec-title">' + bigLabel + '</div>' +
+          '<div class="qm-spec-sub">' + subLabel + '</div>' +
+          '<div class="qm-spec-timer" id="qmSpecTimer">…</div>' +
+          '<p class="qm-lead">⏳ Tu joues à la prochaine !</p>' +
+        '</div>' +
+        '<div class="qm-card"><h3>📊 Score des joueurs en cours</h3><div id="qmLive"></div></div>' +
         renderRoomTop(r.top);
     }
-    var msg = $("qmSpecMsg"); if (msg) msg.textContent = "Tu joueras à la prochaine manche" + (secs ? " (" + secs + " s restantes)" : "") + ".";
+    // Compte à rebours : si on est en `playing`, on affiche le temps restant
+    // avant la fin du blitz + la durée du podium (= temps total avant que la
+    // salle redevienne idle et qu'on puisse rejouer). En `podium`, juste le
+    // temps restant du podium.
+    var remain;
+    if (r.state === "playing") {
+      var blitzLeft = r.end_at_ms ? Math.max(0, r.end_at_ms - serverNow()) : Math.max(0, r.time_left_ms || 0);
+      remain = blitzLeft + (r.podium_total_ms || 0);
+    } else {
+      remain = r.podium_end_at_ms ? Math.max(0, r.podium_end_at_ms - serverNow()) : Math.max(0, r.podium_remaining_ms || 0);
+    }
+    var secs = Math.max(0, Math.ceil(remain / 1000));
+    var t = $("qmSpecTimer");
+    if (t) {
+      t.textContent = secs + " s";
+      t.className = "qm-spec-timer" + (secs <= 5 ? " danger" : (secs <= 10 ? " warn" : ""));
+    }
     var live = $("qmLive"); if (live) live.innerHTML = liveStandingsHtml(r);
   }
 
@@ -491,11 +535,14 @@
   }
 
   // ---------- shared blocks ----------
-  function renderPills(playersArr) {
+  function renderPills(playersArr, hostName) {
     var me = getPseudo();
     if (!playersArr || !playersArr.length) return '<p class="qm-hint">—</p>';
     return '<div class="qm-pills">' + playersArr.map(function (p) {
-      return '<span class="qm-pill' + (p.name === me ? " me" : "") + '">' + esc(p.name) + '</span>';
+      var isHost = hostName && p.name === hostName;
+      return '<span class="qm-pill' + (p.name === me ? " me" : "") + (isHost ? " host" : "") + '">' +
+        (isHost ? "👑 " : "") + esc(p.name) +
+      '</span>';
     }).join("") + '</div>';
   }
 

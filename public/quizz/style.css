@@ -113,6 +113,18 @@ input#qmName:focus { outline: none; border-color: #6c7cff; }
 .qm-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .qm-pill { padding: 10px 16px; border-radius: 999px; background: #1d2152; border: 2px solid #3a4080; font-size: 1.05rem; font-weight: 600; }
 .qm-pill.me { background: #5b6cff; border-color: #6c7cff; }
+.qm-pill.host { background: #3a2f0e; border-color: #ffd23f; color: #ffe98a; }
+.qm-pill.host.me { background: #5b4a18; border-color: #ffd23f; color: #fff; }
+
+/* ----- spectator wait card (late joiners) ----- */
+.qm-spec-card { padding: 28px 18px; }
+.qm-spec-emoji { font-size: 3rem; line-height: 1; }
+.qm-spec-title { font-size: 1.5rem; font-weight: 800; margin: 6px 0 14px; }
+.qm-spec-sub { color: #9aa3d6; font-size: 0.95rem; margin-bottom: 6px; }
+.qm-spec-timer { font-size: 4rem; font-weight: 900; color: #ffd23f; line-height: 1; padding: 4px 0 12px; text-shadow: 0 2px 12px #0009; }
+.qm-spec-timer.warn { color: #ffaa3f; }
+.qm-spec-timer.danger { color: #ff5757; animation: qm-pulse 0.6s ease-in-out infinite alternate; }
+@keyframes qm-pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
 
 /* ----- playing ----- */
 .qm-timerbar { height: 10px; background: #2a2f5c; border-radius: 999px; overflow: hidden; margin-bottom: 12px; }

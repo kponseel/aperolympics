@@ -3,14 +3,15 @@
 // Lifecycle per room (the room owns ALL timing; the blitz engine is a pure
 // pool + scorer):
 //
-//   idle      ──Démarrer (n'importe quel joueur)──▶  countdown (3 s : 3-2-1-GO)
-//             ◀──── 60 s timeout, 2+ joueurs ────  (démarrage auto)
+//   idle      ──Démarrer (HÔTE uniquement)────────▶  countdown (3 s : 3-2-1-GO)
+//             ◀──── 60 s timeout, 2+ joueurs ────  (démarrage auto fallback)
 //   countdown ──fin du décompte──▶  playing (60 s de blitz)
 //   playing   ──60 s écoulées──▶  podium (résumé + stats, 10 s)
 //   podium    ──10 s──▶  idle  (scores remis à zéro)
 //
-// Les retardataires pendant `playing` voient un écran spectateur (géré côté
-// client à partir de l'état).
+// L'hôte = le 1ᵉʳ joueur arrivé encore actif (basé sur joinedAt). Si l'hôte
+// part, l'arrivé suivant devient hôte. Les retardataires pendant `playing` ou
+// `podium` voient un écran spectateur avec compte à rebours côté client.
 
 const themes = require("./themes");
 const blitz = require("./blitz");
@@ -24,7 +25,7 @@ const AUTO_START_AFTER_MS = Number(process.env.QM_AUTOSTART_MS) > 0 ? Number(pro
 function makeRoom(themeDef) {
   const id = themeDef.id;
   const engine = blitz.create(themeDef.bank);
-  const playerMap = new Map();   // cid -> { cid, name, socketId, score }
+  const playerMap = new Map();   // cid -> { cid, name, socketId, score, joinedAt }
   let state = "idle";          // "idle" | "countdown" | "playing" | "podium"
   let goAt = 0;                // absolute Date.now() of GO (countdown end)
   let endAt = 0;               // absolute end of the 60 s blitz
@@ -34,11 +35,20 @@ function makeRoom(themeDef) {
 
   function activePlayers() { return [...playerMap.values()].filter((p) => p.socketId); }
 
+  // Host = earliest-joined active player. Computed each call (no persistent
+  // state to maintain) so a host who drops naturally hands the crown to the
+  // next-longest-present.
+  function hostPlayer() {
+    const a = activePlayers();
+    if (!a.length) return null;
+    return a.slice().sort((x, y) => (x.joinedAt || 0) - (y.joinedAt || 0))[0];
+  }
+
   function addPlayer(cid, name, socketId) {
     if (!cid || !name) return null;
     let p = playerMap.get(cid);
     if (p) { p.name = name; p.socketId = socketId; }
-    else { p = { cid, name, socketId, score: 0 }; playerMap.set(cid, p); }
+    else { p = { cid, name, socketId, score: 0, joinedAt: Date.now() }; playerMap.set(cid, p); }
     return p;
   }
 
@@ -95,7 +105,9 @@ function makeRoom(themeDef) {
       dirty = true;
     }
 
-    // Démarrage auto : 2+ joueurs qui attendent depuis AUTO_START_AFTER_MS.
+    // Démarrage auto : filet de sécurité pour les salles oubliées. 2+ joueurs
+    // qui attendent depuis AUTO_START_AFTER_MS. L'hôte peut toujours partir
+    // manuellement avant ; passé le seuil, on évite que la salle reste bloquée.
     if (state === "idle" && activePlayers().length >= 2 && now - lastIdleSince >= AUTO_START_AFTER_MS) {
       trigger(now);
       dirty = true;
@@ -107,7 +119,13 @@ function makeRoom(themeDef) {
   function handleMessage(cid, msg) {
     const p = playerMap.get(cid);
     if (!p) return false;
-    if (msg && msg.t === "demarrer") return trigger(Date.now());
+    if (msg && msg.t === "demarrer") {
+      // Seul l'hôte (1ᵉʳ joueur encore actif) peut lancer. Sinon on ignore
+      // silencieusement — l'UI client masque le bouton aux non-hôtes.
+      const host = hostPlayer();
+      if (!host || host.cid !== cid) return false;
+      return trigger(Date.now());
+    }
     if (msg && msg.t === "progress" && state === "playing") {
       return engine.report(p.name, msg);
     }
@@ -117,6 +135,7 @@ function makeRoom(themeDef) {
   function snapshot() {
     const now = Date.now();
     const active = activePlayers();
+    const host = hostPlayer();
     const snap = {
       id, theme: themeDef.id, theme_name: themeDef.name, theme_emoji: themeDef.emoji,
       state,
@@ -133,8 +152,10 @@ function makeRoom(themeDef) {
       time_left_ms: state === "playing" ? Math.max(0, endAt - now) : 0,
       blitz_total_ms: BLITZ_MS,
       podium_remaining_ms: state === "podium" ? Math.max(0, podiumEndAt - now) : 0,
+      podium_total_ms: PODIUM_MS,
       auto_start_in_ms: (state === "idle" && active.length >= 2) ? Math.max(0, AUTO_START_AFTER_MS - (now - lastIdleSince)) : 0,
       players: active.map((p) => ({ cid: p.cid, name: p.name })),
+      host_name: host ? host.name : null,
       standings: (state === "playing" || state === "podium") ? engine.standings() : [],
       top: players.themeTop(themeDef.id),
       summary: state === "podium" ? lastSummary : null,
