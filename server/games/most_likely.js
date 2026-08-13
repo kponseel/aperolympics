@@ -382,6 +382,6 @@ module.exports = {
   id: "most_likely",
   name: "Le plus susceptible",
   emoji: "😈",
-  desc: "10 questions parmi 220+ — vote secret, qui colle le mieux ? (intègre les anciens Superlatifs)",
+  desc: "10 questions parmi 220+ — vote secret, qui colle le mieux ?",
   create,
 };

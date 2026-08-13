@@ -113,7 +113,7 @@
 
   window.GamesHub.register("defuse", {
     name: "Désamorçage", emoji: "💣",
-    desc: "Coop 2 joueurs : l'un voit la bombe, l'autre le manuel. Parlez-vous !",
+    desc: "Coop 2 à 4 (idéal 3) : un démineur voit la bombe, les experts le manuel. Parlez-vous !",
     minPlayers: 2, endable: true,
     rules: "<b>Coopératif, info asymétrique.</b> Au lancement, un <b>Démineur</b> 💣 (voit la bombe) et un·des <b>Expert(s)</b> 📖 (voient le manuel) sont tirés.<br>" +
            "Vous ne voyez <b>pas la même chose</b> : parlez-vous ! Le démineur décrit, l'expert lit la règle et guide.<br>" +

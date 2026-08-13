@@ -139,14 +139,15 @@
     name:   "Vannes",
     emoji:  "🎤",
     desc:   "Deux contestants écrivent la meilleure vanne, la salle vote — 80 prompts.",
-    minPlayers: 3,
+    minPlayers: 3, hostAdvance: true,
     endable: true,
     scored: true,
     rules:  "Style Jackbox.<br>" +
             "<b>1.</b> Un prompt s'affiche (\"La pire excuse pour annuler un RDV\"...).<br>" +
             "<b>2.</b> <b>2 contestants</b> sont tirés au hasard. Ils tapent leur <b>punchline</b> (47 char max).<br>" +
-            "<b>3.</b> Les autres votent <b>A ou B</b>, anonymement.<br>" +
+            "<b>3.</b> Les <b>autres</b> votent <b>A ou B</b>. Le vote est secret côté serveur.<br>" +
             "<b>4.</b> Le gagnant marque des points. Ça tourne à chaque round.<br>" +
+            "<b>👥 Idéal à 4 joueurs et +</b> : à 3, il n'y a qu'un seul juge par round.<br>" +
             "<b>Stat de la partie :</b> 🎤 « Meilleur vanneur » va au joueur qui a remporté le plus de rounds.",
     mount:  build,
     render: render

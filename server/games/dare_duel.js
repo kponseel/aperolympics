@@ -225,6 +225,6 @@ module.exports = {
   id: "dare_duel",
   name: "Cap ou pas cap",
   emoji: "😏",
-  desc: "Cap (tu le fais) ou Pas cap (tu bois) ? 100 défis sur 3 niveaux.",
+  desc: "Cap (tu le fais) ou Pas cap (tu bois) ? 99 défis sur 3 niveaux, chacun son tour.",
   create,
 };
