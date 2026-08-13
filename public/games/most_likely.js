@@ -82,8 +82,8 @@
   window.GamesHub.register("most_likely", {
     name:   "Le plus susceptible",
     emoji:  "😈",
-    desc:   "10 questions parmi 220+ — vote secret, qui colle le mieux ? (intègre les anciens Superlatifs)",
-    minPlayers: 3,
+    desc:   "10 questions parmi 220+ — vote secret, qui colle le mieux ?",
+    minPlayers: 3, endable: true, hostAdvance: true,
     rules:  "<b>Vote secret</b> : qui dans le groupe colle le mieux à la phrase ?<br>" +
             "Les questions mélangent deux styles : <b>« Qui est le plus susceptible de… »</b> et <b>« Le/la plus X du groupe »</b> (catégorie : drôle, style, organisé, voyageur…).<br>" +
             "Tout le monde vote <b>en même temps</b>, sans voir les autres choix.<br>" +

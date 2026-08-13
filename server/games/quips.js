@@ -198,7 +198,14 @@ function create() {
     onPlayerLeave: (room, p) => {
       if (phase !== "playing") return;
       if (p && isContestant(p.name)) { if (step === 0) advance(room); }
-      else if (step === 1 && allVotersVoted(room)) advance(room);
+      else if (step === 1) {
+        // Reveal as soon as every remaining voter has voted — OR when there is
+        // no voter left at all (à 3 joueurs il n'y a qu'un seul votant : s'il
+        // part pendant le vote, le round doit se conclure avec les votes déjà
+        // exprimés au lieu de rester bloqué).
+        const voters = room.activePlayers().filter((x) => !isContestant(x.name));
+        if (voters.length === 0 || allVotersVoted(room)) advance(room);
+      }
     },
     onMessage: (room, p, msg) => {
       if (!p || phase !== "playing") return;

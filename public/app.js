@@ -22,8 +22,8 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
   // Build tag — single source of truth for the version badge in the corner.
   // Bump in lockstep with sw.js CACHE on every release; this is what surfaces
   // at the bottom-right so a tester can quickly confirm which build is live.
-  var APP_VERSION = "v53";
-  var APP_BUILD = "2026-06-19";
+  var APP_VERSION = "v54";
+  var APP_BUILD = "2026-06-23";
 
   var socket, myName = "", myRoom = "", state = null, currentRendererId = null, rejoining = false, wasHost = null, toastTimer = null, lastResultsSig = "";
   var rejoinTries = 0, rejoinTimer = null; // reconnection retry state
@@ -521,6 +521,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
       navMenu.innerHTML = activePlay ? '🏠 <span>Arrêter</span>' : '🏠';
     }
     $("navHistoryBtn").style.display = (roomed && state && state.history && state.history.length) ? "" : "none";
+    // ⏭️ "Passer / révéler" — host-only escape hatch for vote/word games that
+    // declare `hostAdvance: true`. During `playing`, a single connected-but-
+    // idle player can otherwise stall the whole round (no auto-reveal until
+    // everyone has acted). This emits t:next so the host can force the reveal.
+    var gDef = inGame ? window.Apero.games[state.game] : null;
+    var canSkip = !!(gDef && gDef.hostAdvance && amHost() && state.phase === "playing");
+    $("navSkipBtn").style.display = canSkip ? "" : "none";
     // 🏁 "Terminer la session" — only meaningful for loop-only games that
     // declare `endable: true` and only while playing/reveal (host's call).
     var endDef = inGame ? window.Apero.games[state.game] : null;
@@ -1052,6 +1059,13 @@ window.GamesHub = window.Apero; // compat alias: ported renderers can keep windo
     });
 
     $("startBtn").onclick = function () { send({ t: "next" }); };
+    $("navSkipBtn").onclick = function () {
+      if (!amHost()) return;
+      // Force the reveal of the current round. Benign (the server just runs the
+      // game's normal playing→reveal step), so no confirm — the host taps this
+      // precisely when a player is blocking.
+      send({ t: "next" });
+    };
     $("backToHubBtn").onclick = function () { send({ t: "select_game", id: "" }); };
     $("navMenuBtn").onclick = function () {
       if (!amHost()) return;

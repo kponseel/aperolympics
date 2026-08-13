@@ -174,6 +174,6 @@ module.exports = {
   id: "defuse",
   name: "Désamorçage",
   emoji: "💣",
-  desc: "Coop 2 joueurs : l'un voit la bombe, l'autre le manuel. Parlez-vous !",
+  desc: "Coop 2 à 4 (idéal 3) : un démineur voit la bombe, les experts le manuel. Parlez-vous !",
   create,
 };

@@ -73,7 +73,7 @@
     name:   "Je n'ai jamais",
     emoji:  "🙊",
     desc:   "10 questions parmi 130 — anonyme, j'ai déjà ou jamais ?",
-    minPlayers: 2,
+    minPlayers: 2, hostAdvance: true,
     rules:  "Une phrase \"Je n'ai jamais...\" s'affiche.<br>" +
             "Chacun choisit <b>J'ai deja</b> ou <b>Jamais</b>.<br>" +
             "Le reveal montre uniquement les <b>compteurs</b> par question (qui a repondu quoi reste secret).<br>" +

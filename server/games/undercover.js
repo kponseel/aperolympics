@@ -170,8 +170,14 @@ function create() {
           return { name: p.name, count: c };
         });
         const undercovers = entries.filter((p) => roleOf(p.name) === "undercover").map((p) => p.name);
-        let civiliansWin = undercovers.length > 0;
-        undercovers.forEach((n) => { if ((votes[n] || 0) < max || max === 0) civiliansWin = false; });
+        const ucSet = new Set(undercovers);
+        // Comme Spyfall (jeux jumeaux), une égalité au sommet PROTÈGE l'intrus :
+        // les civils ne gagnent QUE si TOUS les joueurs au sommet des votes sont
+        // des intrus (le groupe a clairement désigné l'imposteur). Avant, un
+        // partage 1-1-1 à 3 joueurs donnait la victoire aux civils sans qu'ils
+        // aient réellement démasqué l'intrus. (Gère aussi les 2 intrus à 5+.)
+        const atMax = max > 0 ? entries.filter((p) => (votes[p.name] || 0) === max) : [];
+        const civiliansWin = undercovers.length > 0 && atMax.length > 0 && atMax.every((p) => ucSet.has(p.name));
         r.undercovers = undercovers;
         r.word_civ = wordCiv;
         r.word_uc = wordUc;

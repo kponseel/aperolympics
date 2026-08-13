@@ -54,7 +54,7 @@
         h.$("paPrompt").textContent = priv.prompt || "Chargement…";
         var targets = h.$("paTargets");
         targets.innerHTML = "";
-        state.players.filter(function (p) { return p.connected; }).forEach(function (p) {
+        state.players.filter(function (p) { return p.connected && !(me && p.id === me.id); }).forEach(function (p) {
           var btn = document.createElement("button");
           btn.className = "ghost";
           btn.style.margin = "4px 0";
@@ -96,13 +96,13 @@
   window.GamesHub.register("paranoia", {
     name:   "Paranoia",
     emoji:  "👀",
-    desc:   "Question secrète à une personne — 85 prompts. Le doigt parle, le coin décide.",
-    minPlayers: 3,
+    desc:   "Question secrète à une personne — 85 prompts. Le doigt parle, la pièce décide.",
+    minPlayers: 3, hostAdvance: true,
     endable: true,
     rules:  "<b>1.</b> Un seul joueur reçoit une <b>question privée</b> sur son tel (les autres ne voient rien).<br>" +
             "<b>2.</b> Il/elle pointe discrètement la personne qui colle le mieux à la question.<br>" +
             "<b>3.</b> Tout le groupe voit <b>qui</b> a été pointé — sans savoir pourquoi.<br>" +
-            "<b>4.</b> Le <b>coin 🪙</b> est tiré : 50% chance que la question soit révélée, 50% qu'elle reste mystère.<br>" +
+            "<b>4.</b> La <b>pièce 🪙</b> est tirée : 50% de chance que la question soit révélée, 50% qu'elle reste mystère.<br>" +
             "Tour rotatif. Reste paranoïaque ! 👀<br>" +
             "<b>Stat de la partie :</b> 👀 « Le plus accusé » va au joueur le plus souvent pointé.",
     mount:  build,

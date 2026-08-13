@@ -71,7 +71,7 @@
   window.GamesHub.register("mind_meld", {
     name: "Le Convergent", emoji: "🤝",
     desc: "Pensez au même mot ! Télépathie validée = vous trinquez.",
-    minPlayers: 2, endable: true,
+    minPlayers: 2, endable: true, hostAdvance: true,
     rules: "Un <b>thème</b> s'affiche (ex. « un fruit »). Chacun tape <b>un seul mot</b> en secret.<br>" +
            "Au reveal, on compare : <b>mots identiques = télépathie</b> 🤝 (vous trinquez ensemble) ; " +
            "sinon, vous buvez chacun 🍺.<br>" +
