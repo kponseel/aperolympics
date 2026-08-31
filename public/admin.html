@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin — Aperolympics</title>
   <meta name="robots" content="noindex,nofollow" />
+  <!-- Favicon inline : évite un aller-retour 404 sur /favicon.ico et rend
+       l'onglet reconnaissable au milieu des onglets de jeu. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%9B%A0%EF%B8%8F%3C/text%3E%3C/svg%3E" />
   <style>
     :root { --bg: #0f1020; --card: #161830; --border: #2a2f5c; --soft: #9aa3d6; --accent: #5b6cff; --danger: #c84545; --good: #2fc41f; --warn: #ffd23f; }
     * { box-sizing: border-box; }
@@ -84,6 +87,19 @@
       <div id="playersHost"></div>
       <div id="playersMsg"></div>
     </section>
+
+    <!-- ===== Are We A Match?: players ===== -->
+    <section>
+      <h2>💘 Are We A Match ? — Comptes joueurs</h2>
+      <p class="desc">Comptes de la sous-app <code>/AreWeAMatch</code> (<code>server/match/players.json</code>). Supprimer un compte efface aussi ses réponses mémorisées : il ne sera plus proposé dans les « matchs d'un autre soir ».</p>
+      <div class="toolbar">
+        <button class="refresh" id="reloadMatch">⟳ Recharger</button>
+        <input type="search" id="filterMatch" placeholder="Filtrer par pseudo…" />
+        <span class="meta" id="matchCount"></span>
+      </div>
+      <div id="matchHost"></div>
+      <div id="matchMsg"></div>
+    </section>
   </main>
 
   <script>
@@ -93,7 +109,7 @@
       var esc = function (t) { var d = document.createElement("div"); d.textContent = String(t == null ? "" : t); return d.innerHTML; };
       var setStatus = function (t, cls) { var el = $("status"); el.textContent = t || ""; el.className = "sub " + (cls || ""); };
 
-      var roomsCache = [], playersCache = [];
+      var roomsCache = [], playersCache = [], matchCache = [];
 
       // --- API helpers ------------------------------------------------------
       function api(path, opts) {
@@ -174,13 +190,17 @@
           }).join("") +
           '</tbody></table>';
       }
+      // Les load* renvoient une promesse résolue à true/false : le message de
+      // succès est écrit APRÈS le rafraîchissement, sinon il serait effacé par
+      // le re-rendu et l'action semblerait n'avoir rien fait.
       function loadRooms() {
-        $("roomsMsg").textContent = "";
-        api("/rooms").then(function (j) {
+        return api("/rooms").then(function (j) {
           roomsCache = j.rooms || [];
           renderRooms();
+          return true;
         }).catch(function (e) {
           $("roomsMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+          return false;
         });
       }
 
@@ -224,49 +244,126 @@
           '</tbody></table>';
       }
       function loadPlayers() {
-        $("playersMsg").textContent = "";
-        api("/qm/players").then(function (j) {
+        return api("/qm/players").then(function (j) {
           playersCache = j.players || [];
           renderPlayers();
+          return true;
         }).catch(function (e) {
           $("playersMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+          return false;
+        });
+      }
+
+      // --- Players (Are We A Match?) ----------------------------------------
+      function renderMatch() {
+        var host = $("matchHost");
+        var filter = ($("filterMatch").value || "").trim().toLowerCase();
+        var rows = matchCache.filter(function (p) { return !filter || p.name.toLowerCase().includes(filter); });
+        $("matchCount").textContent = rows.length + " / " + matchCache.length + " compte" + (matchCache.length > 1 ? "s" : "");
+        if (!rows.length) { host.innerHTML = '<div class="empty">Aucun compte.</div>'; return; }
+        host.innerHTML =
+          '<table><thead><tr>' +
+            '<th>Pseudo</th>' +
+            '<th>PIN</th>' +
+            '<th>Parties</th>' +
+            '<th>Réponses</th>' +
+            '<th>Packs</th>' +
+            '<th>Dernière</th>' +
+            '<th></th>' +
+          '</tr></thead><tbody>' +
+          rows.map(function (p) {
+            return '<tr>' +
+              '<td><b>' + esc(p.name) + '</b></td>' +
+              '<td>' + (p.protected ? '<span class="pill protected">🔒 oui</span>' : '<span class="meta">non</span>') + '</td>' +
+              '<td>' + p.games + '</td>' +
+              '<td>' + p.answered + '</td>' +
+              '<td>' + p.packs + '</td>' +
+              '<td>' + fmtLast(p.lastAt) + '</td>' +
+              '<td class="row-actions">' +
+                (p.protected ? '<button data-act="am-reset-pin" data-name="' + esc(p.name) + '">🔓 Reset PIN</button>' : '') +
+                '<button class="danger" data-act="am-delete-player" data-name="' + esc(p.name) + '">🗑️ Supprimer</button>' +
+              '</td>' +
+            '</tr>';
+          }).join("") +
+          '</tbody></table>';
+      }
+      function loadMatch() {
+        return api("/match/players").then(function (j) {
+          matchCache = j.players || [];
+          renderMatch();
+          return true;
+        }).catch(function (e) {
+          $("matchMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+          return false;
         });
       }
 
       // --- Delegated click handler (all destructive actions confirm) --------
+      // Une entrée par bouton : confirmation, endpoint, section à rafraîchir.
+      var ACTIONS = {
+        "close-room": {
+          arg: "code", msg: "roomsMsg", reload: function () { return loadRooms(); },
+          confirm: function (v) { return "Fermer la salle " + v + " ?\nTous les joueurs connectés vont être éjectés."; },
+          url: "/rooms/delete", body: function (v) { return { code: v }; },
+          done: function (v) { return "Salle " + v + " fermée."; },
+        },
+        "reset-pin": {
+          arg: "name", msg: "playersMsg", reload: function () { return loadPlayers(); },
+          confirm: function (v) { return "Réinitialiser le PIN de « " + v + " » ?\nLes stats sont conservées ; le joueur pourra remettre un nouveau PIN depuis n'importe quel appareil."; },
+          url: "/qm/reset-pin", body: function (v) { return { name: v }; },
+          done: function (v) { return "PIN de « " + v + " » réinitialisé."; },
+        },
+        "delete-player": {
+          arg: "name", msg: "playersMsg", reload: function () { return loadPlayers(); },
+          confirm: function (v) { return "Supprimer définitivement le compte « " + v + " » ?\nStats, PIN et records seront perdus."; },
+          url: "/qm/delete", body: function (v) { return { name: v }; },
+          done: function (v) { return "Compte « " + v + " » supprimé."; },
+        },
+        "am-reset-pin": {
+          arg: "name", msg: "matchMsg", reload: function () { return loadMatch(); },
+          confirm: function (v) { return "Réinitialiser le PIN de « " + v + " » (Are We A Match ?) ?\nSes réponses sont conservées ; il pourra remettre un nouveau PIN depuis n'importe quel appareil."; },
+          url: "/match/reset-pin", body: function (v) { return { name: v }; },
+          done: function (v) { return "PIN de « " + v + " » réinitialisé."; },
+        },
+        "am-delete-player": {
+          arg: "name", msg: "matchMsg", reload: function () { return loadMatch(); },
+          confirm: function (v) { return "Supprimer définitivement le compte « " + v + " » (Are We A Match ?) ?\nSes réponses mémorisées seront perdues : plus de match historique avec lui."; },
+          url: "/match/delete", body: function (v) { return { name: v }; },
+          done: function (v) { return "Compte « " + v + " » supprimé."; },
+        },
+      };
       document.addEventListener("click", function (e) {
         var b = e.target.closest && e.target.closest("[data-act]");
         if (!b) return;
-        var act = b.getAttribute("data-act");
-        if (act === "close-room") {
-          var code = b.getAttribute("data-code");
-          if (!window.confirm("Fermer la salle " + code + " ? Tous les joueurs connectés vont être éjectés.")) return;
-          api("/rooms/delete", { method: "POST", body: { code: code } })
-            .then(function () { $("roomsMsg").innerHTML = '<div class="ok">Salle ' + esc(code) + ' fermée.</div>'; loadRooms(); })
-            .catch(function (err) { $("roomsMsg").innerHTML = '<div class="err">Erreur : ' + esc(err.message) + '</div>'; });
-        } else if (act === "reset-pin") {
-          var name = b.getAttribute("data-name");
-          if (!window.confirm("Réinitialiser le PIN de « " + name + " » ?\nLes stats sont conservées ; le joueur pourra remettre un nouveau PIN depuis n'importe quel appareil.")) return;
-          api("/qm/reset-pin", { method: "POST", body: { name: name } })
-            .then(function () { $("playersMsg").innerHTML = '<div class="ok">PIN de « ' + esc(name) + ' » réinitialisé.</div>'; loadPlayers(); })
-            .catch(function (err) { $("playersMsg").innerHTML = '<div class="err">Erreur : ' + esc(err.message) + '</div>'; });
-        } else if (act === "delete-player") {
-          var n = b.getAttribute("data-name");
-          if (!window.confirm("Supprimer définitivement le compte « " + n + " » ?\nStats, PIN et records seront perdus.")) return;
-          api("/qm/delete", { method: "POST", body: { name: n } })
-            .then(function () { $("playersMsg").innerHTML = '<div class="ok">Compte « ' + esc(n) + ' » supprimé.</div>'; loadPlayers(); })
-            .catch(function (err) { $("playersMsg").innerHTML = '<div class="err">Erreur : ' + esc(err.message) + '</div>'; });
-        }
+        var a = ACTIONS[b.getAttribute("data-act")];
+        if (!a) return;
+        var v = b.getAttribute("data-" + a.arg);
+        if (!window.confirm(a.confirm(v))) return;
+        $(a.msg).textContent = "";
+        api(a.url, { method: "POST", body: a.body(v) })
+          .then(a.reload)
+          .then(function (ok) {
+            if (ok) $(a.msg).innerHTML = '<div class="ok">' + esc(a.done(v)) + '</div>';
+          })
+          .catch(function (err) {
+            $(a.msg).innerHTML = '<div class="err">Erreur : ' + esc(err.message) + '</div>';
+          });
       });
 
       // --- Wiring -----------------------------------------------------------
-      $("reloadRooms").onclick = loadRooms;
-      $("reloadPlayers").onclick = loadPlayers;
+      function wireReload(btn, msg, load) {
+        $(btn).onclick = function () { $(msg).textContent = ""; load(); };
+      }
+      wireReload("reloadRooms", "roomsMsg", loadRooms);
+      wireReload("reloadPlayers", "playersMsg", loadPlayers);
+      wireReload("reloadMatch", "matchMsg", loadMatch);
       $("filterRooms").addEventListener("input", renderRooms);
       $("filterPlayers").addEventListener("input", renderPlayers);
+      $("filterMatch").addEventListener("input", renderMatch);
       setStatus("Prêt");
       loadRooms();
       loadPlayers();
+      loadMatch();
     })();
   </script>
 </body>

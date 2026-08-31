@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <title>Are We A Match ?</title>
+  <meta name="theme-color" content="#120f1e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Are We A Match" />
+  <link rel="manifest" href="/AreWeAMatch/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+  <link rel="stylesheet" href="/AreWeAMatch/style.css" />
+</head>
+<body>
+  <header class="am-topbar">
+    <button type="button" class="am-back" id="amBack" style="display:none">← Packs</button>
+    <div class="am-brand">💘 <span>Are We A Match ?</span></div>
+    <button type="button" class="am-help" id="amHelp" aria-label="Aide et règles">?</button>
+    <div class="am-me" id="amMe">
+      <button type="button" class="am-who" id="amWho" aria-label="Mon profil"></button>
+      <button type="button" class="am-icon" id="amProtect" title="Protéger mon pseudo" aria-label="Protéger avec un PIN">🔒</button>
+    </div>
+  </header>
+  <div class="am-sub center" id="amStatus">Connexion…</div>
+
+  <main class="am-main">
+    <!-- Étape 1 : pseudo (+ PIN optionnel) -->
+    <section class="am-screen on" id="s-pseudo">
+      <div class="am-hero">
+        <div class="am-hero-emoji">💘</div>
+        <h1>Are We A Match ?</h1>
+        <p class="am-lead">Classez vos préférences. On calcule qui est le plus compatible avec qui.</p>
+      </div>
+      <label class="am-label" for="amName">Ton pseudo</label>
+      <input id="amName" placeholder="Ex : Marie" maxlength="16" autocomplete="off" inputmode="text" />
+
+      <label class="am-label" for="amPin" id="amPinLabel">
+        🔒 Code PIN <span class="am-soft">(4 chiffres — facultatif)</span>
+        <button type="button" class="am-info" data-help="pin" aria-label="À quoi sert le PIN ?">?</button>
+      </label>
+      <input id="amPin" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
+
+      <button class="am-primary" id="amContinue">C'est parti →</button>
+      <div class="am-error center" id="amPseudoError"></div>
+
+      <div id="amLocked" class="am-locked" style="display:none">
+        <p class="am-lead center">Trop d'essais. Ce pseudo est protégé.</p>
+        <button class="am-primary" id="amNewName">Choisir un autre pseudo</button>
+      </div>
+
+      <ol class="am-steps">
+        <li><span class="num">1</span> Chaque question propose <b>3 options</b>.</li>
+        <li><span class="num">2</span> Tu les <b>classes</b> : 1er = ton préféré, 3e = le moins aimé.</li>
+        <li><span class="num">3</span> À la fin : <b>qui matche avec qui</b>, tout le monde contre tout le monde.</li>
+      </ol>
+    </section>
+
+    <!-- Étape 2 : choix du pack -->
+    <section class="am-screen" id="s-hall">
+      <div class="am-hall-head">
+        <h2>Choisis ton pack</h2>
+        <p class="am-lead">2 joueurs minimum · 10 questions</p>
+      </div>
+      <div class="am-packs" id="amPacks"></div>
+      <div class="am-card am-howto">
+        <h3>💡 Comment on calcule ?</h3>
+        <p class="am-hint">
+          Sur chaque question, on compare vos classements <b>deux options à la fois</b>
+          (3 comparaisons par question). Vous marquez 1 point par accord.
+          Plus vous êtes d'accord, plus vous êtes compatibles.
+        </p>
+      </div>
+    </section>
+
+    <!-- Étape 3 : salle -->
+    <section class="am-screen" id="s-room">
+      <div class="am-room-head">
+        <span class="am-room-emoji" id="amRoomEmoji">💘</span>
+        <h2 id="amRoomTitle">…</h2>
+      </div>
+      <div id="amRoomBody"></div>
+    </section>
+  </main>
+
+  <!-- Overlay (aide / formulaires / profil) -->
+  <div class="am-overlay" id="amOverlay" style="display:none">
+    <div class="am-sheet">
+      <div class="am-sheet-head"><h2 id="amSheetTitle">Aide</h2><button type="button" class="am-close" id="amSheetClose" aria-label="Fermer">✕</button></div>
+      <div class="am-sheet-body" id="amSheetBody"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/AreWeAMatch/app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js", { scope: "/AreWeAMatch/" });
+  </script>
+</body>
+</html>

@@ -43,6 +43,7 @@ function basicAuth(req, res, next) {
 
 function mount({ app, io, rooms }) {
   const qmPlayers = require("./quizzmaster/players");
+  const amPlayers = require("./match/players");
 
   // === HTML page ===
   app.get("/admin", basicAuth, (_req, res) => {
@@ -104,6 +105,27 @@ function mount({ app, io, rooms }) {
     const name = String((req.body && req.body.name) || "").trim();
     if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
     const ok = qmPlayers.adminResetPin(name);
+    if (!ok) return res.status(404).json({ ok: false, error: "not_found" });
+    res.json({ ok: true });
+  });
+
+  // -- Are We A Match? players --------------------------------------------
+  api.get("/match/players", (_req, res) => {
+    res.json({ players: amPlayers.adminList() });
+  });
+
+  api.post("/match/delete", (req, res) => {
+    const name = String((req.body && req.body.name) || "").trim();
+    if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
+    const ok = amPlayers.adminDelete(name);
+    if (!ok) return res.status(404).json({ ok: false, error: "not_found" });
+    res.json({ ok: true });
+  });
+
+  api.post("/match/reset-pin", (req, res) => {
+    const name = String((req.body && req.body.name) || "").trim();
+    if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
+    const ok = amPlayers.adminResetPin(name);
     if (!ok) return res.status(404).json({ ok: false, error: "not_found" });
     res.json({ ok: true });
   });
