@@ -21,8 +21,12 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const storage = require("../storage");
 
-const FILE = path.join(__dirname, "players.json");
+// Le fichier vit hors du dossier déployé (voir server/storage.js) : ici, il
+// serait emporté par chaque mise en ligne.
+const store = storage.open("quizzmaster", path.join(__dirname, "players.json"));
+const FILE = store.file;
 const TOP_N = 10;
 const PIN_RE = /^\d{4}$/;
 
@@ -53,22 +57,14 @@ function ensureSchema(a) {
 }
 
 function load() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(FILE, "utf8"));
-    if (parsed && parsed.byName) {
-      for (const k in parsed.byName) ensureSchema(parsed.byName[k]);
-      return parsed;
-    }
-  } catch (e) {}
+  const parsed = store.read();
+  if (parsed && parsed.byName) {
+    for (const k in parsed.byName) ensureSchema(parsed.byName[k]);
+    return parsed;
+  }
   return emptyData();
 }
-function save() {
-  try {
-    const tmp = FILE + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(data));
-    fs.renameSync(tmp, FILE);
-  } catch (e) { console.error("[QuizzMaster] players save failed:", e.message); }
-}
+function save() { store.write(data); }
 
 function key(name) { return String(name || "").trim().toLowerCase(); }
 function hashPin(pin, salt) { return crypto.createHash("sha256").update(salt + ":" + String(pin)).digest("hex"); }

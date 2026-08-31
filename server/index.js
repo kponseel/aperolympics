@@ -322,4 +322,13 @@ require("./match")({ app, io });
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`[Aperolympics] up on :${PORT} — ${registry.list().length} game(s) registered`);
+  // Où atterrissent les comptes. Le dire au démarrage évite de découvrir trop
+  // tard qu'ils étaient écrits dans le dossier déployé (donc perdus à chaque
+  // mise en ligne) ou pas écrits du tout.
+  const st = require("./storage").describeAll();
+  console.log(`[storage] données dans ${st.dir} (source: ${st.source})`);
+  for (const s of st.stores) {
+    if (s.warning) console.warn(`[storage] ⚠️  ${s.name}: ${s.warning}`);
+    else if (!s.writable) console.warn(`[storage] ⚠️  ${s.name}: ${s.file} n'est PAS inscriptible — aucun compte ne sera sauvegardé.`);
+  }
 });

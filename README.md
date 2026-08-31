@@ -89,6 +89,25 @@ Chaque sous-app se branche depuis `server/index.js` en une ligne
 (`require("./quizzmaster")({ app, io })`, `require("./match")({ app, io })`) : elle
 monte son statique, son fallback SPA et son namespace toute seule.
 
+### 💾 Où vivent les comptes (`DATA_DIR`)
+
+Les comptes QuizzMaster et Are We A Match ? (pseudo, PIN, stats, réponses) sont
+des fichiers JSON **gitignorés** : ils ne sont jamais dans le dépôt. S'ils sont
+écrits dans le dossier de l'application, **un déploiement qui remplace ce
+dossier les emporte** — et si le dossier est en lecture seule, les sauvegardes
+échouent sans que personne ne le voie.
+
+Le serveur les écrit donc **hors du dossier déployé**, dans l'ordre :
+
+1. **`DATA_DIR`** si la variable est définie — *à utiliser en prod* ;
+2. sinon `~/.aperolympics` ;
+3. en dernier recours, à côté du code (dev et CI) — et il le signale bruyamment.
+
+L'emplacement retenu est logué au démarrage et affiché dans `/admin` (section
+**💾 Stockage des comptes**, avec taille, inscriptibilité et dernière erreur
+d'écriture). Au premier lancement, un ancien fichier trouvé à côté du code est
+recopié automatiquement : rien n'est perdu en passant à cette version.
+
 ### 🛠️ Panneau `/admin`
 
 Trois sections à la même URL : salles Aperolympics en cours, comptes QuizzMaster,

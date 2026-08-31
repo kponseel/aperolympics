@@ -55,6 +55,15 @@ function mount({ app, io, rooms }) {
   api.use(basicAuth);
   api.use(express.json({ limit: "16kb" }));
 
+  // -- Stockage --------------------------------------------------------------
+  // Où les comptes sont réellement écrits, et si l'écriture fonctionne. C'est
+  // le premier endroit à regarder quand « il n'y a plus aucun compte ».
+  api.get("/storage", (_req, res) => {
+    const s = require("./storage").describeAll();
+    const counts = { quizzmaster: qmPlayers.adminList().length, match: amPlayers.adminList().length };
+    res.json({ storage: s, counts });
+  });
+
   // -- Aperolympics rooms ----------------------------------------------------
   api.get("/rooms", (_req, res) => {
     const list = rooms.all().map((r) => ({

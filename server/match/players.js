@@ -19,8 +19,13 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const engine = require("./engine");
+const storage = require("../storage");
 
-const FILE = path.join(__dirname, "players.json");
+// Hors du dossier déployé (voir server/storage.js) : les réponses mémorisées
+// sont tout l'intérêt du « match d'un autre soir », les perdre à chaque mise
+// en ligne viderait la fonctionnalité de son sens.
+const store = storage.open("match", path.join(__dirname, "players.json"));
+const FILE = store.file;
 const PIN_RE = /^\d{4}$/;
 const TOP_N = 10;
 
@@ -39,22 +44,14 @@ function ensureSchema(a) {
 }
 
 function load() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(FILE, "utf8"));
-    if (parsed && parsed.byName) {
-      for (const k in parsed.byName) ensureSchema(parsed.byName[k]);
-      return parsed;
-    }
-  } catch (e) {}
+  const parsed = store.read();
+  if (parsed && parsed.byName) {
+    for (const k in parsed.byName) ensureSchema(parsed.byName[k]);
+    return parsed;
+  }
   return emptyData();
 }
-function save() {
-  try {
-    const tmp = FILE + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(data));
-    fs.renameSync(tmp, FILE);
-  } catch (e) { console.error("[AreWeAMatch] players save failed:", e.message); }
-}
+function save() { store.write(data); }
 
 function key(name) { return String(name || "").trim().toLowerCase(); }
 function hashPin(pin, salt) { return crypto.createHash("sha256").update(salt + ":" + String(pin)).digest("hex"); }
