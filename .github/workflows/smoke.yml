@@ -31,10 +31,29 @@ jobs:
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000$1")
             if [ "$code" = "200" ]; then echo "OK   $1 -> $code"; else echo "FAIL $1 -> $code"; fail=1; fi
           }
+          check_code() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000$1")
+            if [ "$code" = "$2" ]; then echo "OK   $1 -> $code"; else echo "FAIL $1 -> $code (attendu $2)"; fail=1; fi
+          }
+          # --- Aperolympics ---
           check /
           check /socket.io/socket.io.js
           check /r/ABCD
           check /manifest.webmanifest
+          # --- QuizzMaster (sous-app /quizz, namespace /qm) ---
+          check /quizz/
+          check /quizz/app.js
+          # --- Are We A Match? (sous-app /AreWeAMatch, namespace /match) ---
+          check /AreWeAMatch/
+          check /AreWeAMatch/app.js
+          check /AreWeAMatch/style.css
+          check /AreWeAMatch/sw.js
+          check /AreWeAMatch/manifest.webmanifest
+          # Le raccourci /match doit rediriger vers l'URL canonique, pas servir
+          # une page : c'est ce qui évite un alias parasite sur le static racine.
+          check_code /match 302
+          # --- /admin : fail-safe, fermé tant qu'ADMIN_PASSWORD n'est pas définie ---
+          check_code /admin 503
           # Socket.IO long-polling handshake (the shared-hosting fallback path).
           hs=$(curl -s "http://127.0.0.1:3000/socket.io/?EIO=4&transport=polling")
           if echo "$hs" | grep -q '"sid"'; then echo "OK   engine.io handshake"; else echo "FAIL engine.io handshake -> $hs"; fail=1; fi
