@@ -41,6 +41,12 @@ function makeRoom(packDef) {
   let state = "idle";            // idle | question | reveal | results
   let questions = [];            // questions tirées pour la manche en cours
   let qIdx = 0;
+  // Sac de tirage : on pioche SANS REMISE et on ne rebat le paquet qu'une fois
+  // vide. Redistribuer les 45 questions à chaque manche ramenait en moyenne
+  // 2,2 questions déjà vues sur 10 — d'où l'impression de tourner en rond.
+  // Avec le sac, une soirée enchaîne 4 manches sans la moindre répétition.
+  let bag = [];
+  let lastRoundIds = [];         // pour ne pas réenchaîner à cheval sur 2 sacs
   let answers = {};              // { [questionId]: { [name]: ranking } }
   let deadline = 0;              // fin de la phase courante (timestamp absolu)
   let lastResults = null;
@@ -84,11 +90,45 @@ function makeRoom(packDef) {
     return act.every((n) => a[n]);
   }
 
+  // Rebat le paquet en repoussant à la fin les questions de la manche
+  // précédente : au moment où le sac se vide en cours de soirée, on ne veut
+  // pas retomber immédiatement sur ce qui vient d'être posé.
+  function refillBag(avoidIds) {
+    const fresh = shuffle(packDef.bank);
+    const recent = new Set(avoidIds || []);
+    if (!recent.size) return fresh;
+    const cold = fresh.filter((q) => !recent.has(q.id));
+    const warm = fresh.filter((q) => recent.has(q.id));
+    return cold.concat(warm);
+  }
+
+  function drawQuestions(n) {
+    const out = [];
+    const taken = new Set();
+    // Le sac peut se vider AU MILIEU d'une manche : il est alors rebattu en
+    // écartant ce qui vient d'être posé (manche précédente et début de la
+    // manche en cours), sans quoi la même question tomberait deux fois dans
+    // la même partie.
+    let guard = packDef.bank.length * 3 + n;
+    while (out.length < n && guard-- > 0) {
+      if (!bag.length) {
+        bag = refillBag(lastRoundIds.concat([...taken]));
+        if (!bag.length) break;      // banque vide : rien à tirer
+      }
+      const q = bag.shift();
+      if (taken.has(q.id)) continue; // déjà posée dans cette manche
+      taken.add(q.id);
+      out.push(q);
+    }
+    return out;
+  }
+
   function startRound() {
     if (activePlayers().length < MIN_PLAYERS) return false;
-    const picked = shuffle(packDef.bank).slice(0, Math.min(QUESTIONS_PER_ROUND, packDef.bank.length));
+    const picked = drawQuestions(Math.min(QUESTIONS_PER_ROUND, packDef.bank.length));
     if (!picked.length) return false;
     questions = picked;
+    lastRoundIds = picked.map((q) => q.id);
     qIdx = 0;
     answers = {};
     lastResults = null;
