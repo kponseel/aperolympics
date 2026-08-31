@@ -317,6 +317,9 @@ require("./admin")({ app, io, rooms });
 // QuizzMaster sub-app: serves /quizz/* + Socket.IO namespace /qm.
 require("./quizzmaster")({ app, io });
 
+// Are We A Match? sub-app: serves /AreWeAMatch/* + Socket.IO namespace /match.
+require("./match")({ app, io });
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`[Aperolympics] up on :${PORT} — ${registry.list().length} game(s) registered`);
 });

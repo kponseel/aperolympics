@@ -73,6 +73,35 @@ centrée, boutons cliquables, **Entrée** pour valider). Pour tester en solo sur
 ouvre simplement **plusieurs onglets / fenêtres** (chacun = un joueur) ; pour un *office
 game*, chaque collègue ouvre l'URL sur sa machine.
 
+## 🧩 Sous-apps servies par le même process
+
+Un seul `npm start` sert trois fronts distincts (chacun sa PWA, son service worker
+et son namespace Socket.IO) :
+
+| URL | Namespace | Quoi |
+| --- | --- | --- |
+| `/` | `/` | **Aperolympics** — les épreuves de soirée en rooms à code 4 lettres. |
+| `/quizz` | `/qm` | **QuizzMaster** — quiz à thèmes, comptes persistants + classement. |
+| `/AreWeAMatch` | `/match` | **Are We A Match ?** — compatibilité de groupe : 3 choix à classer par question, tout le monde comparé à tout le monde. |
+| `/admin` | — | Panneau d'administration (voir ci-dessous). |
+
+Chaque sous-app se branche depuis `server/index.js` en une ligne
+(`require("./quizzmaster")({ app, io })`, `require("./match")({ app, io })`) : elle
+monte son statique, son fallback SPA et son namespace toute seule.
+
+### 🛠️ Panneau `/admin`
+
+Trois sections à la même URL : salles Aperolympics en cours, comptes QuizzMaster,
+comptes Are We A Match ?. On peut fermer une salle, supprimer un compte ou
+réinitialiser son PIN (le joueur peut alors en remettre un depuis n'importe quel
+appareil).
+
+L'accès est en **HTTP Basic Auth** sur la variable d'environnement
+**`ADMIN_PASSWORD`** (n'importe quel identifiant, seul le mot de passe compte).
+**Tant qu'elle n'est pas définie, `/admin` répond `503`** — un déploiement neuf
+n'expose donc jamais un admin ouvert par accident. Sur Hostinger : hPanel →
+*Node.js* → **Environment variables** → ajoute `ADMIN_PASSWORD` → *Restart*.
+
 ## 🏗️ Arborescence
 
 ```
@@ -88,11 +117,26 @@ aperolympics/                # racine du dépôt
 │   └── games/
 │       ├── registry.js   # liste des jeux (ids = ceux des renderers client)
 │       └── quiz.js       # logique Quiz (portée de esp32-hub/src/games/quiz.cpp)
+│   ├── admin.js          # panneau /admin (Basic Auth via ADMIN_PASSWORD)
+│   ├── quizzmaster/      # sous-app QuizzMaster (/quizz + ns /qm)
+│   │   ├── index.js      # montage express + socket.io
+│   │   ├── rooms.js      # 1 salle par thème, machine à états
+│   │   ├── players.js    # comptes persistants (players.json, PIN, stats)
+│   │   └── themes/       # banques de questions
+│   └── match/            # sous-app Are We A Match? (/AreWeAMatch + ns /match)
+│       ├── index.js      # montage express + socket.io
+│       ├── rooms.js      # 1 salle par pack, question → reveal → résultats
+│       ├── engine.js     # calcul de compatibilité (pur, testable)
+│       ├── players.js    # comptes + réponses mémorisées (match historique)
+│       └── packs/        # Amis · Date · Piquant · Pop culture (45 questions ×4)
 └── public/               # PWA servie telle quelle
     ├── index.html
     ├── app.js            # cœur SPA (Socket.IO, rooms, routage, helpers)
     ├── style.css
+    ├── admin.html        # front du panneau /admin (vanilla, sans framework)
     ├── games/quiz.js     # renderer Quiz (contrat identique à GamesHub)
+    ├── quizz/            # front QuizzMaster (PWA à part : sw.js « qm-vN »)
+    ├── AreWeAMatch/      # front Are We A Match? (PWA à part : sw.js « am-vN »)
     ├── manifest.webmanifest
     ├── sw.js             # service worker (cache du shell)
     └── icons/icon.svg
@@ -154,6 +198,7 @@ dans le manifest et l'`apple-touch-icon`.
 
 ## ⚠️ Limites connues (starter)
 
-- **Une seule épreuve portée** (Quiz). Les 15 autres sont à porter (voir plus haut).
-- État **en mémoire** : un redémarrage du process vide les parties en cours.
-- Pas d'auth admin ici (le contrôle passe par le rôle *host*, élu = 1ᵉʳ connecté).
+- État **en mémoire** : un redémarrage du process vide les parties en cours
+  (les *comptes* QuizzMaster / Are We A Match ?, eux, sont bien persistés sur disque).
+- Dans une partie, le contrôle passe par le rôle *host* — élu = 1ᵉʳ connecté encore
+  actif. L'administration hors-partie, elle, est derrière `/admin` + `ADMIN_PASSWORD`.
