@@ -134,8 +134,8 @@
 
     <!-- ===== Are We A Match?: banques de questions ===== -->
     <section>
-      <h2>❓ Are We A Match ? — Questions par module</h2>
-      <p class="desc">Toutes les questions de chaque module, telles qu'elles seront posées en jeu. Lecture seule. L'ordre affiché est celui du fichier ; en partie les questions sont tirées au hasard, sans remise.</p>
+      <h2>❓ Are We A Match ? — Questions par pack</h2>
+      <p class="desc">Toutes les questions de chaque pack, telles qu'elles seront posées en jeu. Lecture seule. L'ordre affiché est celui du fichier ; en partie les questions sont tirées au hasard, sans remise.</p>
       <div class="toolbar" id="packTabs"></div>
       <div class="toolbar">
         <input type="search" id="filterQ" placeholder="Filtrer par mot…" />
@@ -193,6 +193,7 @@
             '<td>' + (st.mtime ? fmtLast(st.mtime) : '<span class="meta">jamais</span>') + '</td>' +
           '</tr>' +
           (st.lastError ? '<tr><td colspan="7"><div class="err">Dernière erreur d\'écriture : ' + esc(st.lastError.msg) + '</div></td></tr>' : '') +
+          (st.readError ? '<tr><td colspan="7"><div class="err">⚠️ Fichier illisible ou corrompu, mis en quarantaine : ' + esc(st.readError.msg) + '</div></td></tr>' : '') +
           (st.migratedFrom ? '<tr><td colspan="7"><div class="ok">Ancien fichier récupéré depuis ' + esc(st.migratedFrom) + '</div></td></tr>' : '');
         }).join("");
         host.innerHTML =
@@ -441,7 +442,7 @@
       function loadPacks() {
         return api("/match/packs").then(function (j) {
           packsCache = j.packs || [];
-          if (!packsCache.length) { $("qHost").innerHTML = '<div class="empty">Aucun module actif.</div>'; return true; }
+          if (!packsCache.length) { $("qHost").innerHTML = '<div class="empty">Aucun pack actif.</div>'; return true; }
           return loadQuestions(currentPack && packsCache.some(function (p) { return p.id === currentPack; })
             ? currentPack : packsCache[0].id);
         }).catch(function (e) {

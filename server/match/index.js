@@ -15,6 +15,16 @@ const packs = require("./packs");
 
 const TICK_MS = 250;              // le compte à rebours doit être fluide
 const MAX_PIN_ATTEMPTS = 5;
+const PIN_LOCK_MS = 15 * 60 * 1000;
+// Anti-brute-force au niveau du MODULE, clé = pseudo en minuscules — pas de
+// la session socket : sinon 5 essais par CONNEXION revenait à un PIN à 4
+// chiffres cassable en rechargeant simplement la page entre les tentatives.
+const pinFailsByName = new Map(); // name(lowercase) -> { count, lockedUntil }
+function pinFailsFor(k) {
+  const e = pinFailsByName.get(k);
+  if (e && e.lockedUntil && Date.now() > e.lockedUntil) { pinFailsByName.delete(k); return null; }
+  return e || null;
+}
 
 const PACKS_META = Object.fromEntries(
   Object.values(packs).map((p) => [p.id, { name: p.name, emoji: p.emoji }])
@@ -55,12 +65,14 @@ function mount({ app, io }) {
   // Diffuse l'état public puis le payload privé de CHAQUE joueur de la salle
   // (son propre classement, son meilleur match…). Même modèle que les rôles
   // secrets d'Aperolympics : rien de personnel ne transite dans l'état public.
+  // privateFor ne prend QUE le cid : c'est la salle elle-même qui résout le
+  // nom depuis son propre playerMap, jamais depuis ce que la session prétend.
   function broadcastRoom(room) {
     const snap = room.snapshot();
     ns.to("room:" + room.id).emit("room_state", snap);
     for (const [sid, sess] of sessions) {
       if (sess.roomId !== room.id || !sess.cid) continue;
-      const priv = room.privateFor({ cid: sess.cid, name: sess.name });
+      const priv = room.privateFor(sess.cid);
       if (priv && Object.keys(priv).length) {
         const s = ns.sockets.get(sid);
         if (s) s.emit("private_state", priv);
@@ -68,20 +80,57 @@ function mount({ app, io }) {
     }
   }
 
-  function leaveCurrentRoom(socket) {
+  // Départ DÉLIBÉRÉ (bouton "Retour", ou changement de salle) : on retire
+  // pour de vrai, tout de suite — le joueur ne va pas se reconnecter à une
+  // salle qu'il vient de quitter volontairement.
+  function leaveCurrentRoomForGood(socket) {
     const sess = sessions.get(socket.id);
     if (!sess || !sess.roomId) return;
     const room = roomById.get(sess.roomId);
     if (!room) { sess.roomId = null; return; }
-    room.removePlayer(sess.cid);
+    room.leaveForGood(sess.cid);
+    socket.leave("room:" + room.id);
+    sess.roomId = null;
+    broadcastRoom(room);
+    broadcastLobby();
+  }
+  // Coupure de connexion (socket morte, ping perdu) : on marque juste absent,
+  // avec un délai de grâce — un blip réseau ou un rechargement de page ne
+  // doit ni coûter la couronne d'hôte ni la place dans la salle. Le socket
+  // est passé pour ne retirer QUE si c'est bien lui le détenteur actuel :
+  // sinon une vieille socket qui meurt après coup éjecterait la session qui
+  // vient tout juste de se reconnecter avec une socket toute neuve.
+  function dropCurrentRoomConnection(socket) {
+    const sess = sessions.get(socket.id);
+    if (!sess || !sess.roomId) return;
+    const room = roomById.get(sess.roomId);
+    if (!room) { sess.roomId = null; return; }
+    room.removePlayer(sess.cid, socket.id);
     socket.leave("room:" + room.id);
     sess.roomId = null;
     broadcastRoom(room);
     broadcastLobby();
   }
 
+  // Un pseudo est-il déjà tenu par une session VIVANTE d'un autre appareil,
+  // en ce moment même ? Utilisé avant d'authentifier une nouvelle session :
+  // sans ce garde, un pseudo non protégé (réclamable par conception) pouvait
+  // être repris PENDANT qu'il servait encore ailleurs — le premier recevait
+  // alors, sans le savoir, le classement privé et les réponses du second.
+  // Une fois l'autre session partie (déconnexion), le nom redevient libre
+  // immédiatement, exactement comme prévu pour un pseudo non protégé.
+  function nameLiveElsewhere(name, cid, excludeSocketId) {
+    const k = String(name || "").trim().toLowerCase();
+    if (!k) return false;
+    for (const [sid, s] of sessions) {
+      if (sid === excludeSocketId) continue;
+      if (s.cid && s.cid !== cid && s.name && s.name.toLowerCase() === k) return true;
+    }
+    return false;
+  }
+
   ns.on("connection", (socket) => {
-    sessions.set(socket.id, { cid: null, name: null, roomId: null, inLobby: false, pinFails: {} });
+    sessions.set(socket.id, { cid: null, name: null, roomId: null, inLobby: false });
 
     socket.on("set_identity", (m) => {
       const sess = sessions.get(socket.id);
@@ -92,20 +141,33 @@ function mount({ app, io }) {
       if (!cid || !name) { socket.emit("error_msg", { msg: "bad_identity" }); return; }
 
       const k = name.toLowerCase();
-      if ((sess.pinFails[k] || 0) >= MAX_PIN_ATTEMPTS) { socket.emit("identity_locked", { name }); return; }
+      const fails = pinFailsFor(k);
+      if (fails && fails.count >= MAX_PIN_ATTEMPTS) { socket.emit("identity_locked", { name }); return; }
+
+      // Une session vivante d'un AUTRE appareil tient déjà ce nom, là,
+      // maintenant : on refuse plutôt que de laisser les deux se marcher
+      // dessus (classement privé mélangé, prise de PIN en pleine partie
+      // adverse). Dès que l'autre part, le nom redevient libre normalement.
+      if (nameLiveElsewhere(name, cid, socket.id)) {
+        socket.emit("error_msg", { msg: "name_live_elsewhere" });
+        return;
+      }
 
       const res = players.authenticate(name, cid, pin);
       if (res.ok) {
         sess.cid = cid;
         sess.name = res.account ? res.account.name : name;
-        sess.pinFails[k] = 0;
+        pinFailsByName.delete(k);
         socket.emit("identity_ok", { cid, name: sess.name, protected: !!res.protected });
         return;
       }
       if (res.reason === "pin_required") { socket.emit("pin_required", { name }); return; }
       if (res.reason === "pin_wrong") {
-        sess.pinFails[k] = (sess.pinFails[k] || 0) + 1;
-        const left = Math.max(0, MAX_PIN_ATTEMPTS - sess.pinFails[k]);
+        const cur = pinFailsByName.get(k) || { count: 0, lockedUntil: 0 };
+        cur.count += 1;
+        if (cur.count >= MAX_PIN_ATTEMPTS) cur.lockedUntil = Date.now() + PIN_LOCK_MS;
+        pinFailsByName.set(k, cur);
+        const left = Math.max(0, MAX_PIN_ATTEMPTS - cur.count);
         if (left <= 0) socket.emit("identity_locked", { name });
         else socket.emit("pin_wrong", { name, attempts_left: left });
         return;
@@ -144,7 +206,15 @@ function mount({ app, io }) {
       const rid = String((m && m.id) || "");
       const room = roomById.get(rid);
       if (!room) { socket.emit("error_msg", { msg: "unknown_room" }); return; }
-      if (sess.roomId && sess.roomId !== rid) leaveCurrentRoom(socket);
+      // Ce pseudo est-il déjà tenu par un AUTRE cid actif dans CETTE salle ?
+      // Sans ce garde, deux joueurs sous le même nom d'affichage verraient
+      // leurs réponses fusionner dans les résultats (indistinguables l'un de
+      // l'autre pour le moteur, qui parle "pseudo").
+      if (room.nameTakenBy(sess.name, sess.cid)) {
+        socket.emit("error_msg", { msg: "name_taken_in_room" });
+        return;
+      }
+      if (sess.roomId && sess.roomId !== rid) leaveCurrentRoomForGood(socket);
       room.addPlayer(sess.cid, sess.name, socket.id);
       sess.roomId = rid;
       socket.join("room:" + rid);
@@ -152,12 +222,20 @@ function mount({ app, io }) {
       broadcastLobby();
     });
 
-    socket.on("leave_room", () => leaveCurrentRoom(socket));
+    socket.on("leave_room", () => leaveCurrentRoomForGood(socket));
 
-    // Profil / matchs historiques d'un joueur (public : rien de secret).
+    // Profil / matchs historiques : STRICTEMENT le sien. C'est une donnée
+    // personnelle (comparaisons nommées avec des personnes réelles) — rien
+    // dans le client n'a jamais demandé le profil de quelqu'un d'autre,
+    // seul le "tape sur ton propre pseudo" existe aujourd'hui.
     socket.on("get_profile", (m) => {
+      const sess = sessions.get(socket.id);
       const name = String((m && m.name) || "").trim().slice(0, 16);
       if (!name) { socket.emit("profile", { ok: false, reason: "bad_name" }); return; }
+      if (!sess || !sess.name || sess.name.toLowerCase() !== name.toLowerCase()) {
+        socket.emit("profile", { ok: false, name, reason: "not_yours" });
+        return;
+      }
       const prof = players.profile(name, PACKS_META);
       if (!prof) { socket.emit("profile", { ok: false, name, reason: "no_account" }); return; }
       const packId = String((m && m.pack) || "") || null;
@@ -166,17 +244,21 @@ function mount({ app, io }) {
     });
 
     // Messages de jeu (demarrer / skip / rank) transmis à la salle courante.
+    // Toujours un accusé explicite à l'expéditeur : le client verrouille son
+    // UI de façon optimiste dès l'envoi ("Classement envoyé ✅"), donc un
+    // rejet resté muet la laissait mentir sans que rien ne le détrompe.
     socket.on("msg", (m) => {
       const sess = sessions.get(socket.id);
-      if (!sess || !sess.roomId) return;
+      if (!sess || !sess.roomId) { socket.emit("msg_ack", { t: m && m.t, ok: false, reason: "no_room" }); return; }
       const room = roomById.get(sess.roomId);
-      if (!room) return;
-      const changed = room.handleMessage(sess.cid, m || {});
-      if (changed !== false) { broadcastRoom(room); broadcastLobby(); }
+      if (!room) { socket.emit("msg_ack", { t: m && m.t, ok: false, reason: "no_room" }); return; }
+      const res = room.handleMessage(sess.cid, m || {}) || { ok: false, reason: "unknown" };
+      socket.emit("msg_ack", { t: m && m.t, ok: !!res.ok, reason: res.ok ? null : res.reason });
+      if (res.ok) { broadcastRoom(room); broadcastLobby(); }
     });
 
     socket.on("disconnect", () => {
-      leaveCurrentRoom(socket);
+      dropCurrentRoomConnection(socket);
       sessions.delete(socket.id);
     });
   });

@@ -65,27 +65,69 @@ function open(name, legacyPath) {
   const { dir, source, degraded } = resolveDir(path.dirname(legacyPath));
   const file = source === "legacy" ? legacyPath : path.join(dir, name + "-players.json");
 
-  let lastError = null;
+  let lastError = null;     // dernière erreur d'ÉCRITURE
+  let lastReadError = null; // dernière erreur de LECTURE (fichier illisible ou corrompu)
   let lastWriteAt = 0;
   let migratedFrom = null;
 
-  // Premier lancement au nouvel emplacement : on récupère l'ancien fichier
-  // s'il est encore là, pour ne perdre aucun compte au passage.
-  if (file !== legacyPath) {
-    try {
-      if (!fs.existsSync(file) && fs.existsSync(legacyPath)) {
-        fs.copyFileSync(legacyPath, file);
-        migratedFrom = legacyPath;
-        console.log(`[storage] ${name}: ancien fichier récupéré depuis ${legacyPath}`);
+  // Premier lancement au nouvel emplacement : on récupère un ancien fichier
+  // s'il est encore là, pour ne perdre aucun compte au passage. Deux
+  // emplacements possibles ont pu servir par le passé (legacy, puis
+  // ~/.aperolympics avant qu'on définisse DATA_DIR) : on cherche dans les deux,
+  // pas seulement le tout premier — sinon la migration ne joue qu'une fois.
+  if (!fs.existsSync(file)) {
+    const home = os.homedir();
+    const candidates = [legacyPath];
+    if (home) candidates.push(path.join(home, ".aperolympics", name + "-players.json"));
+    for (const src of candidates) {
+      if (src === file) continue;
+      try {
+        if (fs.existsSync(src)) {
+          fs.copyFileSync(src, file);
+          migratedFrom = src;
+          console.log(`[storage] ${name}: ancien fichier récupéré depuis ${src}`);
+          break;
+        }
+      } catch (e) {
+        console.error(`[storage] ${name}: migration impossible depuis ${src}: ${e.message}`);
       }
-    } catch (e) {
-      console.error(`[storage] ${name}: migration impossible depuis ${legacyPath}: ${e.message}`);
     }
   }
 
+  // Écarte un fichier illisible ou corrompu plutôt que de le laisser en place :
+  // sans ça, la prochaine écriture l'écraserait silencieusement (rename() ne
+  // demande le droit d'écrire QUE sur le dossier, jamais sur le fichier
+  // remplacé — c'est ce mécanisme qui causait la perte, on le détourne ici
+  // pour sauver le fichier au lieu de le détruire).
+  function quarantine() {
+    try {
+      const dest = file + ".corrupt-" + Date.now();
+      fs.renameSync(file, dest);
+      console.error(`[storage] ${name}: fichier mis en quarantaine → ${dest}`);
+    } catch (e) { /* rien de plus à faire si même la mise en quarantaine échoue */ }
+  }
+
   function read() {
-    try { return JSON.parse(fs.readFileSync(file, "utf8")); }
-    catch (e) { return null; }
+    let raw;
+    try {
+      raw = fs.readFileSync(file, "utf8");
+    } catch (e) {
+      if (e.code === "ENOENT") { lastReadError = null; return null; } // pas encore de données : normal
+      lastReadError = { msg: e.message, code: e.code || null, at: Date.now() };
+      console.error(`[storage] ${name}: lecture impossible (${file}): ${e.message}`);
+      quarantine();
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      lastReadError = null;
+      return parsed;
+    } catch (e) {
+      lastReadError = { msg: "JSON invalide : " + e.message, code: "EINVALID_JSON", at: Date.now() };
+      console.error(`[storage] ${name}: JSON corrompu (${file}): ${e.message}`);
+      quarantine();
+      return null;
+    }
   }
 
   // Écriture atomique : on écrit à côté puis on renomme, pour qu'un crash au
@@ -118,12 +160,15 @@ function open(name, legacyPath) {
       writable: usable(path.dirname(file)),
       lastWriteAt,
       lastError,
+      readError: lastReadError,
       migratedFrom,
       // Le dossier du code disparaît à chaque déploiement : le signaler
       // explicitement, c'est ce qui a coûté les comptes la première fois.
       warning: degraded
         ? "Stockage à côté du code : les comptes seront perdus au prochain déploiement. Définis DATA_DIR sur un dossier hors de l'app."
-        : null,
+        : (lastReadError
+          ? "Le dernier fichier lu était illisible ou corrompu et a été mis en quarantaine (voir readError) — les comptes précédents ont pu être perdus."
+          : null),
     };
   }
 

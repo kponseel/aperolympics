@@ -24,6 +24,12 @@ const DISCONNECT_GRACE_MS = 3000;
 
 const app = express();
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
+// admin.html doit passer par la route /admin protégée (server/admin.js,
+// Basic Auth) — jamais par le static, qui l'aurait servi tel quel à
+// n'importe qui, même quand ADMIN_PASSWORD n'est pas définie (où /admin lui
+// répond 503). Redirection plutôt que 404 : un ancien lien vers /admin.html
+// continue de fonctionner, juste correctement gardé.
+app.get(/^\/admin\.html$/i, (_req, res) => res.redirect(301, "/admin"));
 app.use(express.static(PUBLIC_DIR));
 
 // Join-by-link: /r/CODE serves the SPA, which reads the code from the URL.
