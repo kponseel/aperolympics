@@ -14,9 +14,24 @@
       return (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16);
     });
   }
-  function getCid() { var c = localStorage.getItem("am.cid"); if (!c) { c = uuid(); localStorage.setItem("am.cid", c); } return c; }
-  function getPseudo() { return (localStorage.getItem("am.pseudo") || "").trim(); }
-  function setPseudo(n) { localStorage.setItem("am.pseudo", n); }
+  // Repli en mémoire : un navigateur qui bloque localStorage (mode privé
+  // strict, quota plein) ne doit pas empêcher de jouer CE soir — juste ne
+  // rien retenir pour la prochaine fois.
+  var memCid = null, memPseudo = "";
+  function getCid() {
+    try {
+      var c = localStorage.getItem("am.cid");
+      if (!c) { c = uuid(); localStorage.setItem("am.cid", c); }
+      return c;
+    } catch (e) { if (!memCid) memCid = uuid(); return memCid; }
+  }
+  function getPseudo() {
+    try { return (localStorage.getItem("am.pseudo") || "").trim(); }
+    catch (e) { return memPseudo; }
+  }
+  function setPseudo(n) {
+    try { localStorage.setItem("am.pseudo", n); } catch (e) { memPseudo = n; }
+  }
 
   // ---------- helpers ----------
   function $(id) { return document.getElementById(id); }
@@ -54,6 +69,14 @@
     socket.on("identity_ok", function (m) {
       setStatus(""); pinMode = false;
       myProtected = !!(m && m.protected);
+      // On adopte le pseudo CANONIQUE renvoyé par le serveur — jamais la
+      // saisie brute. Sans ça, une différence de casse ("Alice" tapé,
+      // "alice" déjà en base) faisait dérailler la comparaison "suis-je
+      // l'hôte ?" (host_name === getPseudo()) : impossible de lancer sa
+      // propre partie. On ne mémorise le pseudo qu'ICI, une fois confirmé —
+      // jamais avant, sinon une simple faute de frappe restait collée au
+      // téléphone pour la prochaine fois.
+      if (m && m.name) setPseudo(m.name);
       $("amLocked").style.display = "none";
       $("amContinue").textContent = "C'est parti →";
       if (currentRoomId) { show("s-room"); socket.emit("join_room", { id: currentRoomId }); }
@@ -74,16 +97,24 @@
 
     socket.on("lobby_state", function (m) { lastLobby = m || {}; renderHall(); });
     socket.on("room_state", function (m) {
+      // On ignore tout état qui ne concerne pas la salle affichée : un
+      // room_state en retard (changement de salle en cours, message
+      // rejoué après une coupure) ne doit jamais faire afficher — ni faire
+      // voter — sur la question d'un autre pack.
+      if (!m || m.id !== currentRoomId) return;
       var prev = lastRoom;
-      lastRoom = m || {};
+      lastRoom = m;
       window.__amLastRoom = lastRoom;
       if (lastRoom.server_now_ms) clockSkewMs = lastRoom.server_now_ms - Date.now();
-      // Nouvelle question → on réinitialise la saisie locale.
+      // Nouvelle question → on réinitialise la saisie locale ET le classement
+      // privé de la question précédente (sinon le badge « ton n°1 » du
+      // reveal continuait d'afficher un choix qui n'est plus d'actualité).
       var qid = lastRoom.question ? lastRoom.question.id : null;
       if (qid !== lastQuestionId) {
         lastQuestionId = qid;
         myRank = [];
         submitted = false;
+        lastPrivate = {};
       }
       if (!prev || prev.state !== lastRoom.state) roomStructSig = "";
       renderRoom();
@@ -99,6 +130,21 @@
     socket.on("profile", function (m) {
       if (!m || m.ok === false) { toast("Pas encore de profil pour ce joueur."); return; }
       openProfile(m);
+    });
+    // Accusé explicite pour chaque "msg" (demarrer/skip/rank) envoyé : le
+    // classement se verrouille de façon optimiste dès l'envoi ("Classement
+    // envoyé ✅"), donc un rejet resté muet laissait l'UI mentir sans que
+    // rien ne le détrompe — un vote refusé (même appareil, 2 onglets ; ou
+    // arrivé sur une question qui n'est déjà plus la bonne) semblait accepté.
+    socket.on("msg_ack", function (m) {
+      if (!m || m.ok || m.t !== "rank") return;
+      // On déverrouille et on prévient : le joueur peut reclasser pour de
+      // vrai, plutôt que de rester bloqué à croire que c'est fait.
+      submitted = false;
+      roomStructSig = ""; renderRoom();
+      if (m.reason === "already_answered") toast("Déjà envoyé depuis un autre onglet sur cet appareil.");
+      else if (m.reason === "stale") toast("La question a changé entre-temps — reclasse pour valider.");
+      else toast("Classement non pris en compte, réessaie.");
     });
     socket.on("error_msg", function (m) {
       var code = m && m.msg;
@@ -133,7 +179,9 @@
     var pin = ($("amPin").value || "").trim();
     if (!name) { $("amPseudoError").textContent = "Entre ton pseudo."; return; }
     if (pin && !/^\d{4}$/.test(pin)) { $("amPseudoError").textContent = "Le PIN doit faire 4 chiffres."; return; }
-    setPseudo(name);
+    // Le pseudo n'est mémorisé qu'à la confirmation serveur (identity_ok) —
+    // pas ici : une faute de frappe ou un pseudo déjà pris ne doit pas
+    // rester collé au téléphone avant même d'avoir été validé.
     $("amPseudoError").textContent = ""; $("amPseudoError").className = "am-error center";
     if (socket) socket.emit("set_identity", { cid: getCid(), name: name, pin: pin });
     if (!pinMode) enterHall();
@@ -332,8 +380,13 @@
       var vb = $("amValid");
       if (vb) vb.onclick = function () {
         if (myRank.length !== q.o.length || !socket) return;
+        if (!connected) { toast("Pas de connexion là — réessaie dans un instant."); return; }
         submitted = true;
-        socket.emit("msg", { t: "rank", ranking: myRank.slice() });
+        // qid : si ce message est mis en file par une coupure et rejoué après
+        // coup, le serveur doit pouvoir voir que la question a changé entre
+        // temps plutôt que d'appliquer aveuglément un vieux classement à une
+        // autre question.
+        socket.emit("msg", { t: "rank", qid: q.id, ranking: myRank.slice() });
         roomStructSig = ""; renderRoom();
       };
     }
@@ -369,9 +422,13 @@
       body += '<div class="am-card"><h3>🏅 Le classement du groupe</h3>' +
         rv.group.map(function (g, i) {
           var mineMark = (mine && mine[0] === g.option) ? ' <span class="am-badge b-high">ton n°1</span>' : "";
+          // Le tri se fait sur le score de Borda (pondéré par le rang donné
+          // par chacun) — c'est LUI qu'on affiche, pas le nombre de 1ers
+          // choix : sinon l'ordre à l'écran pouvait sembler faux (un 2e
+          // choix massif l'emportant sur un 1er choix minoritaire).
           return '<div class="am-reveal-row"><span class="pos">' + (i + 1) + '.</span>' +
             '<span class="lbl">' + esc(g.label) + mineMark + '</span>' +
-            '<span class="cnt">' + g.firstPicks + " ×1ᵉʳ" + '</span></div>';
+            '<span class="cnt">' + g.score + ' pt' + (g.score > 1 ? "s" : "") + '</span></div>';
         }).join("") + '</div>';
       if (rv.perfect && rv.perfect.length) {
         body += '<div class="am-perfect">✨ Accord parfait sur cette question : ' +
@@ -428,8 +485,11 @@
           '</div>';
       }
 
-      // 🥇 podium des duos
-      if (res.podium && res.podium.length) {
+      // 🥇 podium des duos — n'a de sens qu'à partir de 2 PAIRES (donc 3+
+      // joueurs) : à 2 joueurs il n'existe qu'un seul duo possible, déjà mis
+      // en avant juste au-dessus ; un "podium" à une seule marche ne fait que
+      // répéter le même nombre sous un habillage différent.
+      if (res.podium && res.podium.length > 1) {
         body += '<div class="am-card"><h3>Podium des duos</h3>' +
           res.podium.map(function (p, i) {
             var isMine = (p.a === me || p.b === me);
@@ -485,7 +545,7 @@
       if (amHost()) body += '<button class="am-ghost" id="amAgain">↩️ Retour au salon</button>';
 
       $("amRoomBody").innerHTML = body;
-      var ag = $("amAgain"); if (ag) ag.onclick = function () { if (socket) socket.emit("msg", { t: "skip" }); };
+      var ag = $("amAgain"); if (ag) ag.onclick = function () { if (socket) socket.emit("msg", { t: "skip", state: r.state }); };
     }
     var left = r.deadline_ms ? Math.max(0, r.deadline_ms - serverNow()) : 0;
     var c = $("amResCount");

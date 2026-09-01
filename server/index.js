@@ -24,6 +24,12 @@ const DISCONNECT_GRACE_MS = 3000;
 
 const app = express();
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
+// admin.html doit passer par la route /admin protégée (server/admin.js,
+// Basic Auth) — jamais par le static, qui l'aurait servi tel quel à
+// n'importe qui, même quand ADMIN_PASSWORD n'est pas définie (où /admin lui
+// répond 503). Redirection plutôt que 404 : un ancien lien vers /admin.html
+// continue de fonctionner, juste correctement gardé.
+app.get(/^\/admin\.html$/i, (_req, res) => res.redirect(301, "/admin"));
 app.use(express.static(PUBLIC_DIR));
 
 // Join-by-link: /r/CODE serves the SPA, which reads the code from the URL.
@@ -322,4 +328,13 @@ require("./match")({ app, io });
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`[Aperolympics] up on :${PORT} — ${registry.list().length} game(s) registered`);
+  // Où atterrissent les comptes. Le dire au démarrage évite de découvrir trop
+  // tard qu'ils étaient écrits dans le dossier déployé (donc perdus à chaque
+  // mise en ligne) ou pas écrits du tout.
+  const st = require("./storage").describeAll();
+  console.log(`[storage] données dans ${st.dir} (source: ${st.source})`);
+  for (const s of st.stores) {
+    if (s.warning) console.warn(`[storage] ⚠️  ${s.name}: ${s.warning}`);
+    else if (!s.writable) console.warn(`[storage] ⚠️  ${s.name}: ${s.file} n'est PAS inscriptible — aucun compte ne sera sauvegardé.`);
+  }
 });

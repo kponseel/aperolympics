@@ -67,8 +67,12 @@ function pairAgreement(rankA, rankB, nOptions) {
 // Retourne :
 //   pairs  : [{ a, b, agree, total, pct, shared, sameTop }]
 //   byName : { [name]: { [other]: pct } }  (accès rapide symétrique)
-function buildMatrix(answers, names, nOptions) {
-  const n = nOptions || OPTIONS_PER_QUESTION;
+// minShared : nombre minimum de questions communes pour qu'un pourcentage
+// soit affiché DU TOUT (matrice comprise, pas seulement le podium) — sous ce
+// seuil, la case reste `null` (« – » côté client) plutôt que d'afficher un
+// 100 % ou un 0 % qui ne tient que sur une poignée de comparaisons.
+function buildMatrix(answers, names, minShared) {
+  const min = minShared || 1;
   const pairs = [];
   const byName = {};
   names.forEach((x) => { byName[x] = {}; });
@@ -78,16 +82,25 @@ function buildMatrix(answers, names, nOptions) {
       const a = names[i], b = names[j];
       let agree = 0, total = 0, shared = 0, sameTop = 0;
       for (const qid in answers) {
-        const ra = answers[qid][a];
-        const rb = answers[qid][b];
-        if (!ra || !rb) continue;           // question non partagée
-        const r = pairAgreement(ra, rb, n);
+        const row = answers[qid];
+        // Accès par hasOwnProperty : un joueur nommé « toString », « valueOf »…
+        // n'a pas répondu tant que row["toString"] n'est pas une propriété
+        // PROPRE de row — une lecture directe renverrait sinon la méthode
+        // héritée d'Object.prototype (toujours "vraie"), et pairAgreement
+        // planterait en essayant d'itérer dessus comme sur un classement.
+        const ra = Object.prototype.hasOwnProperty.call(row, a) ? row[a] : null;
+        const rb = Object.prototype.hasOwnProperty.call(row, b) ? row[b] : null;
+        if (!Array.isArray(ra) || !Array.isArray(rb) || ra.length !== rb.length) continue; // question non partagée
+        // Nombre d'options dérivé de la donnée elle-même, pas d'une constante
+        // globale : une future banque à N options (≠ 3) reste calculée juste,
+        // sans qu'il y ait quoi que ce soit à changer ici.
+        const r = pairAgreement(ra, rb, ra.length);
         agree += r.agree;
         total += r.total;
         shared++;
         if (ra[0] === rb[0]) sameTop++;      // même coup de cœur
       }
-      const pct = total > 0 ? Math.round((agree / total) * 100) : null;
+      const pct = (total > 0 && shared >= min) ? Math.round((agree / total) * 100) : null;
       pairs.push({ a, b, agree, total, pct, shared, sameTop });
       if (pct != null) { byName[a][b] = pct; byName[b][a] = pct; }
     }
@@ -111,15 +124,20 @@ function band(pct) {
 // minShared : nombre minimum de questions communes pour qu'un duo soit classé.
 function buildResults(answers, names, opts) {
   const o = opts || {};
-  const nOptions = o.nOptions || OPTIONS_PER_QUESTION;
-  const minShared = o.minShared || 1;
-  const { pairs, byName } = buildMatrix(answers, names, nOptions);
+  // 5 questions communes minimum (15 comparaisons) avant qu'un duo apparaisse
+  // NULLE PART — matrice comprise, pas seulement le podium. Sous ce seuil, un
+  // retardataire d'une seule question pouvait afficher 100 % et rafler le
+  // podium ET les titres (L'âme sœur / L'électron libre lisent la matrice).
+  const minShared = o.minShared || 5;
+  const { pairs, byName } = buildMatrix(answers, names, minShared);
 
   const ranked = pairs
-    .filter((p) => p.pct != null && p.shared >= minShared)
+    .filter((p) => p.pct != null)
     .sort((x, y) => y.pct - x.pct || y.sameTop - x.sameTop || x.a.localeCompare(y.a));
 
-  // Moyenne de compatibilité par joueur (avec tous les autres).
+  // Moyenne de compatibilité par joueur (avec les autres qui passent déjà le
+  // seuil minShared ci-dessus — byName ne contient plus les paires trop
+  // fines, donc cette moyenne en hérite automatiquement).
   const avg = {};
   names.forEach((nm) => {
     const vals = Object.values(byName[nm] || {});
@@ -137,15 +155,17 @@ function buildResults(answers, names, opts) {
     opposites: ranked.length > 1 ? ranked[ranked.length - 1] : null,
   };
 
-  // 🫂 L'âme sœur du groupe : la meilleure moyenne (celui qui s'entend avec tous).
-  if (sortedAvg.length) {
+  // 🫂 L'âme sœur du groupe / 🛸 L'électron libre : n'ont de sens qu'à partir
+  // de 3 joueurs (à 2, il n'y a qu'UN duo — les deux titres tomberaient sur
+  // le même chiffre, départagés arbitrairement par ordre alphabétique) et
+  // seulement si les deux bouts du classement sont RÉELLEMENT différents
+  // (sinon `worst !== best` sur les noms laissait passer une égalité stricte
+  // de score, tranchée elle aussi par l'alphabet).
+  if (sortedAvg.length >= 3) {
     const best = sortedAvg[0];
     res.groupSoul = { name: best, pct: avg[best] };
-    // 🛸 L'électron libre : la plus faible moyenne (le contrariant).
-    if (sortedAvg.length > 1) {
-      const worst = sortedAvg[sortedAvg.length - 1];
-      if (worst !== best) res.freeSpirit = { name: worst, pct: avg[worst] };
-    }
+    const worst = sortedAvg[sortedAvg.length - 1];
+    if (avg[worst] < avg[best]) res.freeSpirit = { name: worst, pct: avg[worst] };
   }
   return res;
 }

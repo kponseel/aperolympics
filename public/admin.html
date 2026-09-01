@@ -15,8 +15,11 @@
     header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; background: var(--card); position: sticky; top: 0; z-index: 5; }
     header h1 { margin: 0; font-size: 1.2rem; font-weight: 800; }
     header .sub { color: var(--soft); font-size: 0.9rem; margin-left: auto; }
-    main { max-width: 1000px; margin: 0 auto; padding: 22px; display: grid; gap: 22px; }
-    section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    /* minmax(0,…) + min-width:0 : sans ça, un item de grille refuse de
+       rétrécir sous la largeur de son contenu, et un seul tableau large
+       (un chemin de fichier, par exemple) élargit toute la page. */
+    main { max-width: 1000px; margin: 0 auto; padding: 22px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+    section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; min-width: 0; }
     section h2 { margin: 0 0 4px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
     section .desc { color: var(--soft); font-size: 0.9rem; margin: 0 0 14px; }
     .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -53,6 +56,23 @@
     .roster .p .crown { color: var(--warn); }
     .meta { color: var(--soft); font-size: 0.82rem; }
     code { background: #1b1d35; padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+    .opts { display: flex; flex-direction: column; gap: 4px; }
+    .opt { background: #1b1d35; border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px; font-size: 0.88rem; }
+    /* Un tableau trop large scrolle DANS sa carte : la page, elle, ne part
+       jamais de travers (sinon l'en-tête et les boutons sortent de l'écran). */
+    #roomsHost, #playersHost, #matchHost, #storageHost, #qHost { overflow-x: auto; }
+    @media (max-width: 720px) {
+      main { padding: 12px; }
+      section { padding: 14px; }
+      th, td { padding: 6px 6px; font-size: 0.86rem; }
+      /* Sur téléphone, une question se lit mieux en bloc qu'en colonnes : le
+         tableau entier repasse en flux normal pour pouvoir se replier. */
+      #qHost table, #qHost tbody, #qHost tr, #qHost td { display: block; width: auto; }
+      #qHost thead { display: none; }
+      #qHost tr { border-bottom: 1px solid #1f223e; padding: 8px 0; }
+      #qHost td { border: none; padding: 2px 0; }
+      .opt { word-break: break-word; }
+    }
   </style>
 </head>
 <body>
@@ -62,6 +82,17 @@
   </header>
 
   <main>
+    <!-- ===== Stockage (diagnostic) ===== -->
+    <section>
+      <h2>💾 Stockage des comptes</h2>
+      <p class="desc">Où les comptes sont réellement écrits sur le serveur, et si l'écriture passe. À regarder en premier si des comptes ont disparu.</p>
+      <div class="toolbar">
+        <button class="refresh" id="reloadStorage">⟳ Recharger</button>
+      </div>
+      <div id="storageHost"></div>
+      <div id="storageMsg"></div>
+    </section>
+
     <!-- ===== Aperolympics: rooms ===== -->
     <section>
       <h2>🏠 Aperolympics — Salles actives</h2>
@@ -100,6 +131,19 @@
       <div id="matchHost"></div>
       <div id="matchMsg"></div>
     </section>
+
+    <!-- ===== Are We A Match?: banques de questions ===== -->
+    <section>
+      <h2>❓ Are We A Match ? — Questions par pack</h2>
+      <p class="desc">Toutes les questions de chaque pack, telles qu'elles seront posées en jeu. Lecture seule. L'ordre affiché est celui du fichier ; en partie les questions sont tirées au hasard, sans remise.</p>
+      <div class="toolbar" id="packTabs"></div>
+      <div class="toolbar">
+        <input type="search" id="filterQ" placeholder="Filtrer par mot…" />
+        <span class="meta" id="qCount"></span>
+      </div>
+      <div id="qHost"></div>
+      <div id="qMsg"></div>
+    </section>
   </main>
 
   <script>
@@ -120,6 +164,54 @@
           if (r.status === 401) { setStatus("Auth requise", "err"); throw new Error("auth"); }
           if (!r.ok) return r.text().then(function (txt) { throw new Error(txt || ("HTTP " + r.status)); });
           return r.json();
+        });
+      }
+
+      // --- Storage (diagnostic) ---------------------------------------------
+      function fmtBytes(n) {
+        if (!n) return "0 o";
+        if (n < 1024) return n + " o";
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " Ko";
+        return (n / 1048576).toFixed(1) + " Mo";
+      }
+      var SOURCE_LABEL = {
+        "DATA_DIR": '<span class="pill public">✅ DATA_DIR</span>',
+        "home": '<span class="pill public">✅ dossier personnel</span>',
+        "legacy": '<span class="pill protected">⚠️ à côté du code</span>',
+      };
+      function renderStorage(s, counts) {
+        var host = $("storageHost");
+        var rows = (s.stores || []).map(function (st) {
+          var n = st.name === "quizzmaster" ? (counts.quizzmaster | 0) : (counts.match | 0);
+          return '<tr>' +
+            '<td><b>' + esc(st.name) + '</b></td>' +
+            '<td>' + (SOURCE_LABEL[st.source] || esc(st.source)) + '</td>' +
+            '<td><code>' + esc(st.file) + '</code></td>' +
+            '<td>' + (st.exists ? fmtBytes(st.bytes) : '<span class="meta">absent</span>') + '</td>' +
+            '<td>' + n + '</td>' +
+            '<td>' + (st.writable ? '<span class="pill public">oui</span>' : '<span class="pill protected">NON</span>') + '</td>' +
+            '<td>' + (st.mtime ? fmtLast(st.mtime) : '<span class="meta">jamais</span>') + '</td>' +
+          '</tr>' +
+          (st.lastError ? '<tr><td colspan="7"><div class="err">Dernière erreur d\'écriture : ' + esc(st.lastError.msg) + '</div></td></tr>' : '') +
+          (st.readError ? '<tr><td colspan="7"><div class="err">⚠️ Fichier illisible ou corrompu, mis en quarantaine : ' + esc(st.readError.msg) + '</div></td></tr>' : '') +
+          (st.migratedFrom ? '<tr><td colspan="7"><div class="ok">Ancien fichier récupéré depuis ' + esc(st.migratedFrom) + '</div></td></tr>' : '');
+        }).join("");
+        host.innerHTML =
+          '<table><thead><tr>' +
+            '<th>Base</th><th>Emplacement</th><th>Fichier</th><th>Taille</th>' +
+            '<th>Comptes</th><th>Inscriptible</th><th>Dernière écriture</th>' +
+          '</tr></thead><tbody>' + rows + '</tbody></table>';
+        // Un seul avertissement, même si les deux bases sont concernées.
+        var warn = (s.stores || []).map(function (st) { return st.warning; }).filter(Boolean)[0];
+        $("storageMsg").innerHTML = warn ? '<div class="err">⚠️ ' + esc(warn) + '</div>' : "";
+      }
+      function loadStorage() {
+        return api("/storage").then(function (j) {
+          renderStorage(j.storage || {}, j.counts || {});
+          return true;
+        }).catch(function (e) {
+          $("storageHost").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+          return false;
         });
       }
 
@@ -298,6 +390,67 @@
         });
       }
 
+      // --- Question banks (Are We A Match?) ---------------------------------
+      var packsCache = [], questionsCache = [], currentPack = null;
+
+      function renderPackTabs() {
+        $("packTabs").innerHTML = packsCache.map(function (p) {
+          var on = p.id === currentPack;
+          return '<button data-pack="' + esc(p.id) + '"' + (on ? ' class="refresh"' : '') + '>' +
+            esc(p.emoji) + ' ' + esc(p.name) + ' <span class="meta">(' + p.count + ')</span></button>';
+        }).join("");
+      }
+      function renderQuestions() {
+        var host = $("qHost");
+        var filter = ($("filterQ").value || "").trim().toLowerCase();
+        var rows = questionsCache.filter(function (q) {
+          if (!filter) return true;
+          if (q.q.toLowerCase().includes(filter)) return true;
+          if (q.id.toLowerCase().includes(filter)) return true;
+          return q.o.some(function (o) { return o.toLowerCase().includes(filter); });
+        });
+        $("qCount").textContent = rows.length + " / " + questionsCache.length + " question" + (questionsCache.length > 1 ? "s" : "");
+        if (!rows.length) { host.innerHTML = '<div class="empty">Aucune question.</div>'; return; }
+        host.innerHTML =
+          '<table><thead><tr><th style="width:2.5rem">#</th><th>Question</th><th>Les 3 propositions</th><th>id</th></tr></thead><tbody>' +
+          rows.map(function (q) {
+            var n = questionsCache.indexOf(q) + 1;
+            return '<tr>' +
+              '<td><span class="meta">' + n + '</span></td>' +
+              '<td><b>' + esc(q.q) + '</b></td>' +
+              '<td><div class="opts">' + q.o.map(function (o) {
+                return '<div class="opt">' + esc(o) + '</div>';
+              }).join("") + '</div></td>' +
+              '<td><code>' + esc(q.id) + '</code></td>' +
+            '</tr>';
+          }).join("") +
+          '</tbody></table>';
+      }
+      function loadQuestions(packId) {
+        currentPack = packId;
+        renderPackTabs();
+        $("qMsg").textContent = "";
+        return api("/match/questions?pack=" + encodeURIComponent(packId)).then(function (j) {
+          questionsCache = j.questions || [];
+          renderQuestions();
+          return true;
+        }).catch(function (e) {
+          $("qMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+          return false;
+        });
+      }
+      function loadPacks() {
+        return api("/match/packs").then(function (j) {
+          packsCache = j.packs || [];
+          if (!packsCache.length) { $("qHost").innerHTML = '<div class="empty">Aucun pack actif.</div>'; return true; }
+          return loadQuestions(currentPack && packsCache.some(function (p) { return p.id === currentPack; })
+            ? currentPack : packsCache[0].id);
+        }).catch(function (e) {
+          $("qMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+          return false;
+        });
+      }
+
       // --- Delegated click handler (all destructive actions confirm) --------
       // Une entrée par bouton : confirmation, endpoint, section à rafraîchir.
       var ACTIONS = {
@@ -333,6 +486,8 @@
         },
       };
       document.addEventListener("click", function (e) {
+        var tab = e.target.closest && e.target.closest("[data-pack]");
+        if (tab) { loadQuestions(tab.getAttribute("data-pack")); return; }
         var b = e.target.closest && e.target.closest("[data-act]");
         if (!b) return;
         var a = ACTIONS[b.getAttribute("data-act")];
@@ -354,16 +509,20 @@
       function wireReload(btn, msg, load) {
         $(btn).onclick = function () { $(msg).textContent = ""; load(); };
       }
+      wireReload("reloadStorage", "storageMsg", loadStorage);
       wireReload("reloadRooms", "roomsMsg", loadRooms);
       wireReload("reloadPlayers", "playersMsg", loadPlayers);
       wireReload("reloadMatch", "matchMsg", loadMatch);
       $("filterRooms").addEventListener("input", renderRooms);
       $("filterPlayers").addEventListener("input", renderPlayers);
       $("filterMatch").addEventListener("input", renderMatch);
+      $("filterQ").addEventListener("input", renderQuestions);
       setStatus("Prêt");
+      loadStorage();
       loadRooms();
       loadPlayers();
       loadMatch();
+      loadPacks();
     })();
   </script>
 </body>

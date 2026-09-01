@@ -21,8 +21,12 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const storage = require("../storage");
 
-const FILE = path.join(__dirname, "players.json");
+// Le fichier vit hors du dossier déployé (voir server/storage.js) : ici, il
+// serait emporté par chaque mise en ligne.
+const store = storage.open("quizzmaster", path.join(__dirname, "players.json"));
+const FILE = store.file;
 const TOP_N = 10;
 const PIN_RE = /^\d{4}$/;
 
@@ -30,7 +34,20 @@ let data = load();
 
 function emptyStats() { return { games: 0, correct: 0, wrong: 0, skipped: 0, points: 0, bestScore: 0, lastAt: 0 }; }
 function emptyThemeStats() { return { games: 0, points: 0, best: 0, correct: 0, wrong: 0, skipped: 0 }; }
-function emptyData() { return { byName: {}, version: 2, updated_at: 0 }; }
+// `byName` est indexé DIRECTEMENT par le pseudo tapé par un joueur : un objet
+// littéral hérite d'Object.prototype, et lire byName["__proto__"] ne renvoie
+// jamais undefined — ça renvoie Object.prototype lui-même (toujours "vrai"),
+// ce qui contourne silencieusement toute la logique de création de compte et
+// finit par écrire des propriétés directement sur le prototype partagé par
+// TOUT le process (donc aussi Aperolympics et Are We A Match). Object.create(null)
+// n'a aucun prototype : la même lecture y renvoie bien undefined.
+function emptyData() { return { byName: Object.create(null), version: 2, updated_at: 0 }; }
+// Ceinture ET bretelles : refuser purement et simplement ces pseudos, qui
+// n'ont de toute façon aucun sens pour un joueur.
+// En minuscules : `key()` compare toujours sur le pseudo déjà passé en
+// minuscules (c'est un piège que j'ai moi-même fait tomber dans un premier
+// jet — "toString" ne matchait jamais "tostring").
+const RESERVED_KEYS = new Set(["__proto__", "constructor", "prototype", "tostring", "valueof", "hasownproperty"]);
 
 // Backfill new fields on an existing account. Idempotent — safe to call on every
 // access. Keeps old players.json files (which only have `themeBest`) working
@@ -53,22 +70,18 @@ function ensureSchema(a) {
 }
 
 function load() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(FILE, "utf8"));
-    if (parsed && parsed.byName) {
-      for (const k in parsed.byName) ensureSchema(parsed.byName[k]);
-      return parsed;
-    }
-  } catch (e) {}
+  const parsed = store.read();
+  if (parsed && parsed.byName) {
+    // JSON.parse rend un objet littéral ordinaire (donc avec le prototype
+    // standard) : on le reconstruit sans prototype, comme emptyData().
+    const byName = Object.assign(Object.create(null), parsed.byName);
+    for (const k in byName) ensureSchema(byName[k]);
+    parsed.byName = byName;
+    return parsed;
+  }
   return emptyData();
 }
-function save() {
-  try {
-    const tmp = FILE + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(data));
-    fs.renameSync(tmp, FILE);
-  } catch (e) { console.error("[QuizzMaster] players save failed:", e.message); }
-}
+function save() { store.write(data); }
 
 function key(name) { return String(name || "").trim().toLowerCase(); }
 function hashPin(pin, salt) { return crypto.createHash("sha256").update(salt + ":" + String(pin)).digest("hex"); }
@@ -77,7 +90,7 @@ function getAccount(name) { const a = data.byName[key(name)] || null; if (a) ens
 function isProtected(name) { const a = getAccount(name); return !!(a && a.pinHash); }
 
 function ensure(name, cid) {
-  const k = key(name); if (!k) return null;
+  const k = key(name); if (!k || RESERVED_KEYS.has(k)) return null;
   if (!data.byName[k]) {
     data.byName[k] = {
       name: String(name).trim().slice(0, 16),
@@ -95,6 +108,7 @@ function setPin(name, pin) {
   if (!PIN_RE.test(String(pin))) return false;
   a.salt = crypto.randomBytes(8).toString("hex");
   a.pinHash = hashPin(pin, a.salt);
+  save();
   return true;
 }
 
@@ -127,7 +141,7 @@ function deleteAccount(name, cid, pin) {
 //   { ok: false, reason: "bad_name" | "same_name" | "not_owner" | "name_taken" | "no_account" }
 function rename(oldName, newName, cid) {
   const oldK = key(oldName), newK = key(newName);
-  if (!oldK || !newK) return { ok: false, reason: "bad_name" };
+  if (!oldK || !newK || RESERVED_KEYS.has(newK)) return { ok: false, reason: "bad_name" };
   if (oldK === newK) return { ok: false, reason: "same_name" };
   const a = data.byName[oldK];
   if (!a) return { ok: false, reason: "no_account" };
@@ -148,7 +162,7 @@ function rename(oldName, newName, cid) {
 //   { ok: false, reason: "pin_wrong" }
 function authenticate(name, cid, pin) {
   const k = key(name);
-  if (!k) return { ok: false, reason: "bad_name" };
+  if (!k || RESERVED_KEYS.has(k)) return { ok: false, reason: "bad_name" };
   const a = getAccount(name);
 
   if (!a) {

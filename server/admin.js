@@ -55,6 +55,15 @@ function mount({ app, io, rooms }) {
   api.use(basicAuth);
   api.use(express.json({ limit: "16kb" }));
 
+  // -- Stockage --------------------------------------------------------------
+  // Où les comptes sont réellement écrits, et si l'écriture fonctionne. C'est
+  // le premier endroit à regarder quand « il n'y a plus aucun compte ».
+  api.get("/storage", (_req, res) => {
+    const s = require("./storage").describeAll();
+    const counts = { quizzmaster: qmPlayers.adminList().length, match: amPlayers.adminList().length };
+    res.json({ storage: s, counts });
+  });
+
   // -- Aperolympics rooms ----------------------------------------------------
   api.get("/rooms", (_req, res) => {
     const list = rooms.all().map((r) => ({
@@ -107,6 +116,28 @@ function mount({ app, io, rooms }) {
     const ok = qmPlayers.adminResetPin(name);
     if (!ok) return res.status(404).json({ ok: false, error: "not_found" });
     res.json({ ok: true });
+  });
+
+  // -- Are We A Match? banques de questions ---------------------------------
+  // Lecture seule : voir l'intégralité d'un pack, tel qu'il sera posé en jeu.
+  api.get("/match/packs", (_req, res) => {
+    const packs = require("./match/packs");
+    res.json({
+      packs: Object.values(packs).map((p) => ({
+        id: p.id, name: p.name, emoji: p.emoji, tagline: p.tagline, count: p.bank.length,
+      })),
+    });
+  });
+
+  api.get("/match/questions", (req, res) => {
+    const packs = require("./match/packs");
+    const id = String(req.query.pack || "");
+    const pack = packs[id];
+    if (!pack) return res.status(404).json({ ok: false, error: "unknown_pack" });
+    res.json({
+      pack: { id: pack.id, name: pack.name, emoji: pack.emoji, tagline: pack.tagline },
+      questions: pack.bank.map((q) => ({ id: q.id, q: q.q, o: q.o.slice() })),
+    });
   });
 
   // -- Are We A Match? players --------------------------------------------
