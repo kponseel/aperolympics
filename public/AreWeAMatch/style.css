@@ -91,6 +91,8 @@ input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
 .am-pack-name { display: block; font-weight: 800; font-size: 1.15rem; }
 .am-pack-tag { display: block; color: var(--soft); font-size: 0.88rem; line-height: 1.3; }
 .am-pack-state { display: block; font-size: 0.85rem; font-weight: 700; color: var(--soft); margin-top: 2px; }
+/* Version + date de la dernière mise à jour : en petit, tout en bas du hall. */
+.am-version { color: var(--soft); opacity: 0.75; font-size: 0.74rem; text-align: center; margin: 18px 0 6px; min-height: 1em; }
 .am-pack-state.live { color: var(--accent); }
 .am-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
 .am-card h3 { margin: 0 0 10px; font-size: 1.1rem; }

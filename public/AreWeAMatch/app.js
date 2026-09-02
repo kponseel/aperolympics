@@ -243,9 +243,24 @@
     if (card.player_count > 0) return { txt: "⏳ " + card.player_count + " en attente", cls: "" };
     return { txt: "Touche pour jouer", cls: "" };
   }
+  // "2026-09-02" → "2 sept. 2026". Sans passer par Date : une date sans
+  // heure serait décalée d'un jour selon le fuseau du téléphone.
+  function fmtDay(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+    if (!m) return iso || "";
+    var mois = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+    var d = parseInt(m[3], 10);
+    return (d === 1 ? "1er" : d) + " " + mois[parseInt(m[2], 10) - 1] + " " + m[1];
+  }
   function renderHall() {
     if (!lastLobby) return;
     updateMe();
+    // Version + date de la dernière mise à jour, en petit tout en bas du hall.
+    var ver = $("amVersion"), app = lastLobby.app;
+    if (ver) {
+      ver.textContent = (app && app.version) ? "v" + app.version + " · màj " + fmtDay(app.date) : "";
+      ver.title = (app && app.sha) ? "commit " + app.sha : "";
+    }
     var wrap = $("amPacks"); if (!wrap) return;
     wrap.innerHTML = "";
     (lastLobby.rooms || []).forEach(function (card) {
