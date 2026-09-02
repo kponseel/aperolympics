@@ -243,9 +243,24 @@
     if (card.player_count > 0) return { txt: "⏳ " + card.player_count + " en attente", cls: "" };
     return { txt: "Touche pour jouer", cls: "" };
   }
+  // "2026-09-02" → "2 sept. 2026". Sans passer par Date : une date sans
+  // heure serait décalée d'un jour selon le fuseau du téléphone.
+  function fmtDay(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+    if (!m) return iso || "";
+    var mois = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+    var d = parseInt(m[3], 10);
+    return (d === 1 ? "1er" : d) + " " + mois[parseInt(m[2], 10) - 1] + " " + m[1];
+  }
   function renderHall() {
     if (!lastLobby) return;
     updateMe();
+    // Version + date de la dernière mise à jour, en petit tout en bas du hall.
+    var ver = $("amVersion"), app = lastLobby.app;
+    if (ver) {
+      ver.textContent = (app && app.version) ? "v" + app.version + " · màj " + fmtDay(app.date) : "";
+      ver.title = (app && app.sha) ? "commit " + app.sha : "";
+    }
     var wrap = $("amPacks"); if (!wrap) return;
     wrap.innerHTML = "";
     (lastLobby.rooms || []).forEach(function (card) {
@@ -340,7 +355,8 @@
       body += '<div class="am-qmeta"><span>Question ' + (r.q_index + 1) + " / " + r.q_count + '</span>' +
               '<span id="amAnswered">' + (r.answered || 0) + " / " + (r.answered_total || 0) + ' ont répondu</span></div>';
       body += '<div class="am-timerbar" id="amBar"><i></i></div>';
-      body += '<div class="am-q">' + esc(q.q) + '</div>';
+      body += '<div class="am-q">' + esc(q.q) + '</div>' +
+              (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
 
       if (submitted) {
         // Classement verrouillé : on l'affiche en lecture seule.
@@ -418,7 +434,8 @@
       var mine = lastPrivate && lastPrivate.my_ranking;
       var body = "";
       body += '<div class="am-qmeta"><span>Question ' + (r.q_index + 1) + " / " + r.q_count + '</span><span id="amRvCount"></span></div>';
-      body += '<div class="am-q">' + esc(q.q) + '</div>';
+      body += '<div class="am-q">' + esc(q.q) + '</div>' +
+              (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
       body += '<div class="am-card"><h3>🏅 Le classement du groupe</h3>' +
         rv.group.map(function (g, i) {
           var mineMark = (mine && mine[0] === g.option) ? ' <span class="am-badge b-high">ton n°1</span>' : "";

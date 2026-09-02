@@ -136,7 +136,9 @@ function mount({ app, io, rooms }) {
     if (!pack) return res.status(404).json({ ok: false, error: "unknown_pack" });
     res.json({
       pack: { id: pack.id, name: pack.name, emoji: pack.emoji, tagline: pack.tagline },
-      questions: pack.bank.map((q) => ({ id: q.id, q: q.q, o: q.o.slice() })),
+      // ctx (scène + critère de classement) est optionnel : undefined disparaît
+      // à la sérialisation, la clé n'apparaît que pour les packs qui l'ont.
+      questions: pack.bank.map((q) => ({ id: q.id, q: q.q, ctx: q.ctx || undefined, o: q.o.slice() })),
     });
   });
 

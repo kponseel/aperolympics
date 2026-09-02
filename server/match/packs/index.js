@@ -1,5 +1,6 @@
 // Are We A Match? — registre des packs. Ajouter un pack = 1 fichier + 1 entrée.
-// Chaque question : { id (stable, sert de clé de persistance), q, o: [3 options] }
+// Chaque question : { id (stable, sert de clé de persistance), q, o: [3 options],
+//                     ctx? (optionnel : la scène + le critère de classement, affiché sous q) }
 
 module.exports = {
   amis:    { id: "amis",    name: "Amis",    emoji: "👯", tagline: "Goûts et modes de vie — avec n'importe qui", bank: require("./amis") },

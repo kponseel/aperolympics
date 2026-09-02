@@ -51,8 +51,12 @@ function mount({ app, io }) {
   const ns = io.of("/match");
   const sessions = new Map(); // socket.id -> { cid, name, roomId, inLobby, pinFails }
 
+  // Version + date de dernière mise à jour du jeu, affichées en petit dans le
+  // hall. Portées par lobby_state : c'est le premier message que le hall
+  // reçoit, et il est minuscule.
+  const APP_VERSION = require("./version");
   function snapshotLobby() {
-    return { rooms: allRooms.map((r) => r.lobbyCard()) };
+    return { rooms: allRooms.map((r) => r.lobbyCard()), app: APP_VERSION };
   }
   function lobbyHasListeners() {
     const r = ns.adapter.rooms.get("lobby");

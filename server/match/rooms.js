@@ -128,6 +128,14 @@ function makeRoom(packDef) {
   }
 
   function currentQuestion() { return questions[qIdx] || null; }
+  // Forme publique d'une question : ce qui part au client. `ctx` (la scène et
+  // le critère de classement) est optionnel — un pack qui ne l'a pas n'envoie
+  // simplement pas la clé, et le client n'affiche rien de plus.
+  function pubQuestion(q) {
+    const out = { id: q.id, q: q.q, o: q.o.slice() };
+    if (q.ctx) out.ctx = q.ctx;
+    return out;
+  }
 
   // Combien de joueurs actifs ont répondu à la question courante ?
   function answeredCount() {
@@ -380,7 +388,7 @@ function makeRoom(packDef) {
     if (state === "question") {
       const q = currentQuestion();
       if (q) {
-        snap.question = { id: q.id, q: q.q, o: q.o.slice() };
+        snap.question = pubQuestion(q);
         snap.answered = answeredCount();
         snap.answered_total = act.length;
       }
@@ -400,7 +408,7 @@ function makeRoom(packDef) {
           if (pl && pl.name) rankingsByName[pl.name] = rankingsByCid[pcid];
         }
         const gr = engine.groupRanking(rankingsByCid, q.o.length);
-        snap.question = { id: q.id, q: q.q, o: q.o.slice() };
+        snap.question = pubQuestion(q);
         snap.reveal = {
           group: gr.order.map((x) => ({ option: x.option, label: q.o[x.option], score: x.score, firstPicks: x.firstPicks })),
           voters: gr.voters,
@@ -423,7 +431,7 @@ function makeRoom(packDef) {
         // de tirets dans la matrice, ni faire disparaître un duo du podium
         // parce que la liste "live" a changé sous les résultats déjà calculés.
         names: lastNameByCid ? [...lastNameByCid.values()] : [],
-        questions: questions.map((q) => ({ id: q.id, q: q.q, o: q.o.slice() })),
+        questions: questions.map(pubQuestion),
       };
     }
     return snap;

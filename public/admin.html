@@ -405,7 +405,7 @@
         var filter = ($("filterQ").value || "").trim().toLowerCase();
         var rows = questionsCache.filter(function (q) {
           if (!filter) return true;
-          if (q.q.toLowerCase().includes(filter)) return true;
+          if ((q.q + " " + (q.ctx || "")).toLowerCase().includes(filter)) return true;
           if (q.id.toLowerCase().includes(filter)) return true;
           return q.o.some(function (o) { return o.toLowerCase().includes(filter); });
         });
@@ -417,7 +417,8 @@
             var n = questionsCache.indexOf(q) + 1;
             return '<tr>' +
               '<td><span class="meta">' + n + '</span></td>' +
-              '<td><b>' + esc(q.q) + '</b></td>' +
+              '<td><b>' + esc(q.q) + '</b>' +
+                (q.ctx ? '<div class="meta" style="margin-top:4px">' + esc(q.ctx) + '</div>' : '') + '</td>' +
               '<td><div class="opts">' + q.o.map(function (o) {
                 return '<div class="opt">' + esc(o) + '</div>';
               }).join("") + '</div></td>' +
