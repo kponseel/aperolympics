@@ -9,9 +9,59 @@
 
 const path = require("path");
 const express = require("express");
+const crypto = require("crypto");
 const roomsModule = require("./rooms");
 const players = require("./players");
 const packs = require("./packs");
+const { constantTimeEquals } = require("../admin");
+
+// --- Mode dev ---------------------------------------------------------------
+// Une salle de test PRIVÉE (un humain + des bots, questions dans l'ordre du
+// fichier, rien n'est enregistré) pour relire les questions et le jeu sans
+// second téléphone. Déverrouillée par le mot de passe admin (ADMIN_PASSWORD)
+// — ou, en local seulement, par MATCH_DEV=1 (n'importe quel mot de passe).
+const DEV_LOCAL = process.env.MATCH_DEV === "1";
+const DEV_ENABLED = DEV_LOCAL || !!process.env.ADMIN_PASSWORD;
+const DEV_TOKEN_MS = 12 * 60 * 60 * 1000;      // le jeton mémorisé par le téléphone expire en 12 h
+const DEV_MAX_FAILS = 5, DEV_LOCK_MS = 15 * 60 * 1000, DEV_GLOBAL_MAX_FAILS = 30;
+const DEV_MAX_ROOMS = 10;
+const devTokens = new Map();                   // token -> expiresAt
+const devFailsByIp = new Map();                // ip -> { count, lockedUntil }
+let devGlobalFails = { count: 0, since: Date.now() };
+
+function devPasswordOk(pw) {
+  if (DEV_LOCAL) return true;
+  const want = process.env.ADMIN_PASSWORD || "";
+  return !!want && constantTimeEquals(String(pw || ""), want);
+}
+function devFailsFor(ip) {
+  const e = devFailsByIp.get(ip);
+  if (e && e.lockedUntil && Date.now() > e.lockedUntil) { devFailsByIp.delete(ip); return null; }
+  return e || null;
+}
+// Verrou global en plus du verrou par IP : le cid et l'IP sont contournables,
+// mais 30 échecs en 15 min sur un mot de passe que seule une personne connaît
+// ne sont jamais légitimes.
+function devGloballyLocked() {
+  if (Date.now() - devGlobalFails.since > DEV_LOCK_MS) devGlobalFails = { count: 0, since: Date.now() };
+  return devGlobalFails.count >= DEV_GLOBAL_MAX_FAILS;
+}
+function issueDevToken() {
+  const t = crypto.randomBytes(16).toString("hex");
+  devTokens.set(t, Date.now() + DEV_TOKEN_MS);
+  return t;
+}
+function devTokenOk(t) {
+  const key = String(t || "");
+  const exp = devTokens.get(key);
+  if (!exp) return false;
+  if (Date.now() > exp) { devTokens.delete(key); return false; }
+  return true;
+}
+function clientIp(socket) {
+  const xf = socket.handshake.headers["x-forwarded-for"];
+  return (xf ? String(xf).split(",")[0].trim() : "") || socket.handshake.address || "?";
+}
 
 const TICK_MS = 250;              // le compte à rebours doit être fluide
 const MAX_PIN_ATTEMPTS = 5;
@@ -49,14 +99,15 @@ function mount({ app, io }) {
 
   // --- Socket.IO -----------------------------------------------------------
   const ns = io.of("/match");
-  const sessions = new Map(); // socket.id -> { cid, name, roomId, inLobby, pinFails }
+  const sessions = new Map(); // socket.id -> { cid, name, roomId, inLobby, dev }
+  const devRooms = new Map(); // id -> salle de test privée (mode dev), jamais dans le lobby
 
   // Version + date de dernière mise à jour du jeu, affichées en petit dans le
   // hall. Portées par lobby_state : c'est le premier message que le hall
   // reçoit, et il est minuscule.
   const APP_VERSION = require("./version");
   function snapshotLobby() {
-    return { rooms: allRooms.map((r) => r.lobbyCard()), app: APP_VERSION };
+    return { rooms: allRooms.map((r) => r.lobbyCard()), app: APP_VERSION, dev_enabled: DEV_ENABLED };
   }
   function lobbyHasListeners() {
     const r = ns.adapter.rooms.get("lobby");
@@ -95,8 +146,23 @@ function mount({ app, io }) {
     room.leaveForGood(sess.cid);
     socket.leave("room:" + room.id);
     sess.roomId = null;
+    // Salle de test que son propriétaire quitte : elle disparaît avec lui.
+    if (room.isDev && room.humanCount() === 0) { destroyDevRoom(room); return; }
     broadcastRoom(room);
     broadcastLobby();
+  }
+  // Détruit une salle de test : plus personne ne peut la rejoindre, et les
+  // sessions qui y étaient encore attachées (autre onglet, fantôme) sont
+  // détachées proprement.
+  function destroyDevRoom(room) {
+    devRooms.delete(room.id);
+    roomById.delete(room.id);
+    for (const [sid, s] of sessions) {
+      if (s.roomId !== room.id) continue;
+      s.roomId = null;
+      const sock = ns.sockets.get(sid);
+      if (sock) sock.leave("room:" + room.id);
+    }
   }
   // Coupure de connexion (socket morte, ping perdu) : on marque juste absent,
   // avec un délai de grâce — un blip réseau ou un rechargement de page ne
@@ -210,6 +276,9 @@ function mount({ app, io }) {
       const rid = String((m && m.id) || "");
       const room = roomById.get(rid);
       if (!room) { socket.emit("error_msg", { msg: "unknown_room" }); return; }
+      // Salle de test : privée, réservée à son propriétaire. Pour les autres
+      // elle n'existe pas (même réponse qu'un id inconnu).
+      if (room.ownerCid && room.ownerCid !== sess.cid) { socket.emit("error_msg", { msg: "unknown_room" }); return; }
       // Ce pseudo est-il déjà tenu par un AUTRE cid actif dans CETTE salle ?
       // Sans ce garde, deux joueurs sous le même nom d'affichage verraient
       // leurs réponses fusionner dans les résultats (indistinguables l'un de
@@ -247,6 +316,81 @@ function mount({ app, io }) {
       socket.emit("profile", { ok: true, profile: prof, historic, pack: packId });
     });
 
+    // --- Mode dev ---
+    // Déverrouillage par mot de passe (ou par le jeton reçu la dernière fois,
+    // mémorisé par le téléphone). Le mot de passe est celui de /admin.
+    socket.on("dev_unlock", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess) return;
+      if (!DEV_ENABLED) { socket.emit("dev_state", { enabled: false }); return; }
+      const token = m && m.token ? String(m.token) : "";
+      const ip = clientIp(socket);
+      let ok = false;
+      if (token) ok = devTokenOk(token);
+      else {
+        const fails = devFailsFor(ip);
+        if ((fails && fails.count >= DEV_MAX_FAILS) || devGloballyLocked()) {
+          socket.emit("dev_state", { enabled: true, ok: false, reason: "locked" });
+          return;
+        }
+        ok = devPasswordOk(m && m.password);
+        if (ok) devFailsByIp.delete(ip);
+        else {
+          const cur = devFailsByIp.get(ip) || { count: 0, lockedUntil: 0 };
+          cur.count += 1;
+          if (cur.count >= DEV_MAX_FAILS) cur.lockedUntil = Date.now() + DEV_LOCK_MS;
+          devFailsByIp.set(ip, cur);
+          devGlobalFails.count += 1;
+        }
+      }
+      if (!ok) { socket.emit("dev_state", { enabled: true, ok: false, reason: token ? "bad_token" : "bad_password" }); return; }
+      sess.dev = true;
+      let existing = null;
+      for (const r of devRooms.values()) if (sess.cid && r.ownerCid === sess.cid) existing = r.id;
+      socket.emit("dev_state", {
+        enabled: true, ok: true,
+        token: token || issueDevToken(),
+        packs: Object.values(packs).map((p) => ({ id: p.id, name: p.name, emoji: p.emoji, bank_size: p.bank.length })),
+        max_bots: roomsModule.MAX_BOTS,
+        room: existing, // une salle de test encore en vie après un rechargement de page
+      });
+    });
+
+    // Crée SA salle de test et y place le demandeur. Une seule par
+    // propriétaire : la précédente est détruite. Le client reçoit d'abord
+    // dev_room (l'id à afficher), puis room_state comme pour toute salle.
+    socket.on("dev_start", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.dev) { socket.emit("error_msg", { msg: "dev_locked" }); return; }
+      if (!sess.cid || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      const packId = String((m && m.pack) || "");
+      const packDef = packs[packId];
+      if (!packDef) { socket.emit("error_msg", { msg: "unknown_pack" }); return; }
+      const bank = packDef.bank.length;
+      const order = (m && m.order === "random") ? "random" : "file";
+      const startAt = Math.max(0, Math.min(bank - 1, (Number(m && m.start_at) || 1) - 1)); // 1-based côté client
+      const count = Math.max(1, Math.min(bank, Number(m && m.count) || bank));
+      const bots = Math.max(0, Math.min(roomsModule.MAX_BOTS, m && m.bots != null ? (Number(m.bots) || 0) : 2));
+      for (const r of [...devRooms.values()]) if (r.ownerCid === sess.cid) destroyDevRoom(r);
+      if (devRooms.size >= DEV_MAX_ROOMS) { socket.emit("error_msg", { msg: "dev_too_many_rooms" }); return; }
+      if (sess.roomId) leaveCurrentRoomForGood(socket);
+      const room = roomsModule.buildDev(packId, {
+        id: "dev-" + crypto.randomBytes(6).toString("hex"), ownerCid: sess.cid,
+        order, startAt, count, bots,
+        // Plus de temps pour lire et juger chaque question ; reveal court ;
+        // résultats gardés longtemps (on prend des notes).
+        questionMs: 60000, revealMs: 3000, resultsMs: 10 * 60 * 1000,
+      });
+      devRooms.set(room.id, room);
+      roomById.set(room.id, room);
+      socket.emit("dev_room", { id: room.id });
+      room.addPlayer(sess.cid, sess.name, socket.id);
+      sess.roomId = room.id;
+      sess.inLobby = false; socket.leave("lobby");
+      socket.join("room:" + room.id);
+      broadcastRoom(room);
+    });
+
     // Messages de jeu (demarrer / skip / rank) transmis à la salle courante.
     // Toujours un accusé explicite à l'expéditeur : le client verrouille son
     // UI de façon optimiste dès l'envoi ("Classement envoyé ✅"), donc un
@@ -272,10 +416,16 @@ function mount({ app, io }) {
     const now = Date.now();
     const dirty = [];
     for (const r of allRooms) { if (r.tick(now)) dirty.push(r); }
+    for (const r of [...devRooms.values()]) {
+      if (r.tick(now)) dirty.push(r);
+      // Plus aucun humain (parti, ou purgé après le délai de grâce) : la
+      // salle de test n'a plus de raison d'exister, rien n'y est enregistré.
+      if (r.humanCount() === 0) destroyDevRoom(r);
+    }
     if (dirty.length) { dirty.forEach(broadcastRoom); broadcastLobby(); }
   }, TICK_MS);
 
-  console.log(`[AreWeAMatch] mounted: /AreWeAMatch + ns /match (${allRooms.length} packs)`);
+  console.log(`[AreWeAMatch] mounted: /AreWeAMatch + ns /match (${allRooms.length} packs${DEV_ENABLED ? ", mode dev disponible" : ""})`);
 }
 
 module.exports = mount;

@@ -54,6 +54,13 @@
   var myRank = [];
   var lastQuestionId = null;
   var submitted = false;
+  // Mode dev : jeton mémorisé (12 h côté serveur), infos renvoyées au
+  // déverrouillage (packs, bots max, salle encore en vie) et réglages de la
+  // salle de test.
+  var devOn = false, devInfo = null;
+  var devForm = { pack: "amis", order: "file", start_at: 1, count: 0, bots: 2 };
+  function getDevToken() { try { return localStorage.getItem("am.devToken") || ""; } catch (e) { return ""; } }
+  function setDevToken(t) { try { if (t) localStorage.setItem("am.devToken", t); else localStorage.removeItem("am.devToken"); } catch (e) {} }
 
   function serverNow() { return Date.now() + clockSkewMs; }
 
@@ -82,6 +89,8 @@
       if (currentRoomId) { show("s-room"); socket.emit("join_room", { id: currentRoomId }); }
       else enterHall();
       updateMe();
+      // Un jeton dev mémorisé rouvre le mode dev sans retaper le mot de passe.
+      if (getDevToken()) socket.emit("dev_unlock", { token: getDevToken() });
     });
     socket.on("pin_required", function (m) { enterPinMode(m && m.name, "🔒 Ce pseudo est protégé. Entre ton code PIN."); });
     socket.on("pin_wrong", function (m) {
@@ -146,9 +155,38 @@
       else if (m.reason === "stale") toast("La question a changé entre-temps — reclasse pour valider.");
       else toast("Classement non pris en compte, réessaie.");
     });
+    // --- mode dev ---
+    socket.on("dev_state", function (m) {
+      if (!m || m.enabled === false) {
+        devOn = false; devInfo = null; setDevToken(""); renderDevCard();
+        devSheetError("Mode dev désactivé sur ce serveur (ADMIN_PASSWORD n'est pas défini).");
+        return;
+      }
+      if (!m.ok) {
+        if (m.reason === "bad_token") setDevToken("");
+        devSheetError(m.reason === "locked" ? "Trop d'essais — réessaie dans 15 minutes."
+          : m.reason === "bad_token" ? "Session dev expirée : retape le mot de passe."
+          : "Mot de passe incorrect.");
+        return;
+      }
+      devOn = true; devInfo = m;
+      if (m.token) setDevToken(m.token);
+      if (m.packs && m.packs.length && !m.packs.some(function (p) { return p.id === devForm.pack; })) devForm.pack = m.packs[0].id;
+      closeSheet(); renderDevCard();
+      toast("🧪 Mode dev activé");
+    });
+    // Le serveur vient de créer NOTRE salle de test et nous y a placés : on
+    // l'affiche (son état arrive juste derrière par room_state).
+    socket.on("dev_room", function (m) {
+      if (!m || !m.id) return;
+      currentRoomId = m.id; roomStructSig = ""; myRank = []; submitted = false; lastQuestionId = null; lastPrivate = {}; lastRoom = null;
+      show("s-room");
+    });
     socket.on("error_msg", function (m) {
       var code = m && m.msg;
       if (code === "bad_identity" || code === "no_identity") return;
+      if (code === "dev_locked") { toast("Mode dev verrouillé — déverrouille-le d'abord."); return; }
+      if (code === "unknown_pack" || code === "dev_too_many_rooms") { toast("Impossible de créer la salle de test (" + code + ")."); return; }
       if (code === "bad_pin") { toast("PIN invalide (4 chiffres)."); return; }
       if (code === "not_owner") { toast("Ce pseudo appartient à un autre joueur."); return; }
       setStatus(code ? "Erreur : " + code : "Erreur");
@@ -259,7 +297,10 @@
     var ver = $("amVersion"), app = lastLobby.app;
     if (ver) {
       ver.textContent = (app && app.version) ? "v" + app.version + " · màj " + fmtDay(app.date) : "";
-      ver.title = (app && app.sha) ? "commit " + app.sha : "";
+      ver.title = ((app && app.sha) ? "commit " + app.sha + " · " : "") + "touche pour le mode dev";
+      // Entrée discrète du mode dev : toucher la ligne de version.
+      ver.classList.add("clickable");
+      ver.onclick = openDevSheet;
     }
     var wrap = $("amPacks"); if (!wrap) return;
     wrap.innerHTML = "";
@@ -301,6 +342,7 @@
     var r = lastRoom;
     $("amRoomEmoji").textContent = r.pack_emoji || "💘";
     $("amRoomTitle").textContent = r.pack_name || "—";
+    var badge = $("amDevBadge"); if (badge) badge.style.display = r.dev ? "" : "none";
     if (r.state === "idle") { stopRefresh(); renderIdle(r); return; }
     if (r.state === "question") { startRefresh(); renderQuestion(r); return; }
     if (r.state === "reveal") { startRefresh(); renderReveal(r); return; }
@@ -313,7 +355,7 @@
     return '<div class="am-pills">' + list.map(function (p) {
       var isHost = hostName && p.name === hostName;
       var done = answeredNames && answeredNames.indexOf(p.name) >= 0;
-      return '<span class="am-pill' + (p.name === me ? " me" : "") + (isHost ? " host" : "") + (done ? " done" : "") + '">' +
+      return '<span class="am-pill' + (p.name === me ? " me" : "") + (isHost ? " host" : "") + (done ? " done" : "") + (p.bot ? " bot" : "") + '">' +
         (isHost ? "👑 " : "") + esc(p.name) + (done ? " ✓" : "") + '</span>';
     }).join("") + '</div>';
   }
@@ -331,8 +373,8 @@
       (inRoom
         ? (isHost
           ? (enough
-            ? '<button class="am-primary xl" id="amStart">💘 Lancer la partie</button>' +
-              '<p class="am-hint center">10 questions · tu contrôles le rythme 👑</p>'
+            ? '<button class="am-primary xl" id="amStart">' + (r.dev ? "🧪 Lancer la salle de test" : "💘 Lancer la partie") + '</button>' +
+              '<p class="am-hint center">' + (r.dev ? devIdleHint(r) : "10 questions · tu contrôles le rythme 👑") + '</p>'
             : '<div class="am-card am-center-card"><div class="am-big">👥</div>' +
                 '<p class="am-lead">Il faut au moins <b>' + (r.min_players || 2) + ' joueurs</b>.</p>' +
                 '<p class="am-hint">Partage le lien pour qu\'on te rejoigne !</p></div>')
@@ -380,7 +422,11 @@
           : (myRank.length < q.o.length ? "Encore " + (q.o.length - myRank.length) + " à classer… (touche une option classée pour l'enlever)" : "Classement complet !")) + '</p>';
         body += '<button class="am-primary" id="amValid"' + (myRank.length === q.o.length ? "" : " disabled") + '>✅ Valider mon classement</button>';
       }
+      // Salle de test : l'hôte passe à la question suivante sans répondre —
+      // pour relire un pack, on ne veut pas classer 45 fois.
+      if (r.dev && amHost()) body += '<button class="am-ghost" id="amSkipQ">⏭️ Question suivante (sans répondre)</button>';
       $("amRoomBody").innerHTML = body;
+      var sq = $("amSkipQ"); if (sq) sq.onclick = function () { if (socket) socket.emit("msg", { t: "skip", state: "question", q_index: r.q_index }); };
 
       var opts = $("amOpts");
       if (opts) {
@@ -451,7 +497,9 @@
         body += '<div class="am-perfect">✨ Accord parfait sur cette question : ' +
           rv.perfect.map(function (p) { return "<b>" + esc(p.a) + " & " + esc(p.b) + "</b>"; }).join(", ") + '</div>';
       }
+      if (r.dev && amHost()) body += '<button class="am-ghost" id="amSkipR">⏭️ Suivante</button>';
       $("amRoomBody").innerHTML = body;
+      var sr = $("amSkipR"); if (sr) sr.onclick = function () { if (socket) socket.emit("msg", { t: "skip", state: "reveal", q_index: r.q_index }); };
     }
     var left = r.deadline_ms ? Math.max(0, r.deadline_ms - serverNow()) : 0;
     var c = $("amRvCount");
@@ -558,6 +606,7 @@
           }).join("") + '</div>';
       }
 
+      if (r.dev) body += '<p class="am-hint center">🧪 Salle de test : rien n\'a été enregistré.</p>';
       body += '<p class="am-hint center" id="amResCount"></p>';
       if (amHost()) body += '<button class="am-ghost" id="amAgain">↩️ Retour au salon</button>';
 
@@ -599,6 +648,91 @@
       html += '<p class="am-hint">Joue quelques parties pour débloquer tes matchs historiques (5 questions communes minimum).</p>';
     }
     openSheet("👤 Profil", html);
+  }
+
+  // ---------- mode dev ----------
+  function devSheetError(msg) {
+    var err = $("amDevErr");
+    if (err) err.textContent = msg; else if (msg) toast(msg);
+  }
+  function devIdleHint(r) {
+    var d = r.dev || {};
+    var parts = [d.count + " question" + (d.count > 1 ? "s" : "")];
+    parts.push(d.order === "file" ? "ordre du fichier" + (d.start_at ? " dès la n°" + (d.start_at + 1) : "") : "aléatoire");
+    parts.push(d.bots + " bot" + (d.bots > 1 ? "s" : ""));
+    parts.push("rien n'est enregistré");
+    return parts.join(" · ");
+  }
+  function openDevSheet() {
+    if (devOn) {
+      openSheet("🧪 Mode dev",
+        '<p>Le mode dev est <b>actif</b> sur cet appareil : la carte 🧪 du hall lance une salle de test privée.</p>' +
+        '<button type="button" class="am-ghost" id="amDevOff">Désactiver le mode dev</button>',
+        function (body) {
+          body.querySelector("#amDevOff").onclick = function () {
+            devOn = false; devInfo = null; setDevToken(""); renderDevCard(); closeSheet(); toast("Mode dev désactivé");
+          };
+        });
+      return;
+    }
+    openSheet("🧪 Mode dev",
+      '<p>Une <b>salle de test privée</b> : toi + des bots, les questions dans l\'ordre du fichier, et <b>rien n\'est enregistré</b>. Réservé à l\'admin.</p>' +
+      '<input id="amDevPw" type="password" placeholder="Mot de passe admin" autocomplete="current-password" />' +
+      '<button type="button" class="am-primary" id="amDevGo">Déverrouiller</button>' +
+      '<div class="am-error center" id="amDevErr"></div>',
+      function (body) {
+        var input = body.querySelector("#amDevPw");
+        setTimeout(function () { input.focus(); }, 80);
+        function go() {
+          var pw = input.value || "";
+          if (!pw) { devSheetError("Entre le mot de passe admin."); return; }
+          if (!socket || !connected) { devSheetError("Pas de connexion."); return; }
+          devSheetError("");
+          socket.emit("dev_unlock", { password: pw });
+        }
+        body.querySelector("#amDevGo").onclick = go;
+        input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
+      });
+  }
+  // La carte 🧪 du hall. Construite à la demande, PAS à chaque lobby_state :
+  // on ne veut pas perdre la saisie en cours à chaque rafraîchissement.
+  function renderDevCard() {
+    var host = $("amDev"); if (!host) return;
+    if (!devOn || !devInfo) { host.innerHTML = ""; return; }
+    var packs = devInfo.packs || [];
+    var cur = packs.filter(function (p) { return p.id === devForm.pack; })[0] || packs[0] || { id: "amis", bank_size: 45 };
+    var maxBots = devInfo.max_bots || 4;
+    host.innerHTML =
+      '<div class="am-card am-devcard"><h3>🧪 Mode dev — salle de test</h3>' +
+      '<p class="am-hint">Toi + des bots. Rien n\'est enregistré, personne d\'autre ne voit cette salle.</p>' +
+      '<div class="am-devrow"><label>Pack</label><div class="am-seg" id="amDevPacks">' + packs.map(function (p) {
+        return '<button type="button" data-pack="' + esc(p.id) + '"' + (p.id === cur.id ? ' class="on"' : '') + '>' + esc(p.emoji + " " + p.name) + '</button>';
+      }).join("") + '</div></div>' +
+      '<div class="am-devrow"><label>Ordre</label><div class="am-seg" id="amDevOrder">' +
+        '<button type="button" data-order="file"' + (devForm.order === "file" ? ' class="on"' : '') + '>Ordre du fichier</button>' +
+        '<button type="button" data-order="random"' + (devForm.order === "random" ? ' class="on"' : '') + '>Aléatoire</button></div></div>' +
+      '<div class="am-devrow"><label for="amDevStart">Commencer à la question n°</label><input id="amDevStart" type="number" inputmode="numeric" min="1" max="' + cur.bank_size + '" value="' + devForm.start_at + '" /></div>' +
+      '<div class="am-devrow"><label for="amDevCount">Nombre de questions <span class="am-soft">(0 = tout le pack, ' + cur.bank_size + ')</span></label><input id="amDevCount" type="number" inputmode="numeric" min="0" max="' + cur.bank_size + '" value="' + devForm.count + '" /></div>' +
+      '<div class="am-devrow"><label for="amDevBots">Bots</label><input id="amDevBots" type="number" inputmode="numeric" min="0" max="' + maxBots + '" value="' + devForm.bots + '" /></div>' +
+      (devInfo.room ? '<button type="button" class="am-ghost" id="amDevResume">↩️ Reprendre la salle de test en cours</button>' : '') +
+      '<button type="button" class="am-primary" id="amDevGo">🧪 Lancer la salle de test</button></div>';
+    Array.prototype.forEach.call(host.querySelectorAll("#amDevPacks button"), function (b) {
+      b.onclick = function () { devForm.pack = b.getAttribute("data-pack"); devForm.start_at = 1; devForm.count = 0; renderDevCard(); };
+    });
+    Array.prototype.forEach.call(host.querySelectorAll("#amDevOrder button"), function (b) {
+      b.onclick = function () { devForm.order = b.getAttribute("data-order"); renderDevCard(); };
+    });
+    function num(id, lo, hi, dflt) { var v = parseInt(($(id) || {}).value, 10); if (isNaN(v)) v = dflt; return Math.max(lo, Math.min(hi, v)); }
+    var resume = $("amDevResume");
+    if (resume) resume.onclick = function () { enterRoom(devInfo.room); };
+    $("amDevGo").onclick = function () {
+      if (!socket || !connected) { toast("Pas de connexion."); return; }
+      devForm.start_at = num("amDevStart", 1, cur.bank_size, 1);
+      devForm.count = num("amDevCount", 0, cur.bank_size, 0);
+      devForm.bots = num("amDevBots", 0, maxBots, 2);
+      socket.emit("dev_start", { pack: cur.id, order: devForm.order, start_at: devForm.start_at,
+        count: devForm.count || cur.bank_size, bots: devForm.bots });
+    };
   }
 
   // ---------- aide ----------
@@ -654,5 +788,7 @@
     });
     connect();
     if (getPseudo()) enterHall(); else show("s-pseudo");
+    // /AreWeAMatch/?dev ouvre directement la feuille du mode dev.
+    if (/[?&]dev(=|&|$)/.test(location.search)) setTimeout(openDevSheet, 400);
   });
 })();

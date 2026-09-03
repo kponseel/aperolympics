@@ -167,3 +167,6 @@ function mount({ app, io, rooms }) {
 }
 
 module.exports = mount;
+// Partagée avec le mode dev d'Are We A Match (même mot de passe, même
+// comparaison en temps constant).
+module.exports.constantTimeEquals = constantTimeEquals;
