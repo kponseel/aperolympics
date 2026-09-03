@@ -9,7 +9,7 @@
 //   - DATE    : mettre la date du jour. Elle sert de repli : quand le dépôt
 //     git est disponible au démarrage, la date affichée est celle du dernier
 //     commit qui touche le jeu (jamais périmée, même si on oublie ce fichier).
-const VERSION = "1.1";
+const VERSION = "1.2";
 const DATE = "2026-09-03";
 
 const { execFileSync } = require("child_process");
