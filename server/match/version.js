@@ -10,7 +10,7 @@
 //     git est disponible au démarrage, la date affichée est celle du dernier
 //     commit qui touche le jeu (jamais périmée, même si on oublie ce fichier).
 const VERSION = "1.1";
-const DATE = "2026-09-02";
+const DATE = "2026-09-03";
 
 const { execFileSync } = require("child_process");
 const path = require("path");

@@ -377,9 +377,10 @@ function mount({ app, io }) {
       const room = roomsModule.buildDev(packId, {
         id: "dev-" + crypto.randomBytes(6).toString("hex"), ownerCid: sess.cid,
         order, startAt, count, bots,
-        // Plus de temps pour lire et juger chaque question ; reveal court ;
-        // résultats gardés longtemps (on prend des notes).
-        questionMs: 60000, revealMs: 3000, resultsMs: 10 * 60 * 1000,
+        // Plus de temps pour lire et juger chaque question ; reveal normal
+        // (⏭️ pour aller plus vite) ; résultats gardés longtemps (on prend
+        // des notes).
+        questionMs: 60000, resultsMs: 10 * 60 * 1000,
       });
       devRooms.set(room.id, room);
       roomById.set(room.id, room);

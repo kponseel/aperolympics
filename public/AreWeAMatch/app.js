@@ -42,6 +42,21 @@
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function setStatus(t) { var el = $("amStatus"); if (el) el.textContent = t || ""; }
   function medal(i) { return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#" + (i + 1); }
+  // Accord par paires entre deux classements de la même question — le même
+  // calcul que le moteur côté serveur : sur 3 options, 3 comparaisons.
+  function pairAgree(a, b) {
+    if (!a || !b || a.length !== b.length) return null;
+    var n = a.length, pa = [], pb = [], agree = 0, total = 0;
+    for (var i = 0; i < n; i++) { pa[a[i]] = i; pb[b[i]] = i; }
+    for (var x = 0; x < n; x++) for (var y = x + 1; y < n; y++) { total++; if ((pa[x] < pa[y]) === (pb[x] < pb[y])) agree++; }
+    return { agree: agree, total: total };
+  }
+  // « 🏔️ Rando et grand air » → « 🏔️ » : le pictogramme de tête suffit à
+  // relire un classement d'un coup d'œil (sinon, le numéro de l'option).
+  function emojiOf(label, idx) {
+    var m = /^(\S+)\s/.exec(label || "");
+    return (m && /^[^\w\d]/.test(m[1])) ? m[1] : String(idx + 1);
+  }
 
   // ---------- état ----------
   var socket = null, connected = false;
@@ -367,9 +382,19 @@
     var host = r.host_name || "";
     var isHost = inRoom && host === me;
     var enough = players.length >= (r.min_players || 2);
+    // Le principe, expliqué là où on attend que tout le monde arrive.
+    var concept =
+      '<div class="am-card am-concept"><h3>💡 Le principe</h3>' +
+      '<ol class="am-steps compact">' +
+      '<li><span class="num">1</span><span><b>Classe 3 options</b> à chaque question, de ta préférée à la moins aimée. Pas de bonne réponse : juste toi.</span></li>' +
+      '<li><span class="num">2</span><span><b>Après chaque question</b>, tu vois les réponses de chacun, ton accord avec chacun, et votre compatibilité jusque-là.</span></li>' +
+      '<li><span class="num">3</span><span><b>À la fin</b> : qui est le plus compatible avec qui, tout le monde contre tout le monde.</span></li>' +
+      '</ol>' +
+      '<p class="am-hint">' + (r.dev ? "" : "10 questions · ~5 minutes · ") + 'l\'hôte 👑 lance la partie et peut passer à la question suivante.</p></div>';
     $("amRoomBody").innerHTML =
       '<div class="am-card"><p class="am-hint center">' + esc(r.pack_tagline || "") + '</p></div>' +
       '<div class="am-card"><h3>Joueurs (' + players.length + ')</h3>' + renderPills(players, host) + '</div>' +
+      concept +
       (inRoom
         ? (isHost
           ? (enough
@@ -422,9 +447,10 @@
           : (myRank.length < q.o.length ? "Encore " + (q.o.length - myRank.length) + " à classer… (touche une option classée pour l'enlever)" : "Classement complet !")) + '</p>';
         body += '<button class="am-primary" id="amValid"' + (myRank.length === q.o.length ? "" : " disabled") + '>✅ Valider mon classement</button>';
       }
-      // Salle de test : l'hôte passe à la question suivante sans répondre —
-      // pour relire un pack, on ne veut pas classer 45 fois.
-      if (r.dev && amHost()) body += '<button class="am-ghost" id="amSkipQ">⏭️ Question suivante (sans répondre)</button>';
+      // L'hôte peut clore la question (quelqu'un bloque, ou tout le monde a
+      // fini sans valider) ; en salle de test, c'est aussi le moyen de relire
+      // un pack sans classer 45 fois.
+      if (amHost()) body += '<button class="am-ghost" id="amSkipQ">' + (r.dev ? "⏭️ Question suivante (sans répondre)" : "⏭️ Clore la question pour tout le monde") + '</button>';
       $("amRoomBody").innerHTML = body;
       var sq = $("amSkipQ"); if (sq) sq.onclick = function () { if (socket) socket.emit("msg", { t: "skip", state: "question", q_index: r.q_index }); };
 
@@ -474,14 +500,59 @@
   function renderReveal(r) {
     var q = r.question, rv = r.reveal;
     if (!q || !rv) return;
-    var sig = "rv:" + q.id;
+    var me = getPseudo();
+    var mine = lastPrivate && lastPrivate.my_ranking;
+    // Le classement privé peut arriver juste après l'état public : on
+    // re-rend alors, pour afficher l'accord avec chacun.
+    var sig = "rv:" + q.id + ":" + (mine ? "m" : "-") + ":" + ((rv.rankings || []).length);
     if (roomStructSig !== sig) {
       roomStructSig = sig;
-      var mine = lastPrivate && lastPrivate.my_ranking;
       var body = "";
       body += '<div class="am-qmeta"><span>Question ' + (r.q_index + 1) + " / " + r.q_count + '</span><span id="amRvCount"></span></div>';
       body += '<div class="am-q">' + esc(q.q) + '</div>' +
               (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
+
+      // 1) Les réponses de chacun : le classement en pictogrammes, et
+      //    l'accord avec le mien sur CETTE question (n/3).
+      var rows = (rv.rankings || []).slice().sort(function (x, y) {
+        return (x.name === me ? -1 : y.name === me ? 1 : 0) || x.name.localeCompare(y.name);
+      });
+      body += '<div class="am-card"><h3>👀 Les réponses</h3>';
+      if (!rows.length) body += '<p class="am-hint">Personne n\'a répondu à temps.</p>';
+      body += rows.map(function (x) {
+        var isMe = x.name === me;
+        var ag = (!isMe && mine) ? pairAgree(mine, x.ranking) : null;
+        var badge = isMe ? '<span class="am-agree me">toi</span>'
+          : (ag ? '<span class="am-agree a' + ag.agree + '">' + (ag.agree === ag.total ? "✨ " : "") + ag.agree + "/" + ag.total + '</span>'
+                : '<span class="am-agree">—</span>');
+        return '<div class="am-ans-row' + (isMe ? " me" : "") + '"><span class="who">' + esc(x.name) + '</span>' +
+          '<span class="picks">' + x.ranking.map(function (o) { return '<span class="pick">' + esc(emojiOf(q.o[o], o)) + '</span>'; }).join('<span class="sep">›</span>') + '</span>' +
+          badge + '</div>';
+      }).join("");
+      body += '<p class="am-hint am-legend">' + q.o.map(function (l, i) {
+        return '<span>' + esc(emojiOf(l, i)) + ' ' + esc(l.replace(/^\S+\s/, "")) + '</span>';
+      }).join(" · ") + '</p>';
+      if (mine && rows.length > 1) body += '<p class="am-hint">n/3 = comparaisons où vous êtes d\'accord, toi et l\'autre, sur cette question.</p>';
+      body += '</div>';
+
+      // 2) Compatibilité jusqu'ici (cumulée depuis le début de la manche).
+      var sf = rv.so_far || { asked: r.q_index + 1, pairs: [] };
+      var withMe = (sf.pairs || []).filter(function (p) { return p.a === me || p.b === me; })
+        .map(function (p) { return { name: p.a === me ? p.b : p.a, pct: p.pct, shared: p.shared }; })
+        .sort(function (x, y) { return y.pct - x.pct || y.shared - x.shared; });
+      var top = (sf.pairs || []).slice().sort(function (x, y) { return y.pct - x.pct || y.shared - x.shared; })[0];
+      if (withMe.length || top) {
+        body += '<div class="am-card"><h3>💘 Compatibilité jusqu\'ici <span class="am-soft">(' + sf.asked + ' question' + (sf.asked > 1 ? "s" : "") + ')</span></h3>';
+        body += withMe.map(function (w) {
+          return '<div class="am-duo-row"><span class="who">' + esc(w.name) + ' <span class="am-soft">· ' + w.shared + ' en commun</span></span><span class="pct">' + w.pct + '%</span></div>';
+        }).join("");
+        if (top && (sf.pairs || []).length > 1) {
+          body += '<p class="am-hint">🏆 Duo en tête pour l\'instant : <b>' + esc(top.a) + ' & ' + esc(top.b) + '</b> (' + top.pct + '%)</p>';
+        }
+        body += '</div>';
+      }
+
+      // 3) Ce que le groupe préfère (score de Borda), puis les accords parfaits.
       body += '<div class="am-card"><h3>🏅 Le classement du groupe</h3>' +
         rv.group.map(function (g, i) {
           var mineMark = (mine && mine[0] === g.option) ? ' <span class="am-badge b-high">ton n°1</span>' : "";
@@ -497,7 +568,8 @@
         body += '<div class="am-perfect">✨ Accord parfait sur cette question : ' +
           rv.perfect.map(function (p) { return "<b>" + esc(p.a) + " & " + esc(p.b) + "</b>"; }).join(", ") + '</div>';
       }
-      if (r.dev && amHost()) body += '<button class="am-ghost" id="amSkipR">⏭️ Suivante</button>';
+      // L'hôte fait avancer dès que tout le monde a vu (sinon le chrono le fait).
+      if (amHost()) body += '<button class="am-ghost" id="amSkipR">' + (r.q_index + 1 >= r.q_count ? "🏁 Voir les résultats" : "⏭️ Question suivante") + '</button>';
       $("amRoomBody").innerHTML = body;
       var sr = $("amSkipR"); if (sr) sr.onclick = function () { if (socket) socket.emit("msg", { t: "skip", state: "reveal", q_index: r.q_index }); };
     }

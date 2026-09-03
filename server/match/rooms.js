@@ -3,9 +3,9 @@
 // Cycle de vie (la salle possède TOUT le timing ; le moteur est un pur
 // calculateur de compatibilité) :
 //
-//   idle     ──Démarrer (HÔTE)──▶  question (30 s pour classer)
-//   question ──tous ont répondu / temps écoulé / ⏭️ hôte──▶  reveal (5 s)
-//   reveal   ──5 s──▶  question suivante   (ou results après la dernière)
+//   idle     ──Démarrer (HÔTE)──▶  question (45 s pour classer)
+//   question ──tous ont répondu / temps écoulé / ⏭️ hôte──▶  reveal (20 s)
+//   reveal   ──20 s / ⏭️ hôte──▶  question suivante   (ou results après la dernière)
 //   results  ──60 s / hôte──▶  idle
 //
 // L'hôte = le 1ᵉʳ joueur encore actif (joinedAt), même règle que QuizzMaster :
@@ -24,8 +24,11 @@ const packs = require("./packs");
 const engine = require("./engine");
 const players = require("./players");
 
-const QUESTION_MS = Number(process.env.MATCH_QUESTION_MS) > 0 ? Number(process.env.MATCH_QUESTION_MS) : 30000;
-const REVEAL_MS = Number(process.env.MATCH_REVEAL_MS) > 0 ? Number(process.env.MATCH_REVEAL_MS) : 5000;
+// 45 s pour classer (on ne presse personne : dès que tout le monde a répondu,
+// on enchaîne sans attendre) ; 20 s de reveal, le temps de lire les réponses
+// de chacun et la compatibilité — l'hôte peut écourter avec ⏭️.
+const QUESTION_MS = Number(process.env.MATCH_QUESTION_MS) > 0 ? Number(process.env.MATCH_QUESTION_MS) : 45000;
+const REVEAL_MS = Number(process.env.MATCH_REVEAL_MS) > 0 ? Number(process.env.MATCH_REVEAL_MS) : 20000;
 const RESULTS_MS = Number(process.env.MATCH_RESULTS_MS) > 0 ? Number(process.env.MATCH_RESULTS_MS) : 60000;
 const QUESTIONS_PER_ROUND = Number(process.env.MATCH_QUESTIONS) > 0 ? Number(process.env.MATCH_QUESTIONS) : 10;
 const MIN_PLAYERS = 2;
@@ -313,6 +316,32 @@ function makeRoom(packDef, opts) {
     }
   }
 
+  // Compatibilité cumulée sur les questions déjà closes de la manche (celle
+  // en cours comprise) : ce que le reveal affiche comme « jusqu'ici ». Seuil
+  // 1 et non 5 : c'est une tendance affichée avec son nombre de questions
+  // communes, jamais un verdict — le verdict reste celui de l'écran final.
+  function runningCompat() {
+    const nameByCid = new Map();
+    for (const p of playerMap.values()) if (p.name) nameByCid.set(p.cid, p.name);
+    const nameAnswers = {};
+    const namesSet = new Set();
+    for (const qid in answers) {
+      const row = Object.create(null);
+      for (const cid in answers[qid]) {
+        const nm = nameByCid.get(cid);
+        if (nm) { row[nm] = answers[qid][cid]; namesSet.add(nm); }
+      }
+      nameAnswers[qid] = row;
+    }
+    const names = [...namesSet];
+    if (names.length < 2) return { asked: qIdx + 1, pairs: [] };
+    const res = engine.buildResults(nameAnswers, names, { minShared: 1 });
+    return {
+      asked: qIdx + 1,
+      pairs: res.pairs.filter((p) => p.pct != null).map((p) => ({ a: p.a, b: p.b, pct: p.pct, shared: p.shared, sameTop: p.sameTop })),
+    };
+  }
+
   function nextAfterReveal(now) {
     if (qIdx + 1 < questions.length) {
       qIdx++;
@@ -512,6 +541,11 @@ function makeRoom(packDef, opts) {
           group: gr.order.map((x) => ({ option: x.option, label: q.o[x.option], score: x.score, firstPicks: x.firstPicks })),
           voters: gr.voters,
           perfect: engine.perfectPairsFor(rankingsByName, q.o.length),
+          // Une fois la question close, les classements de chacun sont
+          // publics : c'est tout l'intérêt du reveal (« qui a répondu quoi »).
+          // Pendant la phase question, jamais (voir snapshot ci-dessus).
+          rankings: Object.keys(rankingsByName).map((name) => ({ name, ranking: rankingsByName[name].slice() })),
+          so_far: runningCompat(),
         };
       }
     }
