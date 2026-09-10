@@ -42,9 +42,25 @@ const MAX_BOTS = BOT_PERMS.length;
 // chemin « legacy » n'existe pas pour les parties, il sert juste de repli.
 const store = storage.open("games", require("path").join(__dirname, "games.json"));
 
-// Le jeu fusionné, indexé par id de scène.
-const BANK = packs.all();
-const BY_ID = new Map(BANK.map((q) => [q.id, q]));
+// Le jeu fusionné, indexé par id de scène. Les ids doivent rester uniques À
+// TRAVERS les packs : ils servent de clé de persistance (dans une partie ET
+// dans le profil, où les réponses sont rangées par pack). Deux packs qui
+// réutiliseraient le même id feraient silencieusement comparer deux scènes
+// différentes sous la même clé — on le signale fort plutôt que de le laisser
+// passer, et on garde la première occurrence.
+const BY_ID = new Map();
+for (const q of packs.all()) {
+  if (BY_ID.has(q.id)) {
+    console.error(`[games] ID DE SCÈNE EN DOUBLE : « ${q.id} » existe dans « ${BY_ID.get(q.id).pack} » et « ${q.pack} » — la seconde est ignorée. Corrige la banque.`);
+    continue;
+  }
+  BY_ID.set(q.id, q);
+}
+// Le tirage part de la banque DÉDUPLIQUÉE, pas de la liste brute : sinon un
+// id en double pourrait sortir deux fois dans les 20 scènes d'une partie, et
+// comme la progression se compte par id, le joueur serait déclaré « fini »
+// avec une réponse de moins qu'il n'y paraît.
+const BANK = [...BY_ID.values()];
 
 function key(name) { return String(name || "").trim().toLowerCase(); }
 function shuffle(arr) {
@@ -99,10 +115,12 @@ function load() {
   }
   return out;
 }
+// Renvoie false si l'écriture a échoué (disque plein, droits) : l'appelant
+// doit pouvoir en tenir compte plutôt que de croire la partie durable.
 function flush() {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   data.updated_at = Date.now();
-  store.write(data);
+  return store.write(data);
 }
 // Regroupe les écritures : plusieurs réponses en rafale = une seule écriture.
 function scheduleSave() {
@@ -195,7 +213,22 @@ function answer(code, name, qid, ranking) {
   if (progressOf(g, p) === g.sceneIds.length) {
     p.finishedAt = Date.now();
     finished = true;
-    if (!g.test && !p.bot) recordProfile(g, p);
+    // Deux fichiers, deux rythmes : players.json s'écrit tout de suite, alors
+    // que games.json est différé. Si le process meurt entre les deux (arrêt
+    // brutal, coupure), le profil aurait compté une partie que la partie
+    // elle-même ignore : le joueur se retrouverait à 19/20, rejouerait la
+    // dernière scène, et la partie serait comptée DEUX fois dans son profil.
+    // On rend donc la partie durable AVANT de toucher au profil : au pire, un
+    // arrêt brutal fait perdre une mise à jour de profil, ce qui ne bloque
+    // personne et ne gonfle aucun compteur. Et si cette écriture ÉCHOUE
+    // (disque plein), on ne touche pas au profil du tout : compter une partie
+    // que le jeu vient de perdre, c'est exactement le double comptage qu'on
+    // cherche à éviter.
+    if (flush()) {
+      if (!g.test && !p.bot) recordProfile(g, p);
+    } else {
+      console.error(`[games] ${g.code} : partie non persistée, le profil de ${p.name} n'est pas mis à jour.`);
+    }
   }
   touch(g);
   return { ok: true, finished, index: nextIndexOf(g, p), progress: progressOf(g, p), reveal: sceneReveal(g, qid, key(name)) };
@@ -454,12 +487,17 @@ function createTestGame(hostName, bots) {
   touch(g);
   return { ok: true, game: g };
 }
+// Renvoie les codes purgés : l'appelant prévient ceux qui l'avaient à
+// l'écran, plutôt que de laisser une partie fantôme sur leur téléphone.
 function purgeTestGames(now) {
   const t = now || Date.now();
+  const gone = [];
   for (const code of Object.keys(data.byCode)) {
     const g = data.byCode[code];
-    if (g.test && t - g.updatedAt > TEST_GAME_TTL_MS) delete data.byCode[code];
+    if (g.test && t - g.updatedAt > TEST_GAME_TTL_MS) { delete data.byCode[code]; gone.push(code); }
   }
+  if (gone.length) scheduleSave();
+  return gone;
 }
 
 // ---------------------------------------------------------------- admin

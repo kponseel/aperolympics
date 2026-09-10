@@ -159,10 +159,22 @@ function authenticate(name, cid, pin) {
     if (hashPin(pin, a.salt) === a.pinHash) { a.ownerCid = cid; save(); return { ok: true, account: a, protected: true, needs_pin: false }; }
     return { ok: false, reason: "pin_wrong" };
   }
+  // Compte LIBÉRÉ par l'admin (« Reset PIN » : plus de PIN, plus d'appareil
+  // propriétaire) : il redevient réclamable, avec un nouveau PIN. Sans ce
+  // cas, le bouton d'admin ne libérait pas le pseudo, il le condamnait —
+  // plus personne ne pouvait le prendre, pas même son propriétaire d'origine.
+  if (!a.pinHash && !a.ownerCid) {
+    if (!pinOk) return { ok: false, reason: "pin_needed" };
+    a.ownerCid = cid;
+    a.name = String(name).trim().slice(0, 16);
+    setPin(name, pin);
+    save();
+    return { ok: true, account: a, protected: true, needs_pin: false };
+  }
   // Compte d'avant la v2, sans PIN, depuis un AUTRE appareil : plus de
   // « reprise » (chaises musicales). Un pseudo appartient à celui qui l'a
   // créé ; sans PIN, seul son appareil d'origine peut le récupérer (et y
-  // poser un PIN). L'admin peut toujours libérer un pseudo abandonné.
+  // poser un PIN). L'admin peut toujours le libérer pour de bon.
   return { ok: false, reason: "name_taken" };
 }
 

@@ -196,7 +196,18 @@
         if (refreshTimer) clearTimeout(refreshTimer);
         refreshTimer = setTimeout(function () { if (socket && screen === "s-results") socket.emit("game_results", { code: m.code }); }, 500);
       }
-      else if (screen === "s-play") { updatePlayMeta(); }
+      else if (screen === "s-play") {
+        updatePlayMeta();
+        // Le serveur fait autorité sur « où j'en suis ». S'il n'est pas
+        // d'accord avec l'écran — même compte ouvert sur un deuxième
+        // appareil, ou reprise après un redémarrage du serveur — on se recale
+        // sur SA scène. Jamais pendant qu'une réponse est en vol ni pendant un
+        // reveal : on ne retire pas l'écran des mains du joueur.
+        if (!play.submitted && !play.reveal && m.me && m.me.joined && m.me.nextIndex !== play.index) {
+          play.index = m.me.nextIndex; play.myRank = [];
+          renderScene();
+        }
+      }
     });
     socket.on("answer_ack", function (m) {
       if (!m) return;

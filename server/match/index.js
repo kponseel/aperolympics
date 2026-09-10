@@ -36,14 +36,51 @@ function pinFailsFor(k) {
 // Codes de partie inconnus : 20 par heure et par adresse, au-delà on ralentit.
 // Le code fait 5 caractères sur 31 (28 millions) : ce n'est pas énumérable
 // à ce rythme, et une partie ne contient rien de secret pour qui a le code.
+//
+// Deux précautions en plus du compteur par adresse :
+//   - un plafond GLOBAL, parce que l'adresse vient de x-forwarded-for, que le
+//     client peut inventer : sans lui, il suffisait d'en changer à chaque
+//     requête pour repartir de zéro. Il est assez haut pour qu'un usage réel
+//     ne le voie jamais, assez bas pour rendre le balayage inutile ;
+//   - un ménage périodique, sinon une adresse inventée par requête ferait
+//     grossir la table indéfiniment.
 const UNKNOWN_CODE_MAX = 20, UNKNOWN_CODE_WINDOW_MS = 60 * 60 * 1000;
+const UNKNOWN_CODE_GLOBAL_MAX = 500, UNKNOWN_IP_MAX_ENTRIES = 5000;
 const unknownByIp = new Map(); // ip -> { count, since }
-function unknownCodeAllowed(ip) {
-  const e = unknownByIp.get(ip);
+let unknownGlobal = { count: 0, since: Date.now() };
+function sweepUnknown(now) {
+  for (const [ip, e] of unknownByIp) if (now - e.since > UNKNOWN_CODE_WINDOW_MS) unknownByIp.delete(ip);
+  if (unknownByIp.size > UNKNOWN_IP_MAX_ENTRIES) unknownByIp.clear();
+}
+// Compte une tentative sur un code INCONNU. Renvoie false quand l'adresse (ou
+// le serveur entier) a dépassé son quota.
+function unknownCodeHit(ip) {
   const now = Date.now();
+  if (now - unknownGlobal.since > UNKNOWN_CODE_WINDOW_MS) unknownGlobal = { count: 0, since: now };
+  unknownGlobal.count += 1;
+  if (unknownGlobal.count > UNKNOWN_CODE_GLOBAL_MAX) return false;
+  if (unknownByIp.size > UNKNOWN_IP_MAX_ENTRIES) sweepUnknown(now);
+  const e = unknownByIp.get(ip);
   if (!e || now - e.since > UNKNOWN_CODE_WINDOW_MS) { unknownByIp.set(ip, { count: 1, since: now }); return true; }
   e.count += 1;
   return e.count <= UNKNOWN_CODE_MAX;
+}
+// Cette adresse a-t-elle déjà brûlé son quota ? (sans rien compter) — on
+// s'en sert sur les codes VALIDES : sans ça, il suffisait de balayer jusqu'à
+// tomber juste pour récolter quand même l'aperçu, et le quota ne servait à
+// rien. Quelqu'un qui ouvre un lien reçu n'essaie qu'un code, valide : il ne
+// touche jamais ce compteur.
+function unknownCodeExhausted(ip) {
+  const now = Date.now();
+  if (unknownGlobal.count > UNKNOWN_CODE_GLOBAL_MAX && now - unknownGlobal.since <= UNKNOWN_CODE_WINDOW_MS) return true;
+  const e = unknownByIp.get(ip);
+  return !!(e && now - e.since <= UNKNOWN_CODE_WINDOW_MS && e.count > UNKNOWN_CODE_MAX);
+}
+// L'adresse vue derrière le proxy de l'hébergeur. Reste indicative : c'est
+// pour ça que les compteurs ci-dessus ont tous un plafond global.
+function reqIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  return (xf ? String(xf).split(",")[0].trim() : "") || req.ip || "?";
 }
 
 // --- Mode dev ---------------------------------------------------------------
@@ -119,13 +156,21 @@ function mount({ app, io }) {
       `<meta property="og:title" content="${title}">` +
       `<meta property="og:description" content="${escHtml(desc)}">` +
       `<meta property="og:url" content="${escHtml(url)}">` +
-      `<meta property="og:image" content="${req.protocol}://${req.get("host")}/icons/icon-512.png">` +
+      `<meta property="og:image" content="${escHtml(req.protocol + "://" + req.get("host") + "/icons/icon-512.png")}">` +
       `<meta name="twitter:card" content="summary">`;
     return INDEX_HTML.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`).replace("</head>", meta + "</head>");
   }
   app.get(/^\/AreWeAMatch\/g\/([A-Za-z0-9-]{3,12})\/?$/, (req, res) => {
     res.set("Cache-Control", "no-store");
-    res.type("html").send(pageFor(games.getGame(req.params[0]), req));
+    const g = games.getGame(req.params[0]);
+    // Même quota que par socket : sans lui, cette route répondait
+    // différemment selon qu'un code existe ou non, sans limite et sans
+    // identité — de quoi balayer les codes et récolter les pseudos des hôtes
+    // au passage, alors que l'autre porte d'entrée était verrouillée.
+    const ip = reqIp(req);
+    const blocked = g ? unknownCodeExhausted(ip) : !unknownCodeHit(ip);
+    if (blocked) { res.type("html").send(INDEX_HTML); return; }
+    res.type("html").send(pageFor(g, req));
   });
   // La version qui tourne, lisible sans ouvrir de session : le témoin de
   // déploiement (le fichier n'existe pas sur le disque, c'est bien Node qui
@@ -176,9 +221,17 @@ function mount({ app, io }) {
       const pin = m && m.pin != null && String(m.pin).trim() !== "" ? String(m.pin).trim() : null;
       if (!cid || !name) { socket.emit("error_msg", { msg: "bad_identity" }); return; }
 
+      // Le verrou anti-brute-force porte sur le PSEUDO, pas sur l'appareil :
+      // n'importe qui pouvait donc verrouiller le pseudo de quelqu'un d'autre
+      // pendant 15 minutes en envoyant 5 mauvais PIN — y compris en bloquant
+      // le propriétaire sur son propre téléphone, alors que lui n'a même pas
+      // besoin de PIN. L'appareil propriétaire n'est jamais celui qui essaie
+      // de deviner : il passe avant le verrou.
       const k = name.toLowerCase();
+      const acc = players.getAccount(name);
+      const isOwnerDevice = !!(acc && acc.ownerCid && acc.ownerCid === cid);
       const fails = pinFailsFor(k);
-      if (fails && fails.count >= MAX_PIN_ATTEMPTS) { socket.emit("identity_locked", { name }); return; }
+      if (!isOwnerDevice && fails && fails.count >= MAX_PIN_ATTEMPTS) { socket.emit("identity_locked", { name }); return; }
 
       const res = players.authenticate(name, cid, pin);
       if (res.ok) {
@@ -238,11 +291,14 @@ function mount({ app, io }) {
       if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
       const code = games.normCode(m && m.code);
       const g = code && games.getGame(code);
+      const ip = clientIp(socket);
       if (!g) {
-        if (!unknownCodeAllowed(clientIp(socket))) { socket.emit("error_msg", { msg: "slow_down" }); return; }
+        if (!unknownCodeHit(ip)) { socket.emit("error_msg", { msg: "slow_down" }); return; }
         socket.emit("error_msg", { msg: "unknown_game", code });
         return;
       }
+      // Balayer les codes jusqu'à tomber juste ne doit pas payer non plus ici.
+      if (unknownCodeExhausted(ip)) { socket.emit("error_msg", { msg: "slow_down" }); return; }
       openGame(socket, sess, g.code);
     });
     socket.on("close_view", () => { const sess = sessions.get(socket.id); if (sess) leaveView(socket, sess); });
@@ -377,7 +433,9 @@ function mount({ app, io }) {
   });
 
   // Les parties de test du mode dev ne vivent pas longtemps.
-  const purge = setInterval(() => games.purgeTestGames(Date.now()), 10 * 60 * 1000);
+  const purge = setInterval(() => {
+    for (const code of games.purgeTestGames(Date.now())) ns.to("game:" + code).emit("game_gone", { code, reason: "expired" });
+  }, 10 * 60 * 1000);
   if (purge.unref) purge.unref();
 
   console.log(`[AreWeAMatch] mounted: /AreWeAMatch + ns /match (v${APP_VERSION.version}, ${games.BANK_SIZE} scènes, ${games.SCENES_PER_GAME} par partie${DEV_ENABLED ? ", mode dev disponible" : ""})`);

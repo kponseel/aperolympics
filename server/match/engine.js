@@ -163,9 +163,18 @@ function buildResults(answers, names, opts) {
   // de score, tranchée elle aussi par l'alphabet).
   if (sortedAvg.length >= 3) {
     const best = sortedAvg[0];
-    res.groupSoul = { name: best, pct: avg[best] };
     const worst = sortedAvg[sortedAvg.length - 1];
-    if (avg[worst] < avg[best]) res.freeSpirit = { name: worst, pct: avg[worst] };
+    // Le garde-fou vaut pour LES DEUX titres, pas seulement l'électron libre :
+    // sur un classement parfaitement plat (tout le monde à la même moyenne —
+    // ça arrive vraiment dès que le groupe est symétrique), personne n'est
+    // plus « âme sœur » que les autres, et couronner le premier par ordre
+    // alphabétique revient à inventer un résultat. On n'attribue alors ni l'un
+    // ni l'autre. Une égalité seulement EN TÊTE, elle, reste départagée par
+    // l'alphabet : il y a bien un écart dans le groupe, donc un sens à lire.
+    if (avg[worst] < avg[best]) {
+      res.groupSoul = { name: best, pct: avg[best] };
+      res.freeSpirit = { name: worst, pct: avg[worst] };
+    }
   }
   return res;
 }
