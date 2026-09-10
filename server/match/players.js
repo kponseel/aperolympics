@@ -124,41 +124,46 @@ function setPin(name, pin) {
   return true;
 }
 
-// Résout une tentative de connexion. Mêmes règles que QuizzMaster :
-//   { ok: true, account } | { ok:false, reason:"pin_required"|"pin_wrong"|"bad_name" }
+// Résout une tentative de connexion. Depuis la v2, le PIN est OBLIGATOIRE :
+// un pseudo n'existe qu'une fois dans tout le jeu, et c'est le PIN qui permet
+// de reprendre ses parties sur n'importe quel appareil.
+//   { ok: true, account, protected, needs_pin }
+//   { ok: false, reason: "bad_name" | "pin_needed" | "pin_required" | "pin_wrong" | "name_taken" }
+//   pin_needed  : pseudo libre, mais aucun PIN fourni (il en faut un pour créer)
+//   pin_required: pseudo protégé, autre appareil, PIN absent
+//   name_taken  : pseudo d'avant la v2, sans PIN, réservé à l'appareil qui l'a créé
+//   needs_pin   : connecté depuis son appareil d'origine, mais compte d'avant la
+//                 v2 sans PIN → le client impose d'en choisir un avant de jouer
 function authenticate(name, cid, pin) {
   const k = key(name);
   if (!k || RESERVED_KEYS.has(k)) return { ok: false, reason: "bad_name" };
   const a = getAccount(name);
+  const pinOk = pin != null && PIN_RE.test(String(pin));
 
-  if (!a) {                                   // pseudo libre → réservé pour ce device
+  if (!a) {                                   // pseudo libre → création, PIN exigé
+    if (!pinOk) return { ok: false, reason: "pin_needed" };
     const acc = ensure(name, cid);
     acc.ownerCid = cid;
     acc.name = String(name).trim().slice(0, 16);
-    if (pin && PIN_RE.test(String(pin))) setPin(name, pin);
+    setPin(name, pin);
     save();
-    return { ok: true, account: acc, protected: !!acc.pinHash };
+    return { ok: true, account: acc, protected: true, needs_pin: false };
   }
-  if (a.ownerCid === cid) {                   // même device
-    if (pin && PIN_RE.test(String(pin)) && !a.pinHash) setPin(name, pin);
+  if (a.ownerCid === cid) {                   // même appareil : passe toujours
+    if (pinOk && !a.pinHash) setPin(name, pin);
     save();
-    return { ok: true, account: a, protected: !!a.pinHash };
+    return { ok: true, account: a, protected: !!a.pinHash, needs_pin: !a.pinHash };
   }
-  if (a.pinHash) {                            // protégé, autre device
+  if (a.pinHash) {                            // protégé, autre appareil
     if (!pin) return { ok: false, reason: "pin_required" };
-    if (hashPin(pin, a.salt) === a.pinHash) { a.ownerCid = cid; save(); return { ok: true, account: a, protected: true }; }
+    if (hashPin(pin, a.salt) === a.pinHash) { a.ownerCid = cid; save(); return { ok: true, account: a, protected: true, needs_pin: false }; }
     return { ok: false, reason: "pin_wrong" };
   }
-  // Libre, autre device → reprise. Volontairement AUCUN setPin ici, même si
-  // un pin a été fourni : un compte non protégé est réclamable par
-  // conception (musical chairs assumé), mais poser un PIN dans la même
-  // requête verrouillerait l'ancien détenteur hors de son propre historique
-  // en un seul message, sans qu'il ait jamais rien pu protéger lui-même.
-  // Protéger un compte reste réservé au flux dédié (bouton 🔒, événement
-  // set_pin) — un geste explicite et séparé, jamais un effet de bord du login.
-  a.ownerCid = cid;
-  save();
-  return { ok: true, account: a, protected: !!a.pinHash };
+  // Compte d'avant la v2, sans PIN, depuis un AUTRE appareil : plus de
+  // « reprise » (chaises musicales). Un pseudo appartient à celui qui l'a
+  // créé ; sans PIN, seul son appareil d'origine peut le récupérer (et y
+  // poser un PIN). L'admin peut toujours libérer un pseudo abandonné.
+  return { ok: false, reason: "name_taken" };
 }
 
 // Enregistre une partie terminée : on mémorise les classements donnés pour
@@ -172,6 +177,28 @@ function recordGame(name, cid, packId, answersByQid) {
     if (!engine.isValidRanking(r, engine.OPTIONS_PER_QUESTION)) continue;
     a.answers[packId][qid] = r.slice();   // la dernière réponse écrase l'ancienne
     n++;
+  }
+  a.stats.games += 1;
+  a.stats.answered += n;
+  a.stats.lastAt = Date.now();
+  data.updated_at = Date.now();
+  save();
+}
+
+// v2 : une partie tire ses scènes dans le jeu fusionné, donc ses réponses se
+// répartissent entre plusieurs packs — on les range par pack (c'est la clé
+// des matchs d'un autre soir) mais on ne compte qu'UNE partie.
+function recordAnswersByPack(name, cid, byPack) {
+  const a = ensure(name, cid); if (!a) return;
+  let n = 0;
+  for (const packId in byPack) {
+    if (!a.answers[packId]) a.answers[packId] = {};
+    for (const qid in byPack[packId]) {
+      const r = byPack[packId][qid];
+      if (!engine.isValidRanking(r, r.length)) continue;
+      a.answers[packId][qid] = r.slice();
+      n++;
+    }
   }
   a.stats.games += 1;
   a.stats.answered += n;
@@ -271,7 +298,7 @@ function adminResetPin(name) {
 function _reset() { data = emptyData(); try { fs.unlinkSync(FILE); } catch (e) {} }
 
 module.exports = {
-  authenticate, isProtected, getAccount, setPin, recordGame,
+  authenticate, isProtected, getAccount, setPin, recordGame, recordAnswersByPack,
   historicMatches, profile,
   adminList, adminDelete, adminResetPin,
   PIN_RE, TOP_N, _reset,

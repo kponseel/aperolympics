@@ -1,34 +1,63 @@
 // Are We A Match? — sous-app branchée sur le serveur Aperolympics.
-//   - Express statique sur /AreWeAMatch/* (fallback SPA vers index.html)
+//   - Express statique sur /AreWeAMatch/* (fallback SPA vers index.html), plus
+//     /AreWeAMatch/g/CODE : la page d'une partie, avec son aperçu de lien
 //   - Namespace Socket.IO /match
-//   - 1 salle persistante par pack (Amis / Date / Piquant / Pop culture)
-//   - Comptes persistants (pseudo + PIN optionnel + réponses) dans players.json
+//   - Comptes persistants (pseudo + PIN obligatoire + réponses) dans players.json
+//   - Parties en différé (games.js) dans games.json
+//
+// v2 : plus de salle par pack ni de chrono. Un joueur crée une partie, partage
+// son code, chacun répond quand il veut, les résultats poussent au fur et à
+// mesure. Voir games.js pour les règles.
 //
 // Branchement : depuis server/index.js,
 //   require("./match")({ app, io });
 
 const path = require("path");
-const express = require("express");
+const fs = require("fs");
 const crypto = require("crypto");
-const roomsModule = require("./rooms");
+const express = require("express");
+const games = require("./games");
 const players = require("./players");
 const packs = require("./packs");
 const { constantTimeEquals } = require("../admin");
 
+const MAX_PIN_ATTEMPTS = 5;
+const PIN_LOCK_MS = 15 * 60 * 1000;
+// Anti-brute-force au niveau du MODULE, clé = pseudo en minuscules — pas de
+// la session socket : sinon 5 essais par CONNEXION revenait à un PIN à 4
+// chiffres cassable en rechargeant simplement la page entre les tentatives.
+const pinFailsByName = new Map(); // name(lowercase) -> { count, lockedUntil }
+function pinFailsFor(k) {
+  const e = pinFailsByName.get(k);
+  if (e && e.lockedUntil && Date.now() > e.lockedUntil) { pinFailsByName.delete(k); return null; }
+  return e || null;
+}
+
+// Codes de partie inconnus : 20 par heure et par adresse, au-delà on ralentit.
+// Le code fait 5 caractères sur 31 (28 millions) : ce n'est pas énumérable
+// à ce rythme, et une partie ne contient rien de secret pour qui a le code.
+const UNKNOWN_CODE_MAX = 20, UNKNOWN_CODE_WINDOW_MS = 60 * 60 * 1000;
+const unknownByIp = new Map(); // ip -> { count, since }
+function unknownCodeAllowed(ip) {
+  const e = unknownByIp.get(ip);
+  const now = Date.now();
+  if (!e || now - e.since > UNKNOWN_CODE_WINDOW_MS) { unknownByIp.set(ip, { count: 1, since: now }); return true; }
+  e.count += 1;
+  return e.count <= UNKNOWN_CODE_MAX;
+}
+
 // --- Mode dev ---------------------------------------------------------------
-// Une salle de test PRIVÉE (un humain + des bots, questions dans l'ordre du
-// fichier, rien n'est enregistré) pour relire les questions et le jeu sans
-// second téléphone. Déverrouillée par le mot de passe admin (ADMIN_PASSWORD)
-// — ou, en local seulement, par MATCH_DEV=1 (n'importe quel mot de passe).
+// Une partie de test (bots qui ont déjà répondu à tout, rien dans les profils)
+// pour relire les scènes et voir la page de résultats pleine, seul.
+// Déverrouillée par le mot de passe admin (ADMIN_PASSWORD) — ou, en local
+// seulement, par MATCH_DEV=1 (n'importe quel mot de passe).
 const DEV_LOCAL = process.env.MATCH_DEV === "1";
 const DEV_ENABLED = DEV_LOCAL || !!process.env.ADMIN_PASSWORD;
-const DEV_TOKEN_MS = 12 * 60 * 60 * 1000;      // le jeton mémorisé par le téléphone expire en 12 h
+const DEV_TOKEN_MS = 12 * 60 * 60 * 1000;
 const DEV_MAX_FAILS = 5, DEV_LOCK_MS = 15 * 60 * 1000, DEV_GLOBAL_MAX_FAILS = 30;
-const DEV_MAX_ROOMS = 10;
-const devTokens = new Map();                   // token -> expiresAt
-const devFailsByIp = new Map();                // ip -> { count, lockedUntil }
+const devTokens = new Map();
+const devFailsByIp = new Map();
 let devGlobalFails = { count: 0, since: Date.now() };
-
 function devPasswordOk(pw) {
   if (DEV_LOCAL) return true;
   const want = process.env.ADMIN_PASSWORD || "";
@@ -39,9 +68,6 @@ function devFailsFor(ip) {
   if (e && e.lockedUntil && Date.now() > e.lockedUntil) { devFailsByIp.delete(ip); return null; }
   return e || null;
 }
-// Verrou global en plus du verrou par IP : le cid et l'IP sont contournables,
-// mais 30 échecs en 15 min sur un mot de passe que seule une personne connaît
-// ne sont jamais légitimes.
 function devGloballyLocked() {
   if (Date.now() - devGlobalFails.since > DEV_LOCK_MS) devGlobalFails = { count: 0, since: Date.now() };
   return devGlobalFails.count >= DEV_GLOBAL_MAX_FAILS;
@@ -63,174 +89,107 @@ function clientIp(socket) {
   return (xf ? String(xf).split(",")[0].trim() : "") || socket.handshake.address || "?";
 }
 
-const TICK_MS = 250;              // le compte à rebours doit être fluide
-const MAX_PIN_ATTEMPTS = 5;
-const PIN_LOCK_MS = 15 * 60 * 1000;
-// Anti-brute-force au niveau du MODULE, clé = pseudo en minuscules — pas de
-// la session socket : sinon 5 essais par CONNEXION revenait à un PIN à 4
-// chiffres cassable en rechargeant simplement la page entre les tentatives.
-const pinFailsByName = new Map(); // name(lowercase) -> { count, lockedUntil }
-function pinFailsFor(k) {
-  const e = pinFailsByName.get(k);
-  if (e && e.lockedUntil && Date.now() > e.lockedUntil) { pinFailsByName.delete(k); return null; }
-  return e || null;
-}
-
 const PACKS_META = Object.fromEntries(
   Object.values(packs).map((p) => [p.id, { name: p.name, emoji: p.emoji }])
 );
 
-function mount({ app, io }) {
-  const allRooms = roomsModule.buildAll();
-  const roomById = new Map(allRooms.map((r) => [r.id, r]));
+function escHtml(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
-  // --- Express : statique + fallback SPA -----------------------------------
-  // Le dossier porte le nom de l'URL : le static racine d'Aperolympics le sert
-  // déjà sur /AreWeAMatch, et on évite ainsi un alias parasite sur /match.
+function mount({ app, io }) {
+  // --- Express : statique + page de partie + fallback SPA --------------------
   const PUBLIC_MATCH = path.join(__dirname, "..", "..", "public", "AreWeAMatch");
   app.use("/AreWeAMatch", express.static(PUBLIC_MATCH));
-  // Confort : les variantes de casse et le raccourci /match renvoient vers
-  // l'URL canonique (les gens tapent rarement les majuscules au bon endroit).
   app.get(/^\/(arewamatch|areweamatch|match)(\/.*)?$/i, (req, res, next) => {
     if (req.path.startsWith("/AreWeAMatch")) return next();
     res.redirect(302, "/AreWeAMatch/");
+  });
+
+  // La page d'une partie : le même index.html, avec le titre et l'aperçu de
+  // lien (WhatsApp, iMessage…) de CETTE partie. Le chemin n'existe pas sur le
+  // disque, donc le serveur frontal de l'hébergeur le laisse remonter à Node.
+  const INDEX_HTML = fs.readFileSync(path.join(PUBLIC_MATCH, "index.html"), "utf8");
+  function pageFor(g, req) {
+    if (!g) return INDEX_HTML;
+    const host = escHtml(g.hostName);
+    const n = Object.keys(g.players).length;
+    const title = `${host} t'invite · Are We A Match ?`;
+    const desc = `${g.sceneIds.length} scènes à classer, quand tu veux. ${n} joueur${n > 1 ? "s" : ""} déjà. Réponds et découvre à quel point vous faites pareil.`;
+    const url = `${req.protocol}://${req.get("host")}/AreWeAMatch/g/${g.code}`;
+    const meta =
+      `<meta property="og:title" content="${title}">` +
+      `<meta property="og:description" content="${escHtml(desc)}">` +
+      `<meta property="og:url" content="${escHtml(url)}">` +
+      `<meta property="og:image" content="${req.protocol}://${req.get("host")}/icons/icon-512.png">` +
+      `<meta name="twitter:card" content="summary">`;
+    return INDEX_HTML.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`).replace("</head>", meta + "</head>");
+  }
+  app.get(/^\/AreWeAMatch\/g\/([A-Za-z0-9-]{3,12})\/?$/, (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.type("html").send(pageFor(games.getGame(req.params[0]), req));
+  });
+  // La version qui tourne, lisible sans ouvrir de session : le témoin de
+  // déploiement (le fichier n'existe pas sur le disque, c'est bien Node qui
+  // répond, pas le serveur frontal de l'hébergeur).
+  app.get("/AreWeAMatch/version.json", (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json(Object.assign({}, require("./version"), { scenes: games.BANK_SIZE, scenes_per_game: games.SCENES_PER_GAME }));
   });
   app.get(/^\/AreWeAMatch(\/.*)?$/, (_req, res) => res.sendFile(path.join(PUBLIC_MATCH, "index.html")));
 
   // --- Socket.IO -----------------------------------------------------------
   const ns = io.of("/match");
-  const sessions = new Map(); // socket.id -> { cid, name, roomId, inLobby, dev }
-  const devRooms = new Map(); // id -> salle de test privée (mode dev), jamais dans le lobby
-
-  // Version + date de dernière mise à jour du jeu, affichées en petit dans le
-  // hall. Portées par lobby_state : c'est le premier message que le hall
-  // reçoit, et il est minuscule.
+  const sessions = new Map(); // socket.id -> { cid, name, dev, viewing }
   const APP_VERSION = require("./version");
-  function snapshotLobby() {
-    return { rooms: allRooms.map((r) => r.lobbyCard()), app: APP_VERSION, dev_enabled: DEV_ENABLED };
-  }
-  function lobbyHasListeners() {
-    const r = ns.adapter.rooms.get("lobby");
-    return r && r.size > 0;
-  }
-  function broadcastLobby() {
-    if (lobbyHasListeners()) ns.to("lobby").emit("lobby_state", snapshotLobby());
-  }
 
-  // Diffuse l'état public puis le payload privé de CHAQUE joueur de la salle
-  // (son propre classement, son meilleur match…). Même modèle que les rôles
-  // secrets d'Aperolympics : rien de personnel ne transite dans l'état public.
-  // privateFor ne prend QUE le cid : c'est la salle elle-même qui résout le
-  // nom depuis son propre playerMap, jamais depuis ce que la session prétend.
-  function broadcastRoom(room) {
-    const snap = room.snapshot();
-    ns.to("room:" + room.id).emit("room_state", snap);
-    for (const [sid, sess] of sessions) {
-      if (sess.roomId !== room.id || !sess.cid) continue;
-      const priv = room.privateFor(sess.cid);
-      if (priv && Object.keys(priv).length) {
-        const s = ns.sockets.get(sid);
-        if (s) s.emit("private_state", priv);
-      }
-    }
-  }
-
-  // Départ DÉLIBÉRÉ (bouton "Retour", ou changement de salle) : on retire
-  // pour de vrai, tout de suite — le joueur ne va pas se reconnecter à une
-  // salle qu'il vient de quitter volontairement.
-  function leaveCurrentRoomForGood(socket) {
-    const sess = sessions.get(socket.id);
-    if (!sess || !sess.roomId) return;
-    const room = roomById.get(sess.roomId);
-    if (!room) { sess.roomId = null; return; }
-    room.leaveForGood(sess.cid);
-    socket.leave("room:" + room.id);
-    sess.roomId = null;
-    // Salle de test que son propriétaire quitte : elle disparaît avec lui.
-    if (room.isDev && room.humanCount() === 0) { destroyDevRoom(room); return; }
-    broadcastRoom(room);
-    broadcastLobby();
-  }
-  // Détruit une salle de test : plus personne ne peut la rejoindre, et les
-  // sessions qui y étaient encore attachées (autre onglet, fantôme) sont
-  // détachées proprement.
-  function destroyDevRoom(room) {
-    devRooms.delete(room.id);
-    roomById.delete(room.id);
+  function stateFor(code, sess) { return games.state(code, sess && sess.name); }
+  // Diffuse l'état d'une partie à ceux qui l'ont ouverte (personnalisé :
+  // « me » n'est pas le même pour chacun), et prévient les autres joueurs de
+  // la partie, où qu'ils soient dans l'app, que quelque chose a bougé.
+  function broadcastGame(code) {
     for (const [sid, s] of sessions) {
-      if (s.roomId !== room.id) continue;
-      s.roomId = null;
+      if (!s.name) continue;
       const sock = ns.sockets.get(sid);
-      if (sock) sock.leave("room:" + room.id);
+      if (!sock) continue;
+      if (s.viewing === code) sock.emit("game_state", stateFor(code, s));
+      else if (games.isPlayer(code, s.name)) sock.emit("games_changed", { code });
     }
   }
-  // Coupure de connexion (socket morte, ping perdu) : on marque juste absent,
-  // avec un délai de grâce — un blip réseau ou un rechargement de page ne
-  // doit ni coûter la couronne d'hôte ni la place dans la salle. Le socket
-  // est passé pour ne retirer QUE si c'est bien lui le détenteur actuel :
-  // sinon une vieille socket qui meurt après coup éjecterait la session qui
-  // vient tout juste de se reconnecter avec une socket toute neuve.
-  function dropCurrentRoomConnection(socket) {
-    const sess = sessions.get(socket.id);
-    if (!sess || !sess.roomId) return;
-    const room = roomById.get(sess.roomId);
-    if (!room) { sess.roomId = null; return; }
-    room.removePlayer(sess.cid, socket.id);
-    socket.leave("room:" + room.id);
-    sess.roomId = null;
-    broadcastRoom(room);
-    broadcastLobby();
+  function leaveView(socket, sess) {
+    if (sess.viewing) { socket.leave("game:" + sess.viewing); sess.viewing = null; }
   }
-
-  // Un pseudo est-il déjà tenu par une session VIVANTE d'un autre appareil,
-  // en ce moment même ? Utilisé avant d'authentifier une nouvelle session :
-  // sans ce garde, un pseudo non protégé (réclamable par conception) pouvait
-  // être repris PENDANT qu'il servait encore ailleurs — le premier recevait
-  // alors, sans le savoir, le classement privé et les réponses du second.
-  // Une fois l'autre session partie (déconnexion), le nom redevient libre
-  // immédiatement, exactement comme prévu pour un pseudo non protégé.
-  function nameLiveElsewhere(name, cid, excludeSocketId) {
-    const k = String(name || "").trim().toLowerCase();
-    if (!k) return false;
-    for (const [sid, s] of sessions) {
-      if (sid === excludeSocketId) continue;
-      if (s.cid && s.cid !== cid && s.name && s.name.toLowerCase() === k) return true;
-    }
-    return false;
+  function openGame(socket, sess, code) {
+    leaveView(socket, sess);
+    sess.viewing = code;
+    socket.join("game:" + code);
+    socket.emit("game_state", stateFor(code, sess));
   }
 
   ns.on("connection", (socket) => {
-    sessions.set(socket.id, { cid: null, name: null, roomId: null, inLobby: false });
+    sessions.set(socket.id, { cid: null, name: null, dev: false, viewing: null });
 
+    // Identité : pseudo + PIN (obligatoire depuis la v2, voir players.js).
     socket.on("set_identity", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess) return;
       const cid = String((m && m.cid) || "").slice(0, 64);
       const name = String((m && m.name) || "").trim().slice(0, 16);
-      const pin = m && m.pin != null ? String(m.pin).trim() : "";
+      const pin = m && m.pin != null && String(m.pin).trim() !== "" ? String(m.pin).trim() : null;
       if (!cid || !name) { socket.emit("error_msg", { msg: "bad_identity" }); return; }
 
       const k = name.toLowerCase();
       const fails = pinFailsFor(k);
       if (fails && fails.count >= MAX_PIN_ATTEMPTS) { socket.emit("identity_locked", { name }); return; }
 
-      // Une session vivante d'un AUTRE appareil tient déjà ce nom, là,
-      // maintenant : on refuse plutôt que de laisser les deux se marcher
-      // dessus (classement privé mélangé, prise de PIN en pleine partie
-      // adverse). Dès que l'autre part, le nom redevient libre normalement.
-      if (nameLiveElsewhere(name, cid, socket.id)) {
-        socket.emit("error_msg", { msg: "name_live_elsewhere" });
-        return;
-      }
-
       const res = players.authenticate(name, cid, pin);
       if (res.ok) {
         sess.cid = cid;
-        sess.name = res.account ? res.account.name : name;
+        sess.name = res.account.name;
         pinFailsByName.delete(k);
-        socket.emit("identity_ok", { cid, name: sess.name, protected: !!res.protected });
+        socket.emit("identity_ok", { cid, name: sess.name, protected: !!res.protected, needs_pin: !!res.needs_pin });
         return;
       }
+      if (res.reason === "pin_needed") { socket.emit("pin_needed", { name }); return; }
+      if (res.reason === "name_taken") { socket.emit("name_taken", { name }); return; }
       if (res.reason === "pin_required") { socket.emit("pin_required", { name }); return; }
       if (res.reason === "pin_wrong") {
         const cur = pinFailsByName.get(k) || { count: 0, lockedUntil: 0 };
@@ -256,51 +215,110 @@ function mount({ app, io }) {
       socket.emit("pin_set", { name: sess.name });
     });
 
-    socket.on("join_lobby", () => {
+    // --- Mes parties ---
+    socket.on("my_games", () => {
       const sess = sessions.get(socket.id);
-      if (!sess) return;
-      sess.inLobby = true;
-      socket.join("lobby");
-      socket.emit("lobby_state", snapshotLobby());
-    });
-    socket.on("leave_lobby", () => {
-      const sess = sessions.get(socket.id);
-      if (!sess) return;
-      sess.inLobby = false;
-      socket.leave("lobby");
+      if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      leaveView(socket, sess);
+      socket.emit("games_list", { games: games.listFor(sess.name), app: APP_VERSION, dev_enabled: DEV_ENABLED, scene_count: games.SCENES_PER_GAME });
     });
 
-    socket.on("join_room", (m) => {
+    socket.on("create_game", (m) => {
       const sess = sessions.get(socket.id);
-      if (!sess || !sess.cid || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
-      const rid = String((m && m.id) || "");
-      const room = roomById.get(rid);
-      if (!room) { socket.emit("error_msg", { msg: "unknown_room" }); return; }
-      // Salle de test : privée, réservée à son propriétaire. Pour les autres
-      // elle n'existe pas (même réponse qu'un id inconnu).
-      if (room.ownerCid && room.ownerCid !== sess.cid) { socket.emit("error_msg", { msg: "unknown_room" }); return; }
-      // Ce pseudo est-il déjà tenu par un AUTRE cid actif dans CETTE salle ?
-      // Sans ce garde, deux joueurs sous le même nom d'affichage verraient
-      // leurs réponses fusionner dans les résultats (indistinguables l'un de
-      // l'autre pour le moteur, qui parle "pseudo").
-      if (room.nameTakenBy(sess.name, sess.cid)) {
-        socket.emit("error_msg", { msg: "name_taken_in_room" });
+      if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      const r = games.createGame({ hostName: sess.name, title: m && m.title });
+      if (!r.ok) { socket.emit("error_msg", { msg: r.reason }); return; }
+      socket.emit("game_created", { code: r.game.code });
+      openGame(socket, sess, r.game.code);
+    });
+
+    // Ouvrir une partie (joueur ou pas encore) : l'état public, jamais une réponse.
+    socket.on("open_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      const code = games.normCode(m && m.code);
+      const g = code && games.getGame(code);
+      if (!g) {
+        if (!unknownCodeAllowed(clientIp(socket))) { socket.emit("error_msg", { msg: "slow_down" }); return; }
+        socket.emit("error_msg", { msg: "unknown_game", code });
         return;
       }
-      if (sess.roomId && sess.roomId !== rid) leaveCurrentRoomForGood(socket);
-      room.addPlayer(sess.cid, sess.name, socket.id);
-      sess.roomId = rid;
-      socket.join("room:" + rid);
-      broadcastRoom(room);
-      broadcastLobby();
+      openGame(socket, sess, g.code);
+    });
+    socket.on("close_view", () => { const sess = sessions.get(socket.id); if (sess) leaveView(socket, sess); });
+
+    socket.on("join_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      const r = games.joinGame(m && m.code, sess.name);
+      if (!r.ok) { socket.emit("error_msg", { msg: r.reason }); return; }
+      openGame(socket, sess, r.game.code);
+      broadcastGame(r.game.code);
     });
 
-    socket.on("leave_room", () => leaveCurrentRoomForGood(socket));
+    // Répondre à une scène : accusé explicite, avec le reveal de la scène si
+    // c'est accepté. Puis tout le monde est prévenu (progression).
+    socket.on("answer", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) { socket.emit("answer_ack", { ok: false, reason: "no_identity" }); return; }
+      const code = games.normCode(m && m.code);
+      const r = games.answer(code, sess.name, String((m && m.qid) || ""), m && m.ranking);
+      socket.emit("answer_ack", Object.assign({ qid: m && m.qid }, r));
+      if (r.ok) broadcastGame(code);
+    });
 
-    // Profil / matchs historiques : STRICTEMENT le sien. C'est une donnée
-    // personnelle (comparaisons nommées avec des personnes réelles) — rien
-    // dans le client n'a jamais demandé le profil de quelqu'un d'autre,
-    // seul le "tape sur ton propre pseudo" existe aujourd'hui.
+    socket.on("get_reveal", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      socket.emit("scene_reveal", { code: games.normCode(m && m.code), reveal: games.reveal(m && m.code, sess.name, String((m && m.qid) || "")) });
+    });
+    socket.on("get_reveals", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      socket.emit("scene_reveals", { code: games.normCode(m && m.code), reveals: games.revealsFor(m && m.code, sess.name) || [] });
+    });
+
+    socket.on("game_results", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const r = games.results(m && m.code, sess.name);
+      socket.emit("game_results", r || { code: games.normCode(m && m.code), error: "not_in_game" });
+    });
+
+    // --- Hôte / joueur ---
+    socket.on("close_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const code = games.normCode(m && m.code);
+      const r = games.closeGame(code, sess.name);
+      socket.emit("game_closed", Object.assign({ code }, r));
+      if (r.ok && r.deleted) { ns.to("game:" + code).emit("game_gone", { code, reason: "closed" }); return; }
+      if (r.ok) broadcastGame(code);
+    });
+    socket.on("remove_player", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const code = games.normCode(m && m.code);
+      const r = games.removePlayer(code, sess.name, m && m.name);
+      socket.emit("player_removed", Object.assign({ code, name: m && m.name }, r));
+      if (r.ok) {
+        // Le joueur retiré est prévenu s'il a la partie ouverte.
+        for (const [sid, s] of sessions) {
+          if (s.name && s.name.toLowerCase() === String(m.name || "").trim().toLowerCase() && s.viewing === code) {
+            const sock = ns.sockets.get(sid); if (sock) sock.emit("game_gone", { code, reason: "removed" });
+          }
+        }
+        broadcastGame(code);
+      }
+    });
+    socket.on("hide_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const r = games.hideGame(m && m.code, sess.name);
+      socket.emit("game_hidden", Object.assign({ code: games.normCode(m && m.code) }, r));
+    });
+
+    // Profil : STRICTEMENT le sien (donnée personnelle).
     socket.on("get_profile", (m) => {
       const sess = sessions.get(socket.id);
       const name = String((m && m.name) || "").trim().slice(0, 16);
@@ -317,8 +335,6 @@ function mount({ app, io }) {
     });
 
     // --- Mode dev ---
-    // Déverrouillage par mot de passe (ou par le jeton reçu la dernière fois,
-    // mémorisé par le téléphone). Le mot de passe est celui de /admin.
     socket.on("dev_unlock", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess) return;
@@ -345,88 +361,26 @@ function mount({ app, io }) {
       }
       if (!ok) { socket.emit("dev_state", { enabled: true, ok: false, reason: token ? "bad_token" : "bad_password" }); return; }
       sess.dev = true;
-      let existing = null;
-      for (const r of devRooms.values()) if (sess.cid && r.ownerCid === sess.cid) existing = r.id;
-      socket.emit("dev_state", {
-        enabled: true, ok: true,
-        token: token || issueDevToken(),
-        packs: Object.values(packs).map((p) => ({ id: p.id, name: p.name, emoji: p.emoji, bank_size: p.bank.length })),
-        max_bots: roomsModule.MAX_BOTS,
-        room: existing, // une salle de test encore en vie après un rechargement de page
-      });
+      socket.emit("dev_state", { enabled: true, ok: true, token: token || issueDevToken(), max_bots: games.MAX_BOTS, bank_size: games.BANK_SIZE, scene_count: games.SCENES_PER_GAME });
     });
-
-    // Crée SA salle de test et y place le demandeur. Une seule par
-    // propriétaire : la précédente est détruite. Le client reçoit d'abord
-    // dev_room (l'id à afficher), puis room_state comme pour toute salle.
     socket.on("dev_start", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.dev) { socket.emit("error_msg", { msg: "dev_locked" }); return; }
-      if (!sess.cid || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
-      const packId = String((m && m.pack) || "");
-      const packDef = packs[packId];
-      if (!packDef) { socket.emit("error_msg", { msg: "unknown_pack" }); return; }
-      const bank = packDef.bank.length;
-      const order = (m && m.order === "random") ? "random" : "file";
-      const startAt = Math.max(0, Math.min(bank - 1, (Number(m && m.start_at) || 1) - 1)); // 1-based côté client
-      const count = Math.max(1, Math.min(bank, Number(m && m.count) || bank));
-      const bots = Math.max(0, Math.min(roomsModule.MAX_BOTS, m && m.bots != null ? (Number(m.bots) || 0) : 2));
-      for (const r of [...devRooms.values()]) if (r.ownerCid === sess.cid) destroyDevRoom(r);
-      if (devRooms.size >= DEV_MAX_ROOMS) { socket.emit("error_msg", { msg: "dev_too_many_rooms" }); return; }
-      if (sess.roomId) leaveCurrentRoomForGood(socket);
-      const room = roomsModule.buildDev(packId, {
-        id: "dev-" + crypto.randomBytes(6).toString("hex"), ownerCid: sess.cid,
-        order, startAt, count, bots,
-        // Plus de temps pour lire et juger chaque question ; reveal normal
-        // (⏭️ pour aller plus vite) ; résultats gardés longtemps (on prend
-        // des notes).
-        questionMs: 60000, resultsMs: 10 * 60 * 1000,
-      });
-      devRooms.set(room.id, room);
-      roomById.set(room.id, room);
-      socket.emit("dev_room", { id: room.id });
-      room.addPlayer(sess.cid, sess.name, socket.id);
-      sess.roomId = room.id;
-      sess.inLobby = false; socket.leave("lobby");
-      socket.join("room:" + room.id);
-      broadcastRoom(room);
+      if (!sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      const r = games.createTestGame(sess.name, m && m.bots != null ? Number(m.bots) : 2);
+      if (!r.ok) { socket.emit("error_msg", { msg: r.reason }); return; }
+      socket.emit("game_created", { code: r.game.code, test: true });
+      openGame(socket, sess, r.game.code);
     });
 
-    // Messages de jeu (demarrer / skip / rank) transmis à la salle courante.
-    // Toujours un accusé explicite à l'expéditeur : le client verrouille son
-    // UI de façon optimiste dès l'envoi ("Classement envoyé ✅"), donc un
-    // rejet resté muet la laissait mentir sans que rien ne le détrompe.
-    socket.on("msg", (m) => {
-      const sess = sessions.get(socket.id);
-      if (!sess || !sess.roomId) { socket.emit("msg_ack", { t: m && m.t, ok: false, reason: "no_room" }); return; }
-      const room = roomById.get(sess.roomId);
-      if (!room) { socket.emit("msg_ack", { t: m && m.t, ok: false, reason: "no_room" }); return; }
-      const res = room.handleMessage(sess.cid, m || {}) || { ok: false, reason: "unknown" };
-      socket.emit("msg_ack", { t: m && m.t, ok: !!res.ok, reason: res.ok ? null : res.reason });
-      if (res.ok) { broadcastRoom(room); broadcastLobby(); }
-    });
-
-    socket.on("disconnect", () => {
-      dropCurrentRoomConnection(socket);
-      sessions.delete(socket.id);
-    });
+    socket.on("disconnect", () => { sessions.delete(socket.id); });
   });
 
-  // --- Boucle de tick ------------------------------------------------------
-  setInterval(() => {
-    const now = Date.now();
-    const dirty = [];
-    for (const r of allRooms) { if (r.tick(now)) dirty.push(r); }
-    for (const r of [...devRooms.values()]) {
-      if (r.tick(now)) dirty.push(r);
-      // Plus aucun humain (parti, ou purgé après le délai de grâce) : la
-      // salle de test n'a plus de raison d'exister, rien n'y est enregistré.
-      if (r.humanCount() === 0) destroyDevRoom(r);
-    }
-    if (dirty.length) { dirty.forEach(broadcastRoom); broadcastLobby(); }
-  }, TICK_MS);
+  // Les parties de test du mode dev ne vivent pas longtemps.
+  const purge = setInterval(() => games.purgeTestGames(Date.now()), 10 * 60 * 1000);
+  if (purge.unref) purge.unref();
 
-  console.log(`[AreWeAMatch] mounted: /AreWeAMatch + ns /match (${allRooms.length} packs${DEV_ENABLED ? ", mode dev disponible" : ""})`);
+  console.log(`[AreWeAMatch] mounted: /AreWeAMatch + ns /match (v${APP_VERSION.version}, ${games.BANK_SIZE} scènes, ${games.SCENES_PER_GAME} par partie${DEV_ENABLED ? ", mode dev disponible" : ""})`);
 }
 
 module.exports = mount;

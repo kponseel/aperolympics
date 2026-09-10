@@ -13,3 +13,16 @@ module.exports = {
   // pour ce pack sont conservées dans les comptes et le resteront.
   // pop_culture: { id: "pop_culture", name: "Pop culture", emoji: "🎬", tagline: "Films, séries, musique, jeux", bank: require("./pop_culture") },
 };
+
+// Le jeu FUSIONNÉ : toutes les scènes de tous les packs, chacune sachant d'où
+// elle vient (`pack`). C'est là-dedans qu'une partie tire ses 20 scènes.
+// Non énumérable : l'admin et le profil parcourent Object.values(packs) en
+// s'attendant à ne trouver que des packs.
+Object.defineProperty(module.exports, "all", {
+  enumerable: false,
+  value: function all() {
+    return Object.values(module.exports)
+      .filter((p) => p && Array.isArray(p.bank))
+      .flatMap((p) => p.bank.map((q) => Object.assign({}, q, { pack: p.id })));
+  },
+});
