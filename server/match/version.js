@@ -14,7 +14,7 @@
 // de public/AreWeAMatch/sw.js — sinon les téléphones et le CDN gardent
 // l'ancien code. Le test /tmp/verify_cachebust.js (et verify_version) le
 // vérifie.
-const VERSION = "2.6";
+const VERSION = "2.7";
 const DATE = "2026-09-11";
 
 const { execFileSync } = require("child_process");

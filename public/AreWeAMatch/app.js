@@ -305,7 +305,18 @@
       toast("🔓 Inscriptions rouvertes");
     });
     socket.on("player_removed", function (m) { if (m && m.ok) toast(m.name + " a été retiré de la partie."); });
-    socket.on("game_hidden", function (m) { if (m && m.ok) { toast("Partie masquée"); goHome(); } });
+    socket.on("game_hidden", function (m) { if (m && m.ok) { toast("Partie masquée — tu la retrouveras avec son code."); goHome(); } });
+    socket.on("game_deleted", function (m) {
+      if (m && m.ok) { closeSheet(); toast("🗑️ Partie supprimée."); goHome(); return; }
+      var why = m && m.reason;
+      var err = $("amDelErr");
+      var msg = why === "not_host" ? "Seul l'hôte peut supprimer la partie."
+        : why === "confirm_required" ? "Recopie exactement le code de la partie."
+        : why === "unknown_game" ? "Cette partie n'existe déjà plus."
+        : "Suppression impossible.";
+      if (err) { err.textContent = msg; var g2 = $("amDelGo"); if (g2) g2.disabled = false; }
+      else toast(msg);
+    });
     socket.on("game_gone", function (m) {
       if (!m || m.code !== currentCode) return;
       toast(m.reason === "removed" ? "Tu as été retiré de cette partie." : "Cette partie n'existe plus.");
@@ -650,7 +661,11 @@
     if (me.host && g.test) body += '<button class="am-ghost" id="amClose">🗑️ Supprimer la partie de test</button>';
     else if (me.host && !g.closedAt) body += '<button class="am-ghost" id="amClose">🔒 Fermer les inscriptions</button>';
     else if (me.host && g.closedAt) body += '<button class="am-ghost" id="amReopen">🔓 Rouvrir les inscriptions</button>';
-    if (!me.host) body += '<button class="am-ghost" id="amHide">Masquer cette partie de ma liste</button>';
+    // Masquer existe pour tout le monde, l'hôte compris : sans cette sortie,
+    // un hôte qui veut juste ranger sa liste n'avait que la suppression —
+    // c'est-à-dire détruire la partie pour tous les autres.
+    body += '<button class="am-ghost" id="amHide">Masquer cette partie de ma liste</button>';
+    if (me.host && !g.test) body += '<button class="am-ghost am-danger" id="amDelete">🗑️ Supprimer la partie</button>';
     body += '<button class="am-ghost" id="amHowto">💡 Comment ça marche ?</button>';
     $("amGameBody").innerHTML = body;
 
@@ -665,11 +680,59 @@
       if (window.confirm("Fermer les inscriptions ?\n\nPlus personne ne pourra rejoindre. Ceux qui ont déjà rejoint gardent tout leur temps pour finir, et les résultats continuent de se remplir.")) socket.emit("close_game", { code: g.code });
     };
     var ob = $("amReopen"); if (ob) ob.onclick = function () { socket.emit("reopen_game", { code: g.code }); };
-    var hb = $("amHide"); if (hb) hb.onclick = function () { if (window.confirm("Masquer cette partie de ta liste ?")) socket.emit("hide_game", { code: g.code }); };
+    var hb = $("amHide"); if (hb) hb.onclick = function () { if (window.confirm("Masquer cette partie de ta liste ?\n\nElle continue d'exister pour les autres, et tu la retrouveras avec son code.")) socket.emit("hide_game", { code: g.code }); };
+    var db = $("amDelete"); if (db) db.onclick = function () { deleteGameSheet(g); };
     Array.prototype.forEach.call($("amGameBody").querySelectorAll("[data-kick]"), function (b) {
       b.onclick = function () { var n = b.getAttribute("data-kick"); if (window.confirm("Retirer " + n + " de la partie ?")) socket.emit("remove_player", { code: g.code, name: n }); };
     });
   }
+  // Supprimer une partie détruit AUSSI les réponses des autres. L'alerte dit
+  // donc ce qui disparaît, chiffres à l'appui, plutôt qu'un « êtes-vous sûr ? »
+  // qui n'apprend rien. Et quand quelqu'un d'autre a déjà répondu, il faut
+  // recopier le code de la partie : le geste devient impossible par accident.
+  function deleteGameSheet(g) {
+    var others = (g.players || []).filter(function (p) { return !p.me && !p.bot; });
+    var answers = others.reduce(function (n, p) { return n + p.progress; }, 0);
+    var finished = others.filter(function (p) { return p.finished; }).length;
+    var needCode = answers > 0;
+
+    var what = "<p>La partie <b>" + esc(gameTitle(g)) + "</b> (" + esc(g.code) + ") disparaît <b>pour tout le monde</b>, définitivement.</p>";
+    if (others.length) {
+      what += "<p class='am-danger-box'>Tu effaces aussi le travail de <b>" + others.length + " autre" + (others.length > 1 ? "s" : "") + " joueur" + (others.length > 1 ? "s" : "") + "</b> : " +
+        (answers ? "<b>" + answers + " réponse" + (answers > 1 ? "s" : "") + "</b> déjà données" : "aucune réponse pour l'instant") +
+        (finished ? ", dont " + finished + " partie" + (finished > 1 ? "s" : "") + " terminée" + (finished > 1 ? "s" : "") : "") +
+        ", et les résultats. Personne ne pourra les récupérer.</p>";
+    } else {
+      what += "<p class='am-hint'>Personne d'autre n'a rejoint : tu es seul à y perdre quelque chose.</p>";
+    }
+    what += "<p class='am-hint'>Si tu veux juste qu'elle sorte de ta liste, ferme cette fenêtre et choisis <b>Masquer</b> : la partie continue d'exister pour les autres.</p>";
+    if (needCode) {
+      what += '<label class="am-label" for="amDelCode">Recopie le code pour confirmer</label>' +
+        '<input id="amDelCode" class="am-codein" maxlength="8" placeholder="' + esc(g.code) + '" autocomplete="off" autocapitalize="characters" />';
+    }
+    what += '<button type="button" class="am-primary am-danger-btn" id="amDelGo"' + (needCode ? " disabled" : "") + '>🗑️ Supprimer définitivement</button>' +
+      '<button type="button" class="am-ghost" id="amDelNo">Annuler</button>' +
+      '<div class="am-error center" id="amDelErr"></div>';
+
+    openSheet("🗑️ Supprimer la partie", what, function (body) {
+      var go = body.querySelector("#amDelGo");
+      var input = body.querySelector("#amDelCode");
+      body.querySelector("#amDelNo").onclick = closeSheet;
+      if (input) {
+        input.addEventListener("input", function () {
+          input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+          go.disabled = input.value !== g.code;
+        });
+      }
+      go.onclick = function () {
+        if (go.disabled) return;
+        if (!socket || !connected) { body.querySelector("#amDelErr").textContent = "Pas de connexion."; return; }
+        go.disabled = true;
+        socket.emit("delete_game", { code: g.code, confirm: input ? input.value : g.code });
+      };
+    });
+  }
+
   function renderPlayerRows(g, canKick) {
     if (!g.players.length) return '<p class="am-hint">Personne pour l\'instant.</p>';
     return '<div class="am-plist">' + g.players.map(function (p) {

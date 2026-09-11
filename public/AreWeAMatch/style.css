@@ -333,3 +333,11 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
 
 /* Petit lien dans une ligne d'aide (proposer un code au hasard). */
 .am-linkish { background: none; border: none; padding: 0; margin-left: 4px; color: var(--accent2); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* ---------- gestes destructifs ---------- */
+/* Un bouton qui détruit les données des autres ne doit pas ressembler aux
+   autres : il est rouge, et détaché du groupe au-dessus. */
+.am-ghost.am-danger { border-color: #7a2a35; color: #ff9b9b; margin-top: 22px; }
+.am-ghost.am-danger:active { background: #3a1a1a; }
+.am-primary.am-danger-btn { background: linear-gradient(135deg, #b03049 0%, #7a2a35 100%); }
+.am-danger-box { background: #3a1a1a; border: 1px solid #7a2a35; border-radius: 12px; padding: 12px 14px; }

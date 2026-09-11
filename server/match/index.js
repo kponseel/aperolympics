@@ -448,6 +448,34 @@ function mount({ app, io }) {
         broadcastGame(code);
       }
     });
+    // Supprimer une partie : réservé à l'hôte, irréversible, et ça emporte les
+    // réponses des autres joueurs. Tout le monde est prévenu — ceux qui l'ont
+    // à l'écran comme ceux qui l'ont seulement dans leur liste.
+    socket.on("delete_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const code = games.normCode(m && m.code);
+      // Garde-fou serveur : le client fait taper le code quand d'autres ont
+      // déjà répondu, mais c'est ici que ça doit tenir.
+      const confirmCode = games.normCode(m && m.confirm);
+      const impact = games.deletionImpact(code, sess.name);
+      if (impact && impact.host && impact.othersAnswers > 0 && confirmCode !== impact.code) {
+        socket.emit("game_deleted", { code, ok: false, reason: "confirm_required" });
+        return;
+      }
+      const r = games.deleteGameAsHost(code, sess.name);
+      socket.emit("game_deleted", Object.assign({ code }, r.ok ? { ok: true } : r));
+      if (!r.ok) return;
+      ns.to("game:" + code).emit("game_gone", { code, reason: "deleted" });
+      // Ceux qui ne l'ont pas ouverte doivent aussi voir leur liste bouger.
+      const names = new Set(r.players.map((n) => n.toLowerCase()));
+      for (const [sid, s2] of sessions) {
+        if (!s2.name || !names.has(s2.name.toLowerCase())) continue;
+        const sock = ns.sockets.get(sid);
+        if (sock && sock.id !== socket.id) sock.emit("games_changed", { code });
+      }
+    });
+
     socket.on("hide_game", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) return;
