@@ -323,6 +323,17 @@ function mount({ app, io }) {
       if (r.ok) broadcastGame(code);
     });
 
+    // Revenir sur une réponse : seulement tant qu'on est le seul à avoir
+    // répondu à cette scène (voir games.unanswer).
+    socket.on("unanswer", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) { socket.emit("unanswer_ack", { ok: false, reason: "no_identity" }); return; }
+      const code = games.normCode(m && m.code);
+      const r = games.unanswer(code, sess.name, String((m && m.qid) || ""));
+      socket.emit("unanswer_ack", Object.assign({ qid: m && m.qid }, r));
+      if (r.ok) broadcastGame(code);
+    });
+
     socket.on("get_reveal", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) return;
