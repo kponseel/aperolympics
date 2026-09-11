@@ -586,6 +586,39 @@ function deleteGame(code) {
   return true;
 }
 
+// Ce que l'hôte détruit s'il supprime : de quoi écrire une alerte qui dit la
+// vérité, plutôt qu'un « êtes-vous sûr ? » qui ne renseigne sur rien.
+function deletionImpact(code, name) {
+  const g = getGame(code);
+  if (!g) return null;
+  const me = g.players[key(name)];
+  const others = playerList(g).filter((p) => p !== me && !p.bot);
+  let answers = 0;
+  for (const p of others) answers += Object.keys(p.answers).length;
+  return {
+    code: g.code, title: g.title, host: key(name) === g.hostKey,
+    others: others.length,
+    othersFinished: others.filter((p) => p.finishedAt).length,
+    othersAnswers: answers,          // > 0 ⇒ on détruit le travail de quelqu'un d'autre
+    test: !!g.test,
+  };
+}
+
+// Supprimer pour de bon, à la demande de l'hôte. Irréversible, et ça ne
+// détruit pas que ses données : les réponses des autres joueurs partent avec.
+// C'est pour ça que l'appelant doit prévenir sérieusement — et que la liste
+// des joueurs est renvoyée, pour que chacun soit averti que la partie a
+// disparu plutôt que de la voir échouer silencieusement.
+function deleteGameAsHost(code, name) {
+  const g = getGame(code);
+  if (!g) return { ok: false, reason: "unknown_game" };
+  if (key(name) !== g.hostKey) return { ok: false, reason: "not_host" };
+  const players = playerList(g).filter((p) => !p.bot).map((p) => p.name);
+  const impact = deletionImpact(code, name);
+  deleteGame(g.code);
+  return { ok: true, code: g.code, players, impact };
+}
+
 // ---------------------------------------------------------------- mode dev
 // Une partie de test : des bots qui répondent à tout, tout de suite, avec
 // leur permutation fixe. Rien ne touche les profils (g.test), et la partie
@@ -637,7 +670,7 @@ function _reset() { data = emptyData(); if (saveTimer) { clearTimeout(saveTimer)
 
 module.exports = {
   createGame, joinGame, answer, unanswer, results, reveal, revealsFor, state, listFor, markSeen, isPlayer,
-  closeGame, reopenGame, removePlayer, hideGame, deleteGame,
+  closeGame, reopenGame, removePlayer, hideGame, deleteGame, deleteGameAsHost, deletionImpact,
   createTestGame, purgeTestGames, adminList,
   getGame, normCode, flush, question: (id) => { const q = BY_ID.get(id); return q ? pubQuestion(q) : null; },
   SCENES_PER_GAME, MIN_SHARED, MAX_BOTS, BANK_SIZE: BANK.length, CODE_LEN, _reset,
