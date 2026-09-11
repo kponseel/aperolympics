@@ -142,6 +142,21 @@ function mount({ app, io, rooms }) {
     });
   });
 
+  // -- Are We A Match? parties (v2, en différé) --------------------------
+  api.get("/match/games", (_req, res) => {
+    const games = require("./match/games");
+    res.json({ games: games.adminList() });
+  });
+  api.post("/match/games/delete", (req, res) => {
+    const games = require("./match/games");
+    const code = games.normCode((req.body && req.body.code) || "");
+    if (!code || !games.getGame(code)) return res.status(404).json({ ok: false, error: "not_found" });
+    // Ceux qui ont la partie ouverte sont prévenus avant qu'elle disparaisse.
+    io.of("/match").to("game:" + code).emit("game_gone", { code, reason: "admin" });
+    games.deleteGame(code);
+    res.json({ ok: true });
+  });
+
   // -- Are We A Match? players --------------------------------------------
   api.get("/match/players", (_req, res) => {
     res.json({ players: amPlayers.adminList() });

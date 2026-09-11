@@ -119,6 +119,19 @@
       <div id="playersMsg"></div>
     </section>
 
+    <!-- ===== Are We A Match?: parties (v2, en différé) ===== -->
+    <section>
+      <h2>🎲 Are We A Match ? — Parties</h2>
+      <p class="desc">Les parties en différé (<code>games.json</code>, hors du dossier déployé). Une partie reste ouverte tant que son hôte ne la ferme pas. Supprimer une partie efface les réponses données dedans (les profils des joueurs gardent leurs dernières réponses par scène).</p>
+      <div class="toolbar">
+        <button class="refresh" id="reloadGames">⟳ Recharger</button>
+        <input type="search" id="filterGames" placeholder="Filtrer par code, titre ou hôte…" />
+        <span class="meta" id="gamesCount"></span>
+      </div>
+      <div id="gamesHost"></div>
+      <div id="gamesMsg"></div>
+    </section>
+
     <!-- ===== Are We A Match?: players ===== -->
     <section>
       <h2>💘 Are We A Match ? — Comptes joueurs</h2>
@@ -390,6 +403,46 @@
         });
       }
 
+      // --- Parties (Are We A Match?, v2) ------------------------------------
+      var gamesCache = [];
+      function renderGames() {
+        var host = $("gamesHost");
+        var filter = ($("filterGames").value || "").trim().toLowerCase();
+        var rows = gamesCache.filter(function (g) {
+          return !filter || g.code.toLowerCase().includes(filter) || (g.title || "").toLowerCase().includes(filter) || (g.hostName || "").toLowerCase().includes(filter);
+        });
+        $("gamesCount").textContent = rows.length + " / " + gamesCache.length + " partie" + (gamesCache.length > 1 ? "s" : "");
+        if (!rows.length) { host.innerHTML = '<div class="empty">Aucune partie.</div>'; return; }
+        host.innerHTML =
+          '<table><thead><tr><th>Code</th><th>Titre</th><th>Hôte</th><th>Joueurs</th><th>Finis</th><th>Scènes</th><th>Créée</th><th>État</th><th></th></tr></thead><tbody>' +
+          rows.map(function (g) {
+            var state = g.closedAt ? '<span class="pill lobby">fermée</span>' : '<span class="pill playing">ouverte</span>';
+            if (g.test) state += ' <span class="meta">🧪 test</span>';
+            return '<tr>' +
+              '<td><code>' + esc(g.code) + '</code></td>' +
+              '<td>' + esc(g.title || "—") + '</td>' +
+              '<td><b>' + esc(g.hostName) + '</b></td>' +
+              '<td>' + g.players + '</td>' +
+              '<td>' + g.finished + '</td>' +
+              '<td>' + g.sceneCount + '</td>' +
+              '<td>' + fmtLast(g.createdAt) + '</td>' +
+              '<td>' + state + '</td>' +
+              '<td class="row-actions"><button class="danger" data-act="am-delete-game" data-code="' + esc(g.code) + '">🗑️ Supprimer</button></td>' +
+            '</tr>';
+          }).join("") +
+          '</tbody></table>';
+      }
+      function loadGames() {
+        return api("/match/games").then(function (j) {
+          gamesCache = j.games || [];
+          renderGames();
+          return true;
+        }).catch(function (e) {
+          $("gamesMsg").innerHTML = '<div class="err">Erreur : ' + esc(e.message) + '</div>';
+          return false;
+        });
+      }
+
       // --- Question banks (Are We A Match?) ---------------------------------
       var packsCache = [], questionsCache = [], currentPack = null;
 
@@ -485,6 +538,12 @@
           url: "/match/delete", body: function (v) { return { name: v }; },
           done: function (v) { return "Compte « " + v + " » supprimé."; },
         },
+        "am-delete-game": {
+          arg: "code", msg: "gamesMsg", reload: function () { return loadGames(); },
+          confirm: function (v) { return "Supprimer la partie " + v + " (Are We A Match ?) ?\nLes réponses données dans cette partie seront perdues ; les joueurs qui l'ont ouverte seront renvoyés à l'accueil."; },
+          url: "/match/games/delete", body: function (v) { return { code: v }; },
+          done: function (v) { return "Partie " + v + " supprimée."; },
+        },
       };
       document.addEventListener("click", function (e) {
         var tab = e.target.closest && e.target.closest("[data-pack]");
@@ -514,15 +573,18 @@
       wireReload("reloadRooms", "roomsMsg", loadRooms);
       wireReload("reloadPlayers", "playersMsg", loadPlayers);
       wireReload("reloadMatch", "matchMsg", loadMatch);
+      wireReload("reloadGames", "gamesMsg", loadGames);
       $("filterRooms").addEventListener("input", renderRooms);
       $("filterPlayers").addEventListener("input", renderPlayers);
       $("filterMatch").addEventListener("input", renderMatch);
+      $("filterGames").addEventListener("input", renderGames);
       $("filterQ").addEventListener("input", renderQuestions);
       setStatus("Prêt");
       loadStorage();
       loadRooms();
       loadPlayers();
       loadMatch();
+      loadGames();
       loadPacks();
     })();
   </script>
