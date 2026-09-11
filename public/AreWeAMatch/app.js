@@ -432,6 +432,7 @@
   }
   function renderHome() {
     updateMe();
+    renderInstall();
     var wrap = $("amGames"); if (!wrap) return;
     var list = gamesCache || [];
     if (!list.length) {
@@ -884,8 +885,10 @@
     body += '<p class="am-hint center">Le score, c\'est la part de vos comparaisons qui tombent pareil : 3 par scène (A/B, A/C, B/C), 1 point par accord. Deux personnes au hasard tournent autour de 50 %.</p>';
     body += backLinkCard(r);
     body += '<button class="am-ghost" id="amScenes">👀 Scène par scène</button>';
+    body += installHtml();     // après les résultats, c'est là qu'on a envie de garder l'app
     $("amResultsBody").innerHTML = body;
     $("amScenes").onclick = function () { if (socket) socket.emit("get_reveals", { code: currentCode }); };
+    wireInstall($("amResultsBody"));
     wireResultsExtras(r);
   }
   // « Scène par scène » : tous les reveals, y compris ceux qui se sont remplis après coup.
@@ -948,6 +951,85 @@
       socket.emit("dev_start", { bots: devBots });
     };
   }
+
+  // ---------- installation sur l'écran d'accueil ----------
+  // L'app est installable depuis toujours (manifeste + service worker), mais
+  // personne ne le savait : Chrome le range dans un sous-menu, et Safari ne
+  // propose rien du tout. On le dit donc nous-mêmes, différemment selon le
+  // téléphone, et jamais quand c'est déjà fait.
+  var deferredInstall = null, installed = false;
+  function isStandalone() {
+    try {
+      return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+             window.navigator.standalone === true;
+    } catch (e) { return false; }
+  }
+  // Safari iOS n'émet jamais beforeinstallprompt et n'a pas d'API : la seule
+  // chose possible est d'expliquer le geste.
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent || "") ||
+           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);   // iPad récent
+  }
+  function installState() {
+    if (installed || isStandalone()) return "done";
+    if (deferredInstall) return "prompt";
+    if (isIOS()) return "ios";
+    return "none";
+  }
+  function installHtml() {
+    var st = installState();
+    if (st === "done" || st === "none") return "";
+    return '<button type="button" class="am-ghost am-install" data-install="' + st + '">📲 ' +
+      (st === "ios" ? "Ajouter à l'écran d'accueil" : "Installer l'app") + '</button>';
+  }
+  function wireInstall(root) {
+    var b = (root || document).querySelector("[data-install]");
+    if (!b) return;
+    b.onclick = function () { b.getAttribute("data-install") === "ios" ? iosInstallSheet() : runInstallPrompt(); };
+  }
+  function runInstallPrompt() {
+    var e = deferredInstall;
+    if (!e) { renderInstall(); return; }
+    deferredInstall = null;                       // l'événement ne se rejoue pas
+    try { e.prompt(); } catch (err) { renderInstall(); return; }
+    var choice = e.userChoice && e.userChoice.then ? e.userChoice : null;
+    if (choice) choice.then(function (r) {
+      if (r && r.outcome === "accepted") { installed = true; toast("📲 C'est installé — regarde ton écran d'accueil."); }
+      renderInstall();
+    }, function () { renderInstall(); });
+    else renderInstall();
+  }
+  function iosInstallSheet() {
+    openSheet("📲 Sur ton iPhone",
+      "<p>Safari ne sait pas installer tout seul : trois gestes, une fois pour toutes.</p>" +
+      '<ol class="am-steps compact">' +
+      '<li><span class="num">1</span> <span class="t">Touche <b>Partager</b> en bas de Safari — le carré avec la flèche vers le haut.</span></li>' +
+      '<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>' +
+      '<li><span class="num">3</span> <span class="t">Touche <b>Ajouter</b>. L\'icône 💘 apparaît avec tes autres apps.</span></li>' +
+      "</ol>" +
+      "<p class='am-hint'>Ensuite l'app s'ouvre en plein écran, sans la barre du navigateur, et tes parties sont là — ton pseudo et ton PIN suffisent.</p>");
+  }
+  function renderInstall() {
+    var host = $("amInstall");
+    if (host) { host.innerHTML = installHtml(); wireInstall(host); }
+    // Sur l'écran des résultats, le bloc est reconstruit avec le reste.
+    if (screen === "s-results" && lastResults) {
+      var inRes = document.querySelector("#amResultsBody [data-install]");
+      if (inRes && installState() === "done") inRes.parentNode.removeChild(inRes);
+    }
+  }
+  // Enregistré au chargement du script, pas dans DOMContentLoaded :
+  // beforeinstallprompt peut arriver très tôt, et il ne se rejoue pas.
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredInstall = e;
+    renderInstall();
+  });
+  window.addEventListener("appinstalled", function () {
+    installed = true; deferredInstall = null;
+    renderInstall();
+    toast("📲 C'est installé — regarde ton écran d'accueil.");
+  });
 
   // ---------- onboarding ----------
   // Personne ne sera là pour expliquer le jeu : il s'explique tout seul, une
@@ -1037,6 +1119,7 @@
     else show("s-home");
     // Première ouverture : le jeu s'explique avant qu'on demande quoi que ce soit.
     if (!onbSeen()) openOnboarding();
+    renderInstall();
     if (getDevToken()) { var tk = getDevToken(); socket.on("identity_ok", function () { if (getDevToken() === tk && !devOn) socket.emit("dev_unlock", { token: tk }); }); }
     if (/[?&]dev(=|&|$)/.test(location.search)) setTimeout(openDevSheet, 400);
     window.__amForceCloseSheet = forceCloseSheet;

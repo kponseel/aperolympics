@@ -172,6 +172,33 @@ function mount({ app, io }) {
     if (blocked) { res.type("html").send(INDEX_HTML); return; }
     res.type("html").send(pageFor(g, req));
   });
+  // Le manifeste, servi par NODE et non depuis le disque. Deux raisons :
+  //   - le serveur frontal de l'hébergeur ne connaît pas l'extension
+  //     .webmanifest et le rendait en « text/plain » ;
+  //   - et son CDN le gardait en cache, donc une correction du manifeste
+  //     (icônes, nom) pouvait mettre des heures à arriver.
+  // Le chemin ci-dessous n'existe pas sur le disque : la requête remonte donc
+  // jusqu'ici. Le contenu reste le fichier manifest.webmanifest, unique source
+  // de vérité — on ne fait que le servir correctement.
+  // Les icônes, elles, SONT sur le disque : le CDN les garde. On leur pose donc
+  // le même suffixe de version qu'au reste, mais ici plutôt que dans le fichier
+  // — comme ça il n'y a rien à tenir à jour à deux endroits.
+  const MANIFEST = (() => {
+    const raw = fs.readFileSync(path.join(PUBLIC_MATCH, "manifest.webmanifest"), "utf8");
+    const m = JSON.parse(raw);   // au démarrage, plutôt qu'à la première installation ratée
+    const v = require("./version").version;
+    const stamp = (u) => (typeof u === "string" && u.indexOf("/icons/") === 0 ? u + "?v=" + v : u);
+    if (Array.isArray(m.icons)) m.icons.forEach((i) => { i.src = stamp(i.src); });
+    if (Array.isArray(m.shortcuts)) m.shortcuts.forEach((s) => {
+      if (Array.isArray(s.icons)) s.icons.forEach((i) => { i.src = stamp(i.src); });
+    });
+    return JSON.stringify(m, null, 2);
+  })();
+  app.get("/AreWeAMatch/app.webmanifest", (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.type("application/manifest+json").send(MANIFEST);
+  });
+
   // La version qui tourne, lisible sans ouvrir de session : le témoin de
   // déploiement (le fichier n'existe pas sur le disque, c'est bien Node qui
   // répond, pas le serveur frontal de l'hébergeur).

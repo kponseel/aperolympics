@@ -324,3 +324,9 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
   .am-qctx { font-size: 0.9rem; margin-bottom: 12px; }
   .am-topbar { gap: 8px; padding-left: 12px; padding-right: 12px; }
 }
+
+/* ---------- installation sur l'écran d'accueil ---------- */
+/* Proposée seulement quand elle est possible et pas déjà faite : le bouton
+   n'existe pas dans le HTML, app.js le pose (ou non). */
+.am-install { border-color: var(--accent2); color: #e6dffb; }
+.am-install:active { background: #2a2148; }
