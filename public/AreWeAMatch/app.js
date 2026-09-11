@@ -51,7 +51,7 @@
     for (var x = 0; x < n; x++) for (var y = x + 1; y < n; y++) { total++; if ((pa[x] < pa[y]) === (pb[x] < pb[y])) agree++; }
     return { agree: agree, total: total };
   }
-  // « 🏔️ Rando et grand air » → « 🏔️ » (sinon le numéro de l'option).
+  // « 🏔️ Rando et grand air » → « 🏔️ » (sinon le numéro de l'option).
   function emojiOf(label, idx) {
     var m = /^(\S+)\s/.exec(label || "");
     return (m && /^[^\w\d]/.test(m[1])) ? m[1] : String(idx + 1);
@@ -152,7 +152,7 @@
     });
     socket.on("pin_weak", function (m) {
       var msg = weakPinMsg(m && m.why);
-      var err = $("amFormErr");             // si la feuille « code de reprise » est ouverte
+      var err = $("amFormErr");             // si la feuille « code de reprise » est ouverte
       if (err && $("amOverlay").style.display !== "none") { err.textContent = msg; return; }
       show("s-pseudo");
       $("amPseudoError").className = "am-error center warn";
@@ -168,7 +168,7 @@
     socket.on("name_taken", function (m) {
       show("s-pseudo");
       $("amPseudoError").className = "am-error center";
-      $("amPseudoError").textContent = "Le pseudo « " + (m && m.name) + " » est déjà pris. Choisis-en un autre.";
+      $("amPseudoError").textContent = "Le pseudo « " + (m && m.name) + " » est déjà pris. Choisis-en un autre.";
       var nm = $("amName"); if (nm) nm.focus();
     });
     socket.on("pin_required", function (m) { enterPinMode(m && m.name, "🔒 Ce pseudo est déjà à quelqu\u2019un. Entre son code de reprise."); });
@@ -213,7 +213,7 @@
       var prev = game;
       game = m;
       window.__amGame = game;
-      // Arrivé par le lien « voir la progression » (?r=1) : on file à l'écran
+      // Arrivé par le lien « voir la progression » (?r=1) : on file à l'écran
       // final dès qu'on sait que celui qui ouvre est bien un joueur. Sinon
       // (un invité qui découvre la partie), la page de la partie, comme d'habitude.
       if (pendingResults) {
@@ -230,7 +230,7 @@
       }
       else if (screen === "s-play") {
         updatePlayMeta();
-        // Le serveur fait autorité sur « où j'en suis ». S'il n'est pas
+        // Le serveur fait autorité sur « où j'en suis ». S'il n'est pas
         // d'accord avec l'écran — même compte ouvert sur un deuxième
         // appareil, ou reprise après un redémarrage du serveur — on se recale
         // sur SA scène. Jamais pendant qu'une réponse est en vol ni pendant un
@@ -249,16 +249,22 @@
       if (!m) return;
       if (!m.ok) {
         play.submitted = false;
-        if (m.reason === "already_answered") { toast("Déjà répondu à cette scène."); play.index += 1; play.myRank = []; renderScene(); return; }
-        if (m.reason === "closed") { toast("Cette partie est fermée."); openGame(play.code); return; }
-        toast("Réponse non prise en compte, réessaie."); renderScene(); return;
+        if (m.reason === "already_answered") { warn("Déjà répondu à cette scène."); play.index += 1; play.myRank = []; renderScene(); return; }
+        if (m.reason === "closed") { warn("Cette partie est fermée."); openGame(play.code); return; }
+        warn("Réponse non prise en compte, réessaie."); renderScene(); return;
       }
       play.finished = !!m.finished;
       play.reveal = m.reveal;
       // Personne d'autre n'a encore répondu à cette scène : pas d'écran vide,
-      // on enchaîne, avec un mot.
+      // on enchaîne. Le mot qui explique pourquoi on n'a rien vu est affiché
+      // par renderScene, à côté du bouton de retour, et il reste tant que la
+      // fenêtre est ouverte — en notice de trois secondes en haut de l'écran,
+      // il disparaissait pendant qu'on le lisait.
       if (play.reveal && play.reveal.answers.length <= 1 && !play.finished) {
-        toast("🥇 Premier sur cette scène — tu peux encore y revenir tant que personne n'a répondu.");
+        // On sait déjà qu'on était seul sur cette scène : on ouvre la fenêtre
+        // sans attendre l'état du serveur (envoyé juste après answer_ack), le
+        // bloc est donc là dès le premier rendu au lieu de clignoter.
+        if (game && game.me && game.me.undoable && game.me.undoable.indexOf(play.index) < 0) game.me.undoable.push(play.index);
         play.index = (m.index != null) ? m.index : play.index + 1;
         play.myRank = []; play.submitted = false; play.reveal = null;
         renderScene();
@@ -272,10 +278,10 @@
     socket.on("unanswer_ack", function (m) {
       if (!m) return;
       if (!m.ok) {
-        if (m.reason === "revealed") toast("Trop tard : quelqu'un a répondu à cette scène, tu as vu sa réponse.");
-        else if (m.reason === "finished") toast("Tu as terminé la partie : les réponses sont définitives.");
-        else if (m.reason === "not_answered") toast("Tu n'as pas encore répondu à cette scène.");
-        else toast("Impossible de revenir sur cette réponse.");
+        if (m.reason === "revealed") warn("Trop tard : quelqu'un a répondu à cette scène, tu as vu sa réponse.");
+        else if (m.reason === "finished") warn("Tu as terminé la partie : les réponses sont définitives.");
+        else if (m.reason === "not_answered") warn("Tu n'as pas encore répondu à cette scène.");
+        else warn("Impossible de revenir sur cette réponse.");
         return;
       }
       if (screen !== "s-play") return;
@@ -296,12 +302,12 @@
       renderScenesSheet(m.reveals || []);
     });
     socket.on("game_closed", function (m) {
-      if (!m || !m.ok) { toast("Impossible de fermer les inscriptions."); return; }
+      if (!m || !m.ok) { warn("Impossible de fermer les inscriptions."); return; }
       if (m.deleted) { toast("Partie de test supprimée"); goHome(); return; }
       toast("🔒 Inscriptions fermées — tout le monde peut finir");
     });
     socket.on("game_reopened", function (m) {
-      if (!m || !m.ok) { toast("Impossible de rouvrir les inscriptions."); return; }
+      if (!m || !m.ok) { warn("Impossible de rouvrir les inscriptions."); return; }
       toast("🔓 Inscriptions rouvertes");
     });
     socket.on("player_removed", function (m) { if (m && m.ok) toast(m.name + " a été retiré de la partie."); });
@@ -315,15 +321,15 @@
         : why === "unknown_game" ? "Cette partie n'existe déjà plus."
         : "Suppression impossible.";
       if (err) { err.textContent = msg; var g2 = $("amDelGo"); if (g2) g2.disabled = false; }
-      else toast(msg);
+      else warn(msg);
     });
     socket.on("game_gone", function (m) {
       if (!m || m.code !== currentCode) return;
-      toast(m.reason === "removed" ? "Tu as été retiré de cette partie." : "Cette partie n'existe plus.");
+      warn(m.reason === "removed" ? "Tu as été retiré de cette partie." : "Cette partie n'existe plus.");
       goHome();
     });
     socket.on("profile", function (m) {
-      if (!m || m.ok === false) { toast("Pas encore de profil."); return; }
+      if (!m || m.ok === false) { warn("Pas encore de profil."); return; }
       openProfile(m);
     });
     // --- mode dev ---
@@ -348,13 +354,21 @@
     socket.on("error_msg", function (m) {
       var code = m && m.msg;
       if (code === "bad_identity" || code === "no_identity") return;
-      if (code === "bad_pin") { toast("Le code de reprise fait 4 chiffres."); return; }
-      if (code === "not_owner") { toast("Ce pseudo appartient à un autre appareil."); return; }
-      if (code === "unknown_game") { pendingResults = false; toast("Aucune partie avec ce code."); if (pendingCode) { pendingCode = null; setUrl(null); goHome(); } return; }
-      if (code === "slow_down") { toast("Trop de codes essayés, attends un peu."); return; }
-      if (code === "closed") { toast("Les inscriptions de cette partie sont fermées."); return; }
-      if (code === "dev_locked") { toast("Mode dev verrouillé."); return; }
-      setStatus(code ? "Erreur : " + code : "Erreur");
+      if (code === "bad_pin") { warn("Le code de reprise fait 4 chiffres."); return; }
+      if (code === "not_owner") { warn("Ce pseudo appartient à un autre appareil."); return; }
+      if (code === "unknown_game") {
+        pendingResults = false; warn("Aucune partie avec ce code.");
+        if (pendingCode) pendingCode = null;
+        // openGame affiche « Chargement… » avant de savoir si le code existe :
+        // sur un code qui n'existe pas, on y restait bloqué, avec un message
+        // d'erreur et rien à faire. On revient à l'accueil.
+        if (screen === "s-game" && !game) { currentCode = null; setUrl(null); goHome(); }
+        return;
+      }
+      if (code === "slow_down") { warn("Trop de codes essayés, attends un peu."); return; }
+      if (code === "closed") { warn("Les inscriptions de cette partie sont fermées."); return; }
+      if (code === "dev_locked") { warn("Mode dev verrouillé."); return; }
+      warn(code ? "Erreur : " + code : "Erreur");
     });
   }
 
@@ -371,13 +385,56 @@
     else goHome();
   }
 
-  // ---------- toast ----------
+  // ---------- notices ----------
+  // Deux défauts corrigés ici, tous les deux visibles à l'usage.
+  //
+  // 1. Les messages passaient par #amStatus, une barre DANS LE FLUX, juste
+  //    au-dessus du contenu : un message de trois lignes poussait tout l'écran
+  //    vers le bas en apparaissant, puis le ramenait en disparaissant. La page
+  //    sautait deux fois. Une notice est désormais superposée (position:
+  //    fixed) : elle ne prend aucune place, donc elle ne décale rien.
+  // 2. Tout s'effaçait après 3 secondes — on perdait le message en le lisant.
+  //    Désormais un PROBLÈME reste jusqu'à ce qu'on le chasse (warn) ; seule
+  //    une confirmation de ce qu'on vient de faire s'efface toute seule
+  //    (toast) — on sait déjà ce qu'on a tapé.
+  //
+  // #amStatus ne sert plus qu'à l'état de la connexion, qui est durable : une
+  // notice ne doit pas l'écraser, ni l'effacer en expirant. « Pas de connexion
+  // là » suivi d'une barre vide, c'était le contraire de l'information utile.
   var toastTimer = null;
-  function toast(msg) {
-    setStatus(msg);
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { setStatus(""); }, 3000);
+  // La notice est posée en bas de l'écran : on allonge la page de sa hauteur
+  // pour que le dernier bouton reste atteignable en défilant. Allonger le bas
+  // ne déplace rien de ce qui est déjà affiché.
+  function placeNotices() {
+    var host = $("amNotice");
+    var card = host && host.firstChild;
+    var h = card ? Math.ceil(card.getBoundingClientRect().height) + 18 : 0;
+    document.documentElement.style.setProperty("--am-notice-h", h + "px");
   }
+  function hideNotice() {
+    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+    var host = $("amNotice"); if (host) host.innerHTML = "";
+    placeNotices();
+  }
+  function notice(msg, opts) {
+    var host = $("amNotice");
+    if (!host) { setStatus(msg); return; }            // repli : vieille coquille en cache
+    var o = opts || {};
+    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+    host.innerHTML = '<div class="am-toast' + (o.bad ? " bad" : "") + '">' +
+      '<span class="t">' + esc(msg) + '</span><span class="x" aria-hidden="true">✕</span></div>';
+    var el = host.firstChild;
+    el.onclick = hideNotice;
+    placeNotices();
+    if (o.ms) toastTimer = setTimeout(hideNotice, o.ms);
+  }
+  // Confirmation de ce qu'on vient de faire : elle s'efface toute seule.
+  function toast(msg) { notice(msg, { ms: 4000 }); }
+  // Problème : elle reste affichée tant qu'on ne l'a pas chassée.
+  function warn(msg) { notice(msg, { bad: true }); }
+  // Rotation du téléphone, clavier qui s'ouvre : la barre du haut bouge, une
+  // notice déjà affichée doit suivre.
+  window.addEventListener("resize", placeNotices);
 
   // ---------- pseudo / code de reprise ----------
   // Le serveur refuse les codes trop courants (voir weakPin dans players.js).
@@ -404,7 +461,7 @@
     }
     return "4827";
   }
-  // Pourquoi un code est refusé — une phrase utile, pas un « non ».
+  // Pourquoi un code est refusé — une phrase utile, pas un « non ».
   function weakPinMsg(why) {
     if (why === "repete") return "Quatre fois le même chiffre, c'est le deuxième code que quelqu'un essaie. Choisis-en un autre.";
     if (why === "suite") return "Une suite de chiffres, c'est trop deviné. Choisis-en un autre.";
@@ -438,18 +495,72 @@
     var me = $("amMe"); if (me) me.style.display = p ? "" : "none";
   }
 
-  // ---------- overlay ----------
+  // ---------- fenêtres par-dessus le jeu ----------
+  // Deux choses qu'on attend d'une fenêtre modale sur un téléphone, et qui
+  // manquaient :
+  //   - la page ne doit pas défiler DERRIÈRE : glisser sur la fenêtre faisait
+  //     bouger le fond (mesuré : 354 px) ;
+  //   - le bouton « retour » doit la fermer, pas quitter le jeu. On empile
+  //     une entrée d'historique par fenêtre ouverte, et on la retire nous-même
+  //     quand la fenêtre se ferme autrement — sans quoi il faudrait appuyer
+  //     deux fois sur « retour ».
+  var modalDepth = 0, selfPops = 0;
+  function anyModal() {
+    return ($("amOverlay") && $("amOverlay").style.display !== "none") ||
+      ($("amOnb") && $("amOnb").style.display !== "none");
+  }
+  // `overflow: hidden` ne suffit pas : la page reste défilable. On fige donc
+  // le corps de page à sa position (position: fixed + décalage négatif), et on
+  // le rend à l'endroit exact où on l'avait laissé. C'est aussi la seule
+  // méthode qui tienne sur iOS.
+  var lockY = 0;
+  function syncModalLock() {
+    var root = document.documentElement, veut = anyModal(), pose = root.classList.contains("am-modal");
+    if (veut === pose) return;
+    if (veut) {
+      lockY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.top = -lockY + "px";
+      root.classList.add("am-modal");
+    } else {
+      root.classList.remove("am-modal");
+      document.body.style.top = "";
+      window.scrollTo(0, lockY);
+    }
+  }
+  function modalShown(el) {
+    syncModalLock();
+    if (el.getAttribute("data-am-pushed") === "1") return;   // déjà empilée
+    el.setAttribute("data-am-pushed", "1");
+    try { history.pushState({ am: 1 }, "", location.href); modalDepth++; } catch (e) {}
+  }
+  function modalHidden(el) {
+    syncModalLock();
+    if (el.getAttribute("data-am-pushed") !== "1") return;
+    el.setAttribute("data-am-pushed", "");
+    if (modalDepth > 0) { modalDepth--; selfPops++; try { history.back(); } catch (e) { selfPops--; } }
+  }
+  window.addEventListener("popstate", function () {
+    if (selfPops > 0) { selfPops--; return; }     // c'est nous qui avons dépilé
+    if (modalDepth <= 0) return;                  // pas notre entrée : on laisse faire
+    modalDepth--;
+    hideSheetRaw(); hideOnbRaw();
+    syncModalLock();
+  });
+
   var sheetLocked = false;
+  function hideSheetRaw() { sheetLocked = false; $("amOverlay").style.display = "none"; $("amOverlay").setAttribute("data-am-pushed", ""); }
   function openSheet(title, html, onMount, locked) {
     sheetLocked = !!locked;
     $("amSheetTitle").textContent = title;
     $("amSheetClose").style.display = locked ? "none" : "";
     var body = $("amSheetBody"); body.innerHTML = html;
     $("amOverlay").style.display = "flex";
+    $("amSheetBody").scrollTop = 0;
+    modalShown($("amOverlay"));
     if (typeof onMount === "function") onMount(body);
   }
-  function closeSheet() { if (sheetLocked) return; $("amOverlay").style.display = "none"; }
-  function forceCloseSheet() { sheetLocked = false; $("amOverlay").style.display = "none"; }
+  function closeSheet() { if (sheetLocked) return; $("amOverlay").style.display = "none"; modalHidden($("amOverlay")); }
+  function forceCloseSheet() { sheetLocked = false; $("amOverlay").style.display = "none"; modalHidden($("amOverlay")); }
 
   // Choisir (ou changer) son code de reprise. `mandatory` : compte d'avant la
   // v2 sans code, la feuille ne se ferme pas tant qu'il n'en a pas un.
@@ -531,7 +642,7 @@
       '<button type="button" class="am-primary" id="amFormGo">🎲 Créer la partie</button>',
       function (body) {
         var input = body.querySelector("#amFormTitle");
-        function go() { if (!socket || !connected) { toast("Pas de connexion."); return; } socket.emit("create_game", { title: (input.value || "").trim() }); closeSheet(); }
+        function go() { if (!socket || !connected) { warn("Pas de connexion."); return; } socket.emit("create_game", { title: (input.value || "").trim() }); closeSheet(); }
         body.querySelector("#amFormGo").onclick = go;
         input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
       });
@@ -578,19 +689,25 @@
       return true;
     } catch (e) { return false; }
   }
+  // Un partage, un seul lien. Le lien vit DANS le texte, et on ne passe pas
+  // « url » à navigator.share : les applications de messagerie collent l'url
+  // à la suite du texte, donc un texte qui finit déjà par le lien le faisait
+  // apparaître DEUX FOIS dans le message envoyé. Les aperçus de lien marchent
+  // quand même, WhatsApp & co repèrent l'adresse dans le texte.
+  function shareLink(text) {
+    if (navigator.share) { navigator.share({ title: "Are We A Match ?", text: text }).catch(function () {}); return; }
+    copyText(text);
+  }
   // Le texte doit se suffire à lui-même : celui qui le reçoit n'a aucun
   // contexte, et personne ne sera là pour lui expliquer.
   function shareGame(g) {
-    var url = gameUrl(g.code);
     var n = g.sceneCount || 20;
-    var text = (g.hostName === getPseudo() ? "Fais mon test « Are We A Match ? »" : "Rejoins la partie « Are We A Match ? » de " + g.hostName)
-      + " : " + n + " scènes, 3 réponses à classer à chaque fois. Tu réponds quand tu veux (2 min, ou demain), et on voit à quel point on fait pareil. Rien à installer → " + url;
-    if (navigator.share) { navigator.share({ title: "Are We A Match ?", text: text, url: url }).catch(function () {}); return; }
-    copyText(url);
+    shareLink((g.hostName === getPseudo() ? "Fais mon test « Are We A Match ? »" : "Rejoins la partie « Are We A Match ? » de " + g.hostName)
+      + " : " + n + " scènes, 3 réponses à classer à chaque fois. Tu réponds quand tu veux (2 min, ou demain), et on voit à quel point on fait pareil. Rien à installer → " + gameUrl(g.code));
   }
   function copyText(t) {
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast("Copié !"); }, function () { toast(t); });
-    else toast(t);
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast("Copié !"); }, function () { notice(t); });
+    else notice(t);
   }
   // Le compteur que tout le monde voit, joueur ou pas : combien ont rejoint,
   // combien ont fini, et où en est le groupe.
@@ -641,8 +758,8 @@
       '<p class="am-hint">Montre ce QR, ou envoie le lien. Ceux qui le reçoivent peuvent répondre quand ils veulent, même dans plusieurs jours.</p>' +
       '<div class="am-qr"><canvas id="amQR" width="400" height="400"></canvas></div>' +
       '<div class="am-code-big">' + esc(g.code) + '</div>' +
-      '<p class="am-hint">Scanne, ou tape ce code dans « Rejoindre ».</p>' +
-      '<div class="am-share-row"><button class="am-primary" id="amShare">Partager le lien</button><button class="am-ghost" id="amCopy">Copier</button></div></div>';
+      '<p class="am-hint">Scanne, ou tape ce code dans « Rejoindre ».</p>' +
+      '<div class="am-share-row"><button class="am-primary" id="amShare">Partager</button><button class="am-ghost" id="amCopy">Copier</button></div></div>';
 
     body += countsBar(g);
     // Seul dans sa partie et rien de commencé : inviter d'abord, c'est le geste
@@ -650,7 +767,7 @@
     var alone = g.players.length <= 1 && me.progress === 0 && !me.finished && !g.closedAt;
     body += alone ? share + action : action;
     if (me.teaser) body += '<div class="am-teaser">💘 <b>' + esc(me.teaser.name) + '</b> : <span class="pct">' + me.teaser.pct + '%</span> sur vos ' + me.teaser.shared + ' scènes en commun. <span class="am-soft">Termine pour voir tout.</span></div>';
-    if (me.finished && finishedNames < 2) body += '<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité — tu recevras la partie en « Nouveaux résultats » dans ta liste.</p>';
+    if (me.finished && finishedNames < 2) body += '<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité — tu recevras la partie en « Nouveaux résultats » dans ta liste.</p>';
     if (!alone && !g.closedAt) body += share;
 
     body += '<div class="am-card"><h3>Qui joue (' + g.players.length + ')' + (finishedNames ? ' <span class="am-soft">· ' + finishedNames + ' fini' + (finishedNames > 1 ? 's' : '') + '</span>' : '') + '</h3>' + renderPlayerRows(g, me.host) + '</div>';
@@ -687,7 +804,7 @@
     });
   }
   // Supprimer une partie détruit AUSSI les réponses des autres. L'alerte dit
-  // donc ce qui disparaît, chiffres à l'appui, plutôt qu'un « êtes-vous sûr ? »
+  // donc ce qui disparaît, chiffres à l'appui, plutôt qu'un « êtes-vous sûr ? »
   // qui n'apprend rien. Et quand quelqu'un d'autre a déjà répondu, il faut
   // recopier le code de la partie : le geste devient impossible par accident.
   function deleteGameSheet(g) {
@@ -776,15 +893,18 @@
     var body = "";
     body += '<div class="am-qmeta"><span>Scène ' + (play.index + 1) + ' / ' + game.scenes.length + '</span><span id="amPlayOthers"></span></div>';
     body += '<div class="am-progress"><i style="width:' + Math.round((play.index / game.scenes.length) * 100) + '%"></i></div>';
-    // Première scène : on redit la règle du jeu, là où elle sert.
-    if (play.index === 0 && !play.submitted) {
-      // « Ordre de préférence » serait faux ici : chaque scène dit elle-même
+    body += '<div class="am-q" style="margin-top:14px">' + esc(q.q) + '</div>' + (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
+    // Première scène : on redit la règle du jeu, là où elle sert — c'est-à-dire
+    // APRÈS la consigne de la scène. Placée avant, « dans l'ordre demandé juste
+    // au-dessus » désignait la barre de progression.
+    var astuce = play.index === 0 && !play.submitted;
+    if (astuce) {
+      // « Ordre de préférence » serait faux ici : chaque scène dit elle-même
       // dans quel sens classer (du plus rédhibitoire, du plus fréquent, du
       // plus vrai…). Le texte générique renvoie donc à la consigne de la
       // scène, il ne la contredit pas.
       body += '<div class="am-tip">👆 <b>Touche les 3 réponses dans l\'ordre demandé juste au-dessus</b> — la 1<sup>re</sup> que tu touches prend la place n°&nbsp;1. Pas de chrono : prends ton temps, tu peux fermer et revenir.</div>';
     }
-    body += '<div class="am-q" style="margin-top:14px">' + esc(q.q) + '</div>' + (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
     if (play.submitted) {
       body += '<div class="am-opts">' + q.o.map(function (label, i) {
         var pos = play.myRank.indexOf(i);
@@ -796,13 +916,22 @@
         return '<button type="button" class="am-opt' + (ranked ? " ranked" : "") + (pos === 0 ? " r1" : "") + '" data-i="' + i + '">' +
           '<span class="am-rankbadge">' + (ranked ? (pos + 1) : "·") + '</span><span class="am-opttext">' + esc(label) + '</span></button>';
       }).join("") + '</div>';
-      body += '<p class="am-ranknote">' + (play.myRank.length === 0 ? "Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1."
-        : (play.myRank.length < n ? "Encore " + (n - play.myRank.length) + " à classer… (touche une réponse classée pour l'enlever)" : "Classement complet !")) + '</p>';
+      // Quand l'astuce est affichée, elle dit déjà tout : on ne répète pas la
+      // même phrase deux fois sur le même écran. Le décompte, lui, reste.
+      var note = play.myRank.length === 0
+        ? (astuce ? "" : "Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1.")
+        : (play.myRank.length < n ? "Encore " + (n - play.myRank.length) + " à classer… (touche une réponse classée pour l'enlever)" : "Classement complet !");
+      if (note) body += '<p class="am-ranknote">' + note + '</p>';
       body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>✅ Valider</button>';
       body += '<p class="am-hint center">En validant, tu découvres les réponses des autres — et ta réponse se fige. Tant que personne d\'autre n\'a répondu à une scène, tu peux encore y revenir.</p>';
       // Valider trop vite arrive. Tant que personne d'autre n'a répondu à la
       // scène d'avant, il n'y avait rien à voir : on peut y retourner.
+      // L'explication est ici, à côté du bouton, et elle reste tant que la
+      // fenêtre est ouverte : elle disparaît quand quelqu'un répond à cette
+      // scène-là — c'est-à-dire au moment où elle cesse d'être vraie, et pas
+      // trois secondes après s'être affichée.
       if (canUndo(play.index - 1)) {
+        body += '<div class="am-tip am-first">🥇 <b>Tu es le premier sur la scène ' + play.index + '</b> — personne d\'autre n\'y a encore répondu, il n\'y avait donc rien à te montrer. Tant que ça dure, tu peux y revenir.</div>';
         body += '<button class="am-ghost" id="amUndo">↩️ Revenir sur la scène ' + play.index + '</button>';
       }
     }
@@ -820,7 +949,7 @@
     var vb = $("amValid");
     if (vb) vb.onclick = function () {
       if (play.myRank.length !== n || !socket) return;
-      if (!connected) { toast("Pas de connexion là — réessaie dans un instant."); return; }
+      if (!connected) { warn("Pas de connexion là — réessaie dans un instant."); return; }
       play.submitted = true;
       play.sent[q.id] = play.myRank.slice();   // pour repré-remplir si on revient dessus
       socket.emit("answer", { code: play.code, qid: q.id, ranking: play.myRank.slice() });
@@ -828,7 +957,7 @@
     };
     var ub = $("amUndo");
     if (ub) ub.onclick = function () {
-      if (!socket || !connected) { toast("Pas de connexion là — réessaie dans un instant."); return; }
+      if (!socket || !connected) { warn("Pas de connexion là — réessaie dans un instant."); return; }
       var prev = game.scenes[play.index - 1];
       if (prev) socket.emit("unanswer", { code: play.code, qid: prev.id });
     };
@@ -882,7 +1011,7 @@
     $("amResultsBody").innerHTML = '<p class="am-hint center">Calcul…</p>';
     if (socket) socket.emit("game_results", { code: currentCode });
   }
-  // « Où en sont les autres » : tous ceux qui n'ont pas fini, avec leur
+  // « Où en sont les autres » : tous ceux qui n'ont pas fini, avec leur
   // avancée. C'est la promesse du différé — on voit le groupe avancer sans
   // avoir à demander à qui que ce soit.
   function pendingCard(r) {
@@ -915,10 +1044,8 @@
     drawQR($("amResQR"), resultsUrl(r.code));
     var sb = $("amShareRes");
     if (sb) sb.onclick = function () {
-      var url = resultsUrl(r.code);
-      var text = "Où on en est sur « " + gameTitle(r) + " » (Are We A Match ?) : " + r.finishedCount + "/" + r.playerCount + " ont fini. Résultats en direct → " + url;
-      if (navigator.share) { navigator.share({ title: "Are We A Match ?", text: text, url: url }).catch(function () {}); return; }
-      copyText(url);
+      shareLink("Où on en est sur « " + gameTitle(r) + " » (Are We A Match ?) : " + r.finishedCount + "/" + r.playerCount +
+        " ont fini. Résultats en direct → " + resultsUrl(r.code));
     };
     var cb = $("amCopyRes"); if (cb) cb.onclick = function () { copyText(resultsUrl(r.code)); };
   }
@@ -1003,7 +1130,7 @@
     wireInstall($("amResultsBody"));
     wireResultsExtras(r);
   }
-  // « Scène par scène » : tous les reveals, y compris ceux qui se sont remplis après coup.
+  // « Scène par scène » : tous les reveals, y compris ceux qui se sont remplis après coup.
   function renderScenesSheet(reveals) {
     var me = getPseudo();
     var html = reveals.length ? reveals.map(function (rv) {
@@ -1060,7 +1187,7 @@
   }
 
   // ---------- mode dev ----------
-  function devSheetError(msg) { var err = $("amDevErr"); if (err) err.textContent = msg; else if (msg) toast(msg); }
+  function devSheetError(msg) { var err = $("amDevErr"); if (err) err.textContent = msg; else if (msg) warn(msg); }
   function openDevSheet() {
     if (devOn) {
       openSheet("🧪 Mode dev", '<p>Le mode dev est <b>actif</b> sur cet appareil : la carte 🧪 de l\'accueil crée une partie de test avec des bots.</p><button type="button" class="am-ghost" id="amDevOff">Désactiver le mode dev</button>',
@@ -1094,7 +1221,7 @@
       '<button type="button" class="am-primary" id="amDevGo">🧪 Créer une partie de test</button></div>';
     $("amDevGo").onclick = function () {
       var v = parseInt($("amDevBots").value, 10); if (isNaN(v)) v = 2; devBots = Math.max(0, Math.min(maxBots, v));
-      if (!socket || !connected) { toast("Pas de connexion."); return; }
+      if (!socket || !connected) { warn("Pas de connexion."); return; }
       socket.emit("dev_start", { bots: devBots });
     };
   }
@@ -1151,7 +1278,7 @@
       "<p>Safari ne sait pas installer tout seul : trois gestes, une fois pour toutes.</p>" +
       '<ol class="am-steps compact">' +
       '<li><span class="num">1</span> <span class="t">Touche <b>Partager</b> en bas de Safari — le carré avec la flèche vers le haut.</span></li>' +
-      '<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>' +
+      '<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>' +
       '<li><span class="num">3</span> <span class="t">Touche <b>Ajouter</b>. L\'icône 💘 apparaît avec tes autres apps.</span></li>' +
       "</ol>" +
       "<p class='am-hint'>Ensuite l'app s'ouvre en plein écran, sans la barre du navigateur, et tes parties sont là — ton pseudo et ton code de reprise suffisent.</p>");
@@ -1180,8 +1307,8 @@
 
   // ---------- onboarding ----------
   // Personne ne sera là pour expliquer le jeu : il s'explique tout seul, une
-  // fois, à la première ouverture — et se rouvre à la demande (« ? », ou
-  // « Comment ça marche ? » sur la page d'une partie).
+  // fois, à la première ouverture — et se rouvre à la demande (« ? », ou
+  // « Comment ça marche ? » sur la page d'une partie).
   var ONB = [
     { e: "💘", t: "20 scènes, 3 réponses",
       p: "Pas de bonne réponse : seulement la tienne. À chaque scène, tu ranges les 3 réponses <b>de ta préférée (1) à celle que tu aimes le moins (3)</b> — et quand la scène demande autre chose (la plus fréquente chez toi, la plus agaçante…), elle te le dit juste sous la question." },
@@ -1202,8 +1329,9 @@
     $("amOnbNext").textContent = onbIndex === ONB.length - 1 ? "C'est parti 🎉" : "Suivant →";
     $("amOnbSkip").textContent = onbIndex === ONB.length - 1 ? "Le détail du calcul" : "Passer";
   }
-  function openOnboarding() { onbIndex = 0; $("amOnb").style.display = "flex"; renderOnb(); }
-  function closeOnboarding() { markOnbSeen(); $("amOnb").style.display = "none"; }
+  function hideOnbRaw() { markOnbSeen(); $("amOnb").style.display = "none"; $("amOnb").setAttribute("data-am-pushed", ""); }
+  function openOnboarding() { onbIndex = 0; $("amOnb").style.display = "flex"; renderOnb(); modalShown($("amOnb")); }
+  function closeOnboarding() { markOnbSeen(); $("amOnb").style.display = "none"; modalHidden($("amOnb")); }
 
   // ---------- aide ----------
   var HELP = {
