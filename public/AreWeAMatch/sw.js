@@ -10,10 +10,17 @@
 // répond pas. Le nom de cache change tout de même (am-v2) : à l'activation,
 // les anciens caches sont purgés.
 
-const CACHE = "am-v4";
+// V doit suivre VERSION dans server/match/version.js, comme les ?v=… de
+// index.html (le test verify_cachebust échoue sinon). Le CDN de l'hébergeur
+// sert les fichiers du disque depuis son propre cache en ignorant
+// Cache-Control : changer l'URL est le seul moyen sûr d'obtenir la dernière
+// version. Voir le commentaire détaillé dans index.html.
+const V = "2.2";
+const CACHE = "am-v5";
 const SHELL = [
-  "/AreWeAMatch/", "/AreWeAMatch/index.html", "/AreWeAMatch/app.js", "/AreWeAMatch/style.css",
-  "/AreWeAMatch/vendor/qrcode.min.js", "/AreWeAMatch/manifest.webmanifest",
+  "/AreWeAMatch/", "/AreWeAMatch/index.html",
+  "/AreWeAMatch/app.js?v=" + V, "/AreWeAMatch/style.css?v=" + V,
+  "/AreWeAMatch/vendor/qrcode.min.js?v=" + V, "/AreWeAMatch/manifest.webmanifest",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-180.png",
 ];
 
