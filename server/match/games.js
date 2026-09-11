@@ -64,6 +64,19 @@ for (const q of packs.all()) {
 // avec une réponse de moins qu'il n'y paraît.
 const BANK = [...BY_ID.values()];
 
+// Les scènes sont rangées par AXE (ce qu'elles révèlent : goûts, rythme de vie,
+// argent, rapport aux autres, petits vices, ce qui agace). Tirer 20 scènes au
+// hasard dans le tas donnait des parties déséquilibrées — à moitié « goûts »,
+// et sans une seule question d'argent une fois sur deux, alors que c'est un
+// des axes qui séparent le plus deux personnes. On tire donc à tour de rôle
+// dans chaque axe.
+const BY_AXIS = new Map();
+for (const q of BANK) {
+  const a = q.axis || "autres";
+  if (!BY_AXIS.has(a)) BY_AXIS.set(a, []);
+  BY_AXIS.get(a).push(q);
+}
+
 function key(name) { return String(name || "").trim().toLowerCase(); }
 function shuffle(arr) {
   const a = arr.slice();
@@ -161,6 +174,51 @@ function scenes(g) { return g.sceneIds.map((id) => pubQuestion(BY_ID.get(id))); 
 function progressOf(g, p) { let n = 0; for (const id of g.sceneIds) if (p.answers[id]) n++; return n; }
 function nextIndexOf(g, p) { for (let i = 0; i < g.sceneIds.length; i++) if (!p.answers[g.sceneIds[i]]) return i; return g.sceneIds.length; }
 function touch(g) { g.updatedAt = Date.now(); scheduleSave(); }
+
+// Tire n scènes en passant d'un axe à l'autre : avec 20 scènes et 6 axes,
+// chaque axe sort 3 ou 4 fois, quelle que soit sa taille dans la banque. Un axe
+// épuisé est simplement sauté (les autres se partagent le reste).
+//
+// L'ordre des axes est retiré à chaque tour, ce qui donne à la fois une
+// présentation variée et pas de cycle reconnaissable. On ne remélange PAS à la
+// fin : un mélange uniforme reforme des paquets (trois questions « ce qui
+// t'agace » dans les quatre premières scènes, vu en test), et une partie qui
+// commence par trois fois le même registre donne l'impression d'un jeu pauvre.
+//
+// MATCH_NO_SHUFFLE=1 (mode dev, relecture des scènes) court-circuite tout :
+// on veut l'ordre du fichier, pas un tirage.
+function drawScenes(n) {
+  if (process.env.MATCH_NO_SHUFFLE === "1") return BANK.slice(0, n);
+  const pools = new Map();
+  for (const [axis, list] of BY_AXIS) pools.set(axis, shuffle(list));
+  const out = [];
+  let served = true;
+  while (out.length < n && served) {
+    served = false;
+    for (const axis of shuffle([...pools.keys()])) {
+      if (out.length >= n) break;
+      const pool = pools.get(axis);
+      if (pool.length) { out.push(pool.pop()); served = true; }
+    }
+  }
+  return spreadAxes(out);
+}
+// Deux scènes du même axe peuvent encore se retrouver côte à côte à la
+// jonction de deux tours. On échange la seconde avec la première scène
+// suivante d'un autre axe ; s'il n'y en a pas, on la laisse — mieux vaut une
+// répétition qu'un ordre bancal.
+function spreadAxes(list) {
+  for (let i = 1; i < list.length; i++) {
+    if (list[i].axis !== list[i - 1].axis) continue;
+    for (let j = i + 1; j < list.length; j++) {
+      if (list[j].axis === list[i - 1].axis) continue;
+      if (j + 1 < list.length && list[j + 1].axis === list[i].axis) continue;
+      const t = list[i]; list[i] = list[j]; list[j] = t;
+      break;
+    }
+  }
+  return list;
+}
 function playerList(g) { return Object.keys(g.players).map((k) => g.players[k]); }
 
 // ---------------------------------------------------------------- créer / rejoindre
@@ -170,7 +228,7 @@ function createGame(opts) {
   const hostKey = key(hostName);
   if (!hostKey) return { ok: false, reason: "bad_name" };
   const n = Math.max(1, Math.min(BANK.length, Number(o.sceneCount) || SCENES_PER_GAME));
-  const sceneIds = shuffle(BANK).slice(0, n).map((q) => q.id);
+  const sceneIds = drawScenes(n).map((q) => q.id);
   const now = Date.now();
   const g = {
     code: genCode(), title: String(o.title || "").trim().slice(0, MAX_TITLE),

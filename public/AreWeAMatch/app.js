@@ -532,7 +532,7 @@
 
     if (!me.joined) {
       body += '<div class="am-invite"><b>' + esc(g.hostName) + '</b> t\'invite à sa partie.<br>' +
-        '<b>' + g.sceneCount + ' scènes</b> : à chaque fois, 3 réponses à classer de ta préférée à celle que tu aimes le moins. ' +
+        '<b>' + g.sceneCount + ' scènes</b> : à chaque fois, 3 réponses à classer — le plus souvent de ta préférée à celle que tu aimes le moins, chaque scène le précise. ' +
         'Tu réponds <b>quand tu veux</b>, personne ne t\'attend. À la fin, on voit à quel point vous faites pareil.</div>';
       body += countsBar(g);
       if (g.closedAt) body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Les inscriptions sont fermées.</p><p class="am-hint">' + esc(g.hostName) + ' a fermé la porte : on ne peut plus rejoindre cette partie-là. Demande-lui de la rouvrir, ou crée la tienne.</p></div>';
@@ -634,7 +634,11 @@
     body += '<div class="am-progress"><i style="width:' + Math.round((play.index / game.scenes.length) * 100) + '%"></i></div>';
     // Première scène : on redit la règle du jeu, là où elle sert.
     if (play.index === 0 && !play.submitted) {
-      body += '<div class="am-tip">👆 <b>Touche les 3 réponses dans ton ordre de préférence</b> — la 1<sup>re</sup> que tu touches est ta préférée. Pas de chrono : prends ton temps, tu peux fermer et revenir.</div>';
+      // « Ordre de préférence » serait faux ici : chaque scène dit elle-même
+      // dans quel sens classer (du plus rédhibitoire, du plus fréquent, du
+      // plus vrai…). Le texte générique renvoie donc à la consigne de la
+      // scène, il ne la contredit pas.
+      body += '<div class="am-tip">👆 <b>Touche les 3 réponses dans l\'ordre demandé juste au-dessus</b> — la 1<sup>re</sup> que tu touches prend la place n°&nbsp;1. Pas de chrono : prends ton temps, tu peux fermer et revenir.</div>';
     }
     body += '<div class="am-q" style="margin-top:14px">' + esc(q.q) + '</div>' + (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
     if (play.submitted) {
@@ -648,7 +652,7 @@
         return '<button type="button" class="am-opt' + (ranked ? " ranked" : "") + (pos === 0 ? " r1" : "") + '" data-i="' + i + '">' +
           '<span class="am-rankbadge">' + (ranked ? (pos + 1) : "·") + '</span><span class="am-opttext">' + esc(label) + '</span></button>';
       }).join("") + '</div>';
-      body += '<p class="am-ranknote">' + (play.myRank.length === 0 ? "Touche les réponses dans ton ordre de préférence (1 = ta préférée)."
+      body += '<p class="am-ranknote">' + (play.myRank.length === 0 ? "Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1."
         : (play.myRank.length < n ? "Encore " + (n - play.myRank.length) + " à classer… (touche une réponse classée pour l'enlever)" : "Classement complet !")) + '</p>';
       body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>✅ Valider</button>';
       body += '<p class="am-hint center">Une fois validée, ta réponse ne change plus : tu verras alors celles des autres.</p>';
@@ -908,7 +912,7 @@
   // « Comment ça marche ? » sur la page d'une partie).
   var ONB = [
     { e: "💘", t: "20 scènes, 3 réponses",
-      p: "Pas de bonne réponse : seulement la tienne. À chaque scène, tu ranges les 3 réponses <b>de ta préférée (1) à celle que tu aimes le moins (3)</b>." },
+      p: "Pas de bonne réponse : seulement la tienne. À chaque scène, tu ranges les 3 réponses <b>de ta préférée (1) à celle que tu aimes le moins (3)</b> — et quand la scène demande autre chose (la plus fréquente chez toi, la plus agaçante…), elle te le dit juste sous la question." },
     { e: "⏰", t: "Quand tu veux",
       p: "Rien n'est chronométré et personne ne t'attend. Tu réponds ce soir, ton ami demain dans le métro. <b>Chaque réponse est sauvée tout de suite</b> : tu peux fermer et revenir." },
     { e: "👀", t: "Le verdict après chaque scène",
@@ -933,7 +937,7 @@
   var HELP = {
     main: { title: "Comment ça marche", body:
       "<p><b>Une partie = 20 scènes</b>, les mêmes pour tout le monde et dans le même ordre. Quelqu'un la crée et partage son QR ; chacun répond <b>quand il veut</b>.</p>" +
-      "<p><b>Chaque scène propose 3 réponses.</b> Tu les classes : <b>1re</b> = ta préférée, <b>3e</b> = celle que tu aimes le moins. Une fois validée, ta réponse ne change plus, et tu découvres celles des autres.</p>" +
+      "<p><b>Chaque scène propose 3 réponses.</b> Tu les classes de 1 à 3. Le sens du classement est écrit sous la question — le plus souvent <b>1</b> = ta préférée, parfois la plus fréquente chez toi ou celle qui t'agace le plus. Une fois validée, ta réponse ne change plus, et tu découvres celles des autres.</p>" +
       "<p><b>Le calcul :</b> pour chaque scène on fait les 3 comparaisons possibles (A/B, A/C, B/C) ; 1 point par accord. Ta compatibilité avec quelqu'un = points obtenus / points possibles. Deux personnes au hasard tournent autour de 50 %.</p>" +
       "<p><b>Les résultats</b> se calculent sur ceux qui ont fini, et se mettent à jour à chaque nouvelle arrivée. En attendant, une compatibilité provisoire s'affiche dès 5 scènes en commun.</p>" +
       "<p><b>Fermer les inscriptions</b> (l'hôte seulement) empêche de <i>nouveaux</i> joueurs de rejoindre. Ceux qui sont déjà là gardent tout leur temps pour finir.</p>" +

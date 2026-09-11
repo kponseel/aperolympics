@@ -11,7 +11,19 @@
   <link rel="manifest" href="/AreWeAMatch/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon.svg" />
   <link rel="apple-touch-icon" href="/icons/icon-180.png" />
-  <link rel="stylesheet" href="/AreWeAMatch/style.css" />
+  <!-- ?v=… : OBLIGATOIRE, et à faire suivre VERSION dans server/match/version.js
+       (le test verify_cachebust échoue sinon).
+
+       Le serveur frontal de l'hébergeur sert les fichiers présents sur le
+       disque sans jamais passer par Node, et son CDN les garde dans son propre
+       cache en ignorant Cache-Control : on ne peut donc poser aucun en-tête
+       depuis Express. Après le déploiement de la 2.1, trois versions d'app.js
+       étaient servies EN MÊME TEMPS selon l'edge touché — dont la v1, dont le
+       client parlait un protocole que le serveur n'a plus. Le suffixe change
+       l'URL à chaque version : le CDN ne l'a jamais vue, il va la chercher.
+       index.html, lui, n'est pas mis en cache (x-hcdn-cache-status: DYNAMIC),
+       c'est ce qui rend l'astuce fiable. -->
+  <link rel="stylesheet" href="/AreWeAMatch/style.css?v=2.3" />
 </head>
 <body>
   <header class="am-topbar">
@@ -55,7 +67,7 @@
            phrase devient une case et le texte s'affiche en colonnes. -->
       <ol class="am-steps">
         <li><span class="num">1</span> <span class="t"><b>Crée une partie</b> et partage son QR, ou <b>rejoins</b> celle d'un ami avec son code.</span></li>
-        <li><span class="num">2</span> <span class="t">Réponds aux <b>20 scènes</b> quand tu veux : classe les 3 réponses de ta préférée à celle que tu aimes le moins. Aucun chrono.</span></li>
+        <li><span class="num">2</span> <span class="t">Réponds aux <b>20 scènes</b> quand tu veux : classe les 3 réponses dans l'ordre que la scène demande. Aucun chrono.</span></li>
         <li><span class="num">3</span> <span class="t">Après chaque scène, vois <b>qui a répondu quoi</b>. À la fin : <b>qui te ressemble</b> — et ça se complète à mesure que les autres finissent.</span></li>
       </ol>
     </section>
@@ -121,10 +133,10 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/AreWeAMatch/vendor/qrcode.min.js"></script>
-  <script src="/AreWeAMatch/app.js"></script>
+  <script src="/AreWeAMatch/vendor/qrcode.min.js?v=2.3"></script>
+  <script src="/AreWeAMatch/app.js?v=2.3"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js", { scope: "/AreWeAMatch/" });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js?v=2.3", { scope: "/AreWeAMatch/" });
   </script>
 </body>
 </html>

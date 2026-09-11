@@ -9,7 +9,12 @@
 //   - DATE    : mettre la date du jour. Elle sert de repli : quand le dépôt
 //     git est disponible au démarrage, la date affichée est celle du dernier
 //     commit qui touche le jeu (jamais périmée, même si on oublie ce fichier).
-const VERSION = "2.1";
+// ATTENTION : VERSION sert aussi de casse-cache pour le CDN de l'hébergeur.
+// En la changeant, changer les ?v=… de public/AreWeAMatch/index.html et le V
+// de public/AreWeAMatch/sw.js — sinon les téléphones et le CDN gardent
+// l'ancien code. Le test /tmp/verify_cachebust.js (et verify_version) le
+// vérifie.
+const VERSION = "2.3";
 const DATE = "2026-09-11";
 
 const { execFileSync } = require("child_process");
