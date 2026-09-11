@@ -115,9 +115,41 @@ function ensure(name, cid) {
   return data.byName[k];
 }
 
+// Les codes qu'on refuse d'ENREGISTRER.
+//
+// Sur un vrai téléphone, le code ne sert jamais : l'appareil est reconnu par
+// son ownerCid. Il ne sert qu'à reprendre son pseudo ailleurs — mais c'est
+// justement là que quelqu'un peut essayer. Avec cinq tentatives autorisées et
+// quatre chiffres, laisser passer « 1234 » (le code d'environ un utilisateur
+// sur dix) revient à laisser la porte entrouverte pour qui connaît le pseudo,
+// c'est-à-dire exactement les gens avec qui on joue.
+//
+// On ne refuse QUE l'enregistrement d'un nouveau code. Vérifier un code
+// existant n'est jamais bloqué : personne ne doit se retrouver dehors parce
+// qu'on a durci la règle après coup.
+const WEAK_PINS = new Set([
+  "1234", "1111", "0000", "1212", "7777", "1004", "2000", "4444", "2222",
+  "6969", "9999", "3333", "5555", "6666", "1122", "1313", "8888", "4321",
+  "2001", "1010", "2580", "1029", "1379", "2468", "1357", "0101", "1230",
+  "1998", "1999", "2020", "2023", "2024", "1221", "1112",
+]);
+// Renvoie null si le code est acceptable, sinon POURQUOI il ne l'est pas
+// (« format », « courant », « repete », « suite ») — le client en fait une
+// phrase utile plutôt qu'un « refusé » sec.
+function weakPin(pin) {
+  const s = String(pin);
+  if (!PIN_RE.test(s)) return "format";
+  if (WEAK_PINS.has(s)) return "courant";
+  if (/^(\d)\1{3}$/.test(s)) return "repete";
+  const d = s.split("").map(Number);
+  const suite = (step) => d.every((n, i) => i === 0 || n === (d[i - 1] + step + 10) % 10);
+  if (suite(1) || suite(-1)) return "suite";     // 0123, 3456, 9876, 2109…
+  return null;
+}
+
 function setPin(name, pin) {
   const a = ensure(name); if (!a) return false;
-  if (!PIN_RE.test(String(pin))) return false;
+  if (weakPin(pin)) return false;
   a.salt = crypto.randomBytes(8).toString("hex");
   a.pinHash = hashPin(pin, a.salt);
   save();
@@ -139,9 +171,12 @@ function authenticate(name, cid, pin) {
   if (!k || RESERVED_KEYS.has(k)) return { ok: false, reason: "bad_name" };
   const a = getAccount(name);
   const pinOk = pin != null && PIN_RE.test(String(pin));
+  // Poser un code trop courant est refusé ; en vérifier un ancien, jamais.
+  const tooWeak = pinOk ? weakPin(pin) : null;
 
   if (!a) {                                   // pseudo libre → création, PIN exigé
     if (!pinOk) return { ok: false, reason: "pin_needed" };
+    if (tooWeak) return { ok: false, reason: "pin_weak", why: tooWeak };
     const acc = ensure(name, cid);
     acc.ownerCid = cid;
     acc.name = String(name).trim().slice(0, 16);
@@ -150,6 +185,7 @@ function authenticate(name, cid, pin) {
     return { ok: true, account: acc, protected: true, needs_pin: false };
   }
   if (a.ownerCid === cid) {                   // même appareil : passe toujours
+    if (pinOk && tooWeak && !a.pinHash) return { ok: false, reason: "pin_weak", why: tooWeak };
     if (pinOk && !a.pinHash) setPin(name, pin);
     save();
     return { ok: true, account: a, protected: !!a.pinHash, needs_pin: !a.pinHash };
@@ -165,6 +201,7 @@ function authenticate(name, cid, pin) {
   // plus personne ne pouvait le prendre, pas même son propriétaire d'origine.
   if (!a.pinHash && !a.ownerCid) {
     if (!pinOk) return { ok: false, reason: "pin_needed" };
+    if (tooWeak) return { ok: false, reason: "pin_weak", why: tooWeak };
     a.ownerCid = cid;
     a.name = String(name).trim().slice(0, 16);
     setPin(name, pin);
@@ -313,5 +350,5 @@ module.exports = {
   authenticate, isProtected, getAccount, setPin, recordGame, recordAnswersByPack,
   historicMatches, profile,
   adminList, adminDelete, adminResetPin,
-  PIN_RE, TOP_N, _reset,
+  PIN_RE, weakPin, TOP_N, _reset,
 };

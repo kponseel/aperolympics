@@ -330,3 +330,6 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
    n'existe pas dans le HTML, app.js le pose (ou non). */
 .am-install { border-color: var(--accent2); color: #e6dffb; }
 .am-install:active { background: #2a2148; }
+
+/* Petit lien dans une ligne d'aide (proposer un code au hasard). */
+.am-linkish { background: none; border: none; padding: 0; margin-left: 4px; color: var(--accent2); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }

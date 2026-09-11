@@ -1,5 +1,5 @@
 // Are We A Match? v2 — SPA. Socket.IO namespace /match.
-// Écrans : pseudo + PIN / mes parties / une partie / répondre (scène puis
+// Écrans : pseudo + code de reprise / mes parties / une partie / répondre (scène puis
 // reveal) / résultats.
 //
 // Le différé en trois règles (voir server/match/games.js) :
@@ -70,6 +70,11 @@
     if (s < 3600) return "il y a " + Math.round(s / 60) + " min";
     if (s < 86400) return "il y a " + Math.round(s / 3600) + " h";
     return "il y a " + Math.round(s / 86400) + " j";
+  }
+  function fmtDelay(min) {
+    if (min < 60) return min + " minutes";
+    if (min < 1440) return Math.round(min / 60) + " heure" + (min >= 120 ? "s" : "");
+    return Math.round(min / 1440) + " jour" + (min >= 2880 ? "s" : "");
   }
   function gameUrl(code) { return location.origin + "/AreWeAMatch/g/" + code; }
   // Le lien qui ramène droit à l'écran final (la progression de tout le monde,
@@ -145,10 +150,19 @@
       if (m && m.needs_pin) { protectName(true); return; }
       afterIdentity();
     });
+    socket.on("pin_weak", function (m) {
+      var msg = weakPinMsg(m && m.why);
+      var err = $("amFormErr");             // si la feuille « code de reprise » est ouverte
+      if (err && $("amOverlay").style.display !== "none") { err.textContent = msg; return; }
+      show("s-pseudo");
+      $("amPseudoError").className = "am-error center warn";
+      $("amPseudoError").textContent = msg;
+      var pin = $("amPin"); if (pin) { pin.value = ""; pin.focus(); }
+    });
     socket.on("pin_needed", function () {
       show("s-pseudo");
       $("amPseudoError").className = "am-error center warn";
-      $("amPseudoError").textContent = "Ce pseudo est libre ! Choisis un code PIN à 4 chiffres pour le protéger.";
+      $("amPseudoError").textContent = "Ce pseudo est libre ! Choisis un code de reprise à 4 chiffres pour te le réserver.";
       var pin = $("amPin"); if (pin) { pin.value = ""; pin.focus(); }
     });
     socket.on("name_taken", function (m) {
@@ -157,17 +171,20 @@
       $("amPseudoError").textContent = "Le pseudo « " + (m && m.name) + " » est déjà pris. Choisis-en un autre.";
       var nm = $("amName"); if (nm) nm.focus();
     });
-    socket.on("pin_required", function (m) { enterPinMode(m && m.name, "🔒 Ce pseudo est protégé. Entre ton code PIN."); });
+    socket.on("pin_required", function (m) { enterPinMode(m && m.name, "🔒 Ce pseudo est déjà à quelqu\u2019un. Entre son code de reprise."); });
     socket.on("pin_wrong", function (m) {
       enterPinMode(m && m.name, "❌ Code incorrect. Il te reste " + (m && m.attempts_left) + " essai" + ((m && m.attempts_left) > 1 ? "s" : "") + ".");
       var pin = $("amPin"); if (pin) { pin.value = ""; pin.focus(); }
     });
-    socket.on("identity_locked", function () {
+    socket.on("identity_locked", function (m) {
       pinMode = false; show("s-pseudo");
       $("amPseudoError").textContent = "";
       $("amLocked").style.display = "block";
+      var d = $("amLockedWhen");
+      var mn = (m && m.ms) ? Math.max(1, Math.round(m.ms / 60000)) : 0;
+      if (d) d.textContent = mn ? "Réessaie dans " + fmtDelay(mn) + "." + ((m.strikes || 0) > 1 ? " Chaque série d'essais ratés allonge l'attente." : "") : "";
     });
-    socket.on("pin_set", function () { myProtected = true; updateMe(); closeSheet(); toast("🔒 Pseudo protégé !"); if (!booted) afterIdentity(); });
+    socket.on("pin_set", function () { myProtected = true; updateMe(); closeSheet(); toast("🔒 Code de reprise enregistré."); if (!booted) afterIdentity(); });
 
     // --- parties ---
     socket.on("games_list", function (m) {
@@ -320,7 +337,7 @@
     socket.on("error_msg", function (m) {
       var code = m && m.msg;
       if (code === "bad_identity" || code === "no_identity") return;
-      if (code === "bad_pin") { toast("PIN invalide (4 chiffres)."); return; }
+      if (code === "bad_pin") { toast("Le code de reprise fait 4 chiffres."); return; }
       if (code === "not_owner") { toast("Ce pseudo appartient à un autre appareil."); return; }
       if (code === "unknown_game") { pendingResults = false; toast("Aucune partie avec ce code."); if (pendingCode) { pendingCode = null; setUrl(null); goHome(); } return; }
       if (code === "slow_down") { toast("Trop de codes essayés, attends un peu."); return; }
@@ -351,12 +368,42 @@
     toastTimer = setTimeout(function () { setStatus(""); }, 3000);
   }
 
-  // ---------- pseudo / PIN ----------
+  // ---------- pseudo / code de reprise ----------
+  // Le serveur refuse les codes trop courants (voir weakPin dans players.js).
+  // Ici on n'en reproduit qu'assez pour ne jamais PROPOSER un code qu'il
+  // refuserait : c'est lui qui tranche, pas nous.
+  var OBVIOUS = ["1234", "1111", "0000", "1212", "7777", "1004", "2000", "4444", "2222",
+    "6969", "9999", "3333", "5555", "6666", "1122", "1313", "8888", "4321", "2001", "1010"];
+  function looksObvious(pin) {
+    if (OBVIOUS.indexOf(pin) >= 0) return true;
+    if (/^(\d)\1{3}$/.test(pin)) return true;
+    var d = pin.split("").map(Number);
+    var suite = function (step) {
+      for (var i = 1; i < d.length; i++) if (d[i] !== (d[i - 1] + step + 10) % 10) return false;
+      return true;
+    };
+    return suite(1) || suite(-1);
+  }
+  function suggestPin() {
+    for (var i = 0; i < 50; i++) {
+      var n = (crypto.getRandomValues(new Uint32Array(1))[0] % 10000);
+      var p = String(n);
+      while (p.length < 4) p = "0" + p;
+      if (!looksObvious(p)) return p;
+    }
+    return "4827";
+  }
+  // Pourquoi un code est refusé — une phrase utile, pas un « non ».
+  function weakPinMsg(why) {
+    if (why === "repete") return "Quatre fois le même chiffre, c'est le deuxième code que quelqu'un essaie. Choisis-en un autre.";
+    if (why === "suite") return "Une suite de chiffres, c'est trop deviné. Choisis-en un autre.";
+    return "Ce code est l'un des plus utilisés au monde — c'est le premier que quelqu'un essaierait. Choisis-en un autre.";
+  }
   function enterPinMode(name, msg) {
     pinMode = true; show("s-pseudo");
     $("amLocked").style.display = "none";
     if (name) $("amName").value = name;
-    $("amPinLabel").innerHTML = "🔒 Code PIN <span class='am-soft'>(4 chiffres)</span>";
+    $("amPinLabel").innerHTML = "🔒 Code de reprise <span class='am-soft'>(4 chiffres)</span>";
     $("amPseudoError").textContent = msg || "";
     $("amPseudoError").className = "am-error center warn";
     var pin = $("amPin"); if (pin) { pin.value = ""; setTimeout(function () { pin.focus(); }, 50); }
@@ -367,7 +414,7 @@
     var pin = ($("amPin").value || "").trim();
     $("amPseudoError").className = "am-error center";
     if (!name) { $("amPseudoError").textContent = "Entre ton pseudo."; return; }
-    if (!/^\d{4}$/.test(pin)) { $("amPseudoError").textContent = "Ton code PIN : 4 chiffres, obligatoire. C'est ta clé pour reprendre tes parties sur n'importe quel téléphone."; $("amPin").focus(); return; }
+    if (!/^\d{4}$/.test(pin)) { $("amPseudoError").textContent = "Ton code de reprise : 4 chiffres. Il ne sert que si tu changes de téléphone, mais il est obligatoire — c'est lui qui te réserve ton pseudo."; $("amPin").focus(); return; }
     $("amPseudoError").textContent = "";
     if (socket) socket.emit("set_identity", { cid: getCid(), name: name, pin: pin });
   }
@@ -393,13 +440,14 @@
   function closeSheet() { if (sheetLocked) return; $("amOverlay").style.display = "none"; }
   function forceCloseSheet() { sheetLocked = false; $("amOverlay").style.display = "none"; }
 
-  // Choisir (ou changer) son PIN. `mandatory` : compte d'avant la v2 sans PIN,
-  // la feuille ne se ferme pas tant qu'un PIN n'est pas posé.
+  // Choisir (ou changer) son code de reprise. `mandatory` : compte d'avant la
+  // v2 sans code, la feuille ne se ferme pas tant qu'il n'en a pas un.
   function protectName(mandatory) {
-    openSheet("🔒 " + (mandatory ? "Choisis ton code PIN" : "Ton code PIN"),
-      '<p>' + (mandatory ? "Depuis cette version, chaque pseudo a un code PIN : c'est ta clé pour reprendre tes parties sur n'importe quel téléphone, et personne d'autre ne peut prendre ton pseudo." : "Choisis un nouveau code PIN à 4 chiffres.") + '</p>' +
+    openSheet("🔒 " + (mandatory ? "Choisis ton code de reprise" : "Ton code de reprise"),
+      '<p>' + (mandatory ? "Chaque pseudo a un code de reprise. Tu ne le tapes jamais sur ce téléphone : il ne sert que le jour où tu ouvres ton pseudo ailleurs — et c'est lui qui empêche quelqu'un d'autre de le prendre." : "Choisis un nouveau code de reprise à 4 chiffres.") + '</p>' +
       '<input id="amFormPin" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" pattern="[0-9]*" />' +
-      '<button type="button" class="am-primary" id="amFormGo">🔒 ' + (mandatory ? "C'est mon PIN" : "Changer") + '</button>' +
+      '<button type="button" class="am-primary" id="amFormGo">🔒 ' + (mandatory ? "C'est mon code" : "Changer") + '</button>' +
+      '<p class="am-hint center"><button type="button" class="am-linkish" id="amFormSuggest">Propose-m\'en un au hasard</button></p>' +
       '<div class="am-error center" id="amFormErr"></div>',
       function (body) {
         var input = body.querySelector("#amFormPin");
@@ -407,11 +455,12 @@
         setTimeout(function () { input.focus(); }, 80);
         function go() {
           var pin = (input.value || "").trim();
-          if (!/^\d{4}$/.test(pin)) { err.textContent = "Le PIN doit faire 4 chiffres."; input.focus(); return; }
+          if (!/^\d{4}$/.test(pin)) { err.textContent = "Le code doit faire 4 chiffres."; input.focus(); return; }
           if (socket) socket.emit("set_pin", { pin: pin });
           sheetLocked = false;
         }
         body.querySelector("#amFormGo").onclick = go;
+        body.querySelector("#amFormSuggest").onclick = function () { input.value = suggestPin(); err.textContent = ""; input.focus(); };
         input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
       }, !!mandatory);
   }
@@ -794,7 +843,7 @@
   // pour voir où ça en est.
   function backLinkCard(r) {
     return '<div class="am-card am-share am-backlink"><h3>🔗 Revenir voir la progression</h3>' +
-      '<p class="am-hint">Garde ce lien (ou ce QR) : il rouvre cette page, avec l\'avancée de chacun et les résultats à jour. Rien à réinstaller, ton pseudo et ton PIN suffisent.</p>' +
+      '<p class="am-hint">Garde ce lien (ou ce QR) : il rouvre cette page, avec l\'avancée de chacun et les résultats à jour. Rien à réinstaller, ton pseudo et ton code de reprise suffisent.</p>' +
       '<div class="am-qr"><canvas id="amResQR" width="400" height="400"></canvas></div>' +
       '<div class="am-code-big">' + esc(r.code) + '</div>' +
       '<div class="am-share-row"><button class="am-primary" id="amShareRes">Partager cette page</button><button class="am-ghost" id="amCopyRes">Copier le lien</button></div></div>';
@@ -906,10 +955,45 @@
     var p = m.profile;
     var html = '<div class="am-card"><h3>' + (p.locked ? "🔒 " : "") + esc(p.name) + '</h3>' +
       '<p class="am-hint">' + p.games + ' partie' + (p.games > 1 ? "s" : "") + ' finie' + (p.games > 1 ? "s" : "") + ' · ' + p.answered + ' réponses enregistrées</p></div>' +
-      '<button type="button" class="am-ghost" id="amChangePin">🔒 Changer mon code PIN</button>';
+      '<button type="button" class="am-ghost" id="amChangePin">🔒 Changer mon code de reprise</button>' +
+      '<button type="button" class="am-ghost" id="amLogout">🚪 Me déconnecter de ce téléphone</button>';
     openSheet("👤 Profil", html, function (body) {
       body.querySelector("#amChangePin").onclick = function () { protectName(false); };
+      body.querySelector("#amLogout").onclick = logout;
     });
+  }
+
+  // Se déconnecter, pour de vrai : on oublie le pseudo ET l'identifiant
+  // d'appareil. Garder l'identifiant ferait une fausse déconnexion — n'importe
+  // qui reprenant le téléphone rentrerait sans code. Du coup, pour revenir il
+  // faut le code de reprise : c'est exactement à ça qu'il sert.
+  function logout() {
+    if (!myProtected) {
+      openSheet("🚪 Se déconnecter",
+        "<p>Pose d'abord un code de reprise. Sans lui, ce téléphone ne pourrait plus rouvrir ton pseudo — et personne d'autre non plus.</p>" +
+        '<button type="button" class="am-primary" id="amGoPin">🔒 Choisir mon code</button>',
+        function (body) { body.querySelector("#amGoPin").onclick = function () { sheetLocked = false; protectName(false); }; });
+      return;
+    }
+    openSheet("🚪 Se déconnecter",
+      "<p>Ce téléphone va oublier <b>" + esc(getPseudo()) + "</b>. Pour revenir, il faudra ton pseudo <b>et</b> ton code de reprise.</p>" +
+      "<p class='am-hint'>Rien n'est supprimé : tes parties, tes réponses et tes résultats restent intacts.</p>" +
+      '<button type="button" class="am-primary" id="amLogoutGo">🚪 Me déconnecter</button>' +
+      '<button type="button" class="am-ghost" id="amLogoutNo">Annuler</button>',
+      function (body) {
+        body.querySelector("#amLogoutNo").onclick = closeSheet;
+        body.querySelector("#amLogoutGo").onclick = function () {
+          try {
+            localStorage.removeItem("am.pseudo");
+            localStorage.removeItem("am.cid");      // sinon la déconnexion est cosmétique
+            localStorage.removeItem("am.devToken");
+          } catch (e) {}
+          memPseudo = ""; memCid = null;
+          // Rechargement sur l'adresse nue : pas de socket qui traîne avec
+          // l'ancienne identité, et pas de code de partie dans l'URL.
+          location.href = "/AreWeAMatch/";
+        };
+      });
   }
 
   // ---------- mode dev ----------
@@ -1007,7 +1091,7 @@
       '<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>' +
       '<li><span class="num">3</span> <span class="t">Touche <b>Ajouter</b>. L\'icône 💘 apparaît avec tes autres apps.</span></li>' +
       "</ol>" +
-      "<p class='am-hint'>Ensuite l'app s'ouvre en plein écran, sans la barre du navigateur, et tes parties sont là — ton pseudo et ton PIN suffisent.</p>");
+      "<p class='am-hint'>Ensuite l'app s'ouvre en plein écran, sans la barre du navigateur, et tes parties sont là — ton pseudo et ton code de reprise suffisent.</p>");
   }
   function renderInstall() {
     var host = $("amInstall");
@@ -1066,9 +1150,11 @@
       "<p><b>Le calcul :</b> pour chaque scène on fait les 3 comparaisons possibles (A/B, A/C, B/C) ; 1 point par accord. Ta compatibilité avec quelqu'un = points obtenus / points possibles. Deux personnes au hasard tournent autour de 50 %.</p>" +
       "<p><b>Les résultats</b> se calculent sur ceux qui ont fini, et se mettent à jour à chaque nouvelle arrivée. En attendant, une compatibilité provisoire s'affiche dès 5 scènes en commun.</p>" +
       "<p><b>Fermer les inscriptions</b> (l'hôte seulement) empêche de <i>nouveaux</i> joueurs de rejoindre. Ceux qui sont déjà là gardent tout leur temps pour finir.</p>" +
-      "<p>🔒 <b>Ton PIN</b> protège ton pseudo et te permet de reprendre tes parties sur n'importe quel téléphone.</p>" },
-    pin: { title: "Le code PIN 🔒", body:
-      "<p>Le PIN (4 chiffres) <b>réserve ton pseudo</b> : personne d'autre ne peut le prendre, et toi tu peux reprendre tes parties sur un autre téléphone.</p>" +
+      "<p>🔒 <b>Ton code de reprise</b> te réserve ton pseudo, et te permet de le rouvrir sur un autre téléphone. Tu ne le tapes jamais sur celui-ci.</p>" },
+    pin: { title: "Le code de reprise 🔒", body:
+      "<p><b>Tu ne le taperas jamais sur ce téléphone</b> : il te reconnaît tout seul. Le code sert le jour où tu ouvres ton pseudo <b>ailleurs</b> — nouveau téléphone, téléphone d'un ami.</p>" +
+      "<p>Il <b>réserve aussi ton pseudo</b> : personne d'autre ne peut le prendre.</p>" +
+      "<p>Évite les codes évidents (1234, 0000, ton année de naissance) : ce sont les premiers que quelqu'un essaierait, et il connaît déjà ton pseudo puisqu'il joue avec toi. L'app les refuse, et peut t'en proposer un au hasard.</p>" +
       "<p>Il est obligatoire. Si tu l'oublies, tu peux en choisir un nouveau depuis le téléphone où tu as créé le pseudo (bouton profil).</p>" },
   };
   function openHelp(k) { var h = HELP[k] || HELP.main; openSheet(h.title, h.body); }
@@ -1079,7 +1165,7 @@
     pendingResults = !!(pendingCode && wantsResultsFromUrl());
     var input = $("amName");
     if (input) input.value = getPseudo();
-    if (pendingCode) { var note = $("amInviteNote"); if (note) { note.style.display = ""; note.innerHTML = "🎟️ <b>On t'invite à une partie</b> (code " + esc(pendingCode) + ").<br>Choisis un pseudo et un code PIN à 4 chiffres — c'est tout, il n'y a rien à installer."; } }
+    if (pendingCode) { var note = $("amInviteNote"); if (note) { note.style.display = ""; note.innerHTML = "🎟️ <b>On t'invite à une partie</b> (code " + esc(pendingCode) + ").<br>Choisis un pseudo et un code de reprise à 4 chiffres — c'est tout, il n'y a rien à installer."; } }
     updateMe();
     $("amContinue").onclick = submitPseudo;
     input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("amPin").focus(); } });
@@ -1110,6 +1196,11 @@
     $("amCreate").onclick = createGameSheet;
     $("amJoinBtn").onclick = joinSheet;
     $("amHowto2").onclick = openOnboarding;
+    $("amPinSuggest").onclick = function () {
+      $("amPin").value = suggestPin();
+      $("amPseudoError").textContent = "";
+      $("amPin").focus();
+    };
     document.addEventListener("click", function (e) {
       var t = e.target;
       if (t && t.classList && t.classList.contains("am-info")) { e.preventDefault(); openHelp(t.getAttribute("data-help")); }
