@@ -495,18 +495,72 @@
     var me = $("amMe"); if (me) me.style.display = p ? "" : "none";
   }
 
-  // ---------- overlay ----------
+  // ---------- fenêtres par-dessus le jeu ----------
+  // Deux choses qu'on attend d'une fenêtre modale sur un téléphone, et qui
+  // manquaient :
+  //   - la page ne doit pas défiler DERRIÈRE : glisser sur la fenêtre faisait
+  //     bouger le fond (mesuré : 354 px) ;
+  //   - le bouton « retour » doit la fermer, pas quitter le jeu. On empile
+  //     une entrée d'historique par fenêtre ouverte, et on la retire nous-même
+  //     quand la fenêtre se ferme autrement — sans quoi il faudrait appuyer
+  //     deux fois sur « retour ».
+  var modalDepth = 0, selfPops = 0;
+  function anyModal() {
+    return ($("amOverlay") && $("amOverlay").style.display !== "none") ||
+      ($("amOnb") && $("amOnb").style.display !== "none");
+  }
+  // `overflow: hidden` ne suffit pas : la page reste défilable. On fige donc
+  // le corps de page à sa position (position: fixed + décalage négatif), et on
+  // le rend à l'endroit exact où on l'avait laissé. C'est aussi la seule
+  // méthode qui tienne sur iOS.
+  var lockY = 0;
+  function syncModalLock() {
+    var root = document.documentElement, veut = anyModal(), pose = root.classList.contains("am-modal");
+    if (veut === pose) return;
+    if (veut) {
+      lockY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.top = -lockY + "px";
+      root.classList.add("am-modal");
+    } else {
+      root.classList.remove("am-modal");
+      document.body.style.top = "";
+      window.scrollTo(0, lockY);
+    }
+  }
+  function modalShown(el) {
+    syncModalLock();
+    if (el.getAttribute("data-am-pushed") === "1") return;   // déjà empilée
+    el.setAttribute("data-am-pushed", "1");
+    try { history.pushState({ am: 1 }, "", location.href); modalDepth++; } catch (e) {}
+  }
+  function modalHidden(el) {
+    syncModalLock();
+    if (el.getAttribute("data-am-pushed") !== "1") return;
+    el.setAttribute("data-am-pushed", "");
+    if (modalDepth > 0) { modalDepth--; selfPops++; try { history.back(); } catch (e) { selfPops--; } }
+  }
+  window.addEventListener("popstate", function () {
+    if (selfPops > 0) { selfPops--; return; }     // c'est nous qui avons dépilé
+    if (modalDepth <= 0) return;                  // pas notre entrée : on laisse faire
+    modalDepth--;
+    hideSheetRaw(); hideOnbRaw();
+    syncModalLock();
+  });
+
   var sheetLocked = false;
+  function hideSheetRaw() { sheetLocked = false; $("amOverlay").style.display = "none"; $("amOverlay").setAttribute("data-am-pushed", ""); }
   function openSheet(title, html, onMount, locked) {
     sheetLocked = !!locked;
     $("amSheetTitle").textContent = title;
     $("amSheetClose").style.display = locked ? "none" : "";
     var body = $("amSheetBody"); body.innerHTML = html;
     $("amOverlay").style.display = "flex";
+    $("amSheetBody").scrollTop = 0;
+    modalShown($("amOverlay"));
     if (typeof onMount === "function") onMount(body);
   }
-  function closeSheet() { if (sheetLocked) return; $("amOverlay").style.display = "none"; }
-  function forceCloseSheet() { sheetLocked = false; $("amOverlay").style.display = "none"; }
+  function closeSheet() { if (sheetLocked) return; $("amOverlay").style.display = "none"; modalHidden($("amOverlay")); }
+  function forceCloseSheet() { sheetLocked = false; $("amOverlay").style.display = "none"; modalHidden($("amOverlay")); }
 
   // Choisir (ou changer) son code de reprise. `mandatory` : compte d'avant la
   // v2 sans code, la feuille ne se ferme pas tant qu'il n'en a pas un.
@@ -1268,8 +1322,9 @@
     $("amOnbNext").textContent = onbIndex === ONB.length - 1 ? "C'est parti 🎉" : "Suivant →";
     $("amOnbSkip").textContent = onbIndex === ONB.length - 1 ? "Le détail du calcul" : "Passer";
   }
-  function openOnboarding() { onbIndex = 0; $("amOnb").style.display = "flex"; renderOnb(); }
-  function closeOnboarding() { markOnbSeen(); $("amOnb").style.display = "none"; }
+  function hideOnbRaw() { markOnbSeen(); $("amOnb").style.display = "none"; $("amOnb").setAttribute("data-am-pushed", ""); }
+  function openOnboarding() { onbIndex = 0; $("amOnb").style.display = "flex"; renderOnb(); modalShown($("amOnb")); }
+  function closeOnboarding() { markOnbSeen(); $("amOnb").style.display = "none"; modalHidden($("amOnb")); }
 
   // ---------- aide ----------
   var HELP = {
