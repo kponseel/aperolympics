@@ -51,7 +51,7 @@
     for (var x = 0; x < n; x++) for (var y = x + 1; y < n; y++) { total++; if ((pa[x] < pa[y]) === (pb[x] < pb[y])) agree++; }
     return { agree: agree, total: total };
   }
-  // « 🏔️ Rando et grand air » → « 🏔️ » (sinon le numéro de l'option).
+  // « 🏔️ Rando et grand air » → « 🏔️ » (sinon le numéro de l'option).
   function emojiOf(label, idx) {
     var m = /^(\S+)\s/.exec(label || "");
     return (m && /^[^\w\d]/.test(m[1])) ? m[1] : String(idx + 1);
@@ -152,7 +152,7 @@
     });
     socket.on("pin_weak", function (m) {
       var msg = weakPinMsg(m && m.why);
-      var err = $("amFormErr");             // si la feuille « code de reprise » est ouverte
+      var err = $("amFormErr");             // si la feuille « code de reprise » est ouverte
       if (err && $("amOverlay").style.display !== "none") { err.textContent = msg; return; }
       show("s-pseudo");
       $("amPseudoError").className = "am-error center warn";
@@ -168,7 +168,7 @@
     socket.on("name_taken", function (m) {
       show("s-pseudo");
       $("amPseudoError").className = "am-error center";
-      $("amPseudoError").textContent = "Le pseudo « " + (m && m.name) + " » est déjà pris. Choisis-en un autre.";
+      $("amPseudoError").textContent = "Le pseudo « " + (m && m.name) + " » est déjà pris. Choisis-en un autre.";
       var nm = $("amName"); if (nm) nm.focus();
     });
     socket.on("pin_required", function (m) { enterPinMode(m && m.name, "🔒 Ce pseudo est déjà à quelqu\u2019un. Entre son code de reprise."); });
@@ -213,7 +213,7 @@
       var prev = game;
       game = m;
       window.__amGame = game;
-      // Arrivé par le lien « voir la progression » (?r=1) : on file à l'écran
+      // Arrivé par le lien « voir la progression » (?r=1) : on file à l'écran
       // final dès qu'on sait que celui qui ouvre est bien un joueur. Sinon
       // (un invité qui découvre la partie), la page de la partie, comme d'habitude.
       if (pendingResults) {
@@ -230,7 +230,7 @@
       }
       else if (screen === "s-play") {
         updatePlayMeta();
-        // Le serveur fait autorité sur « où j'en suis ». S'il n'est pas
+        // Le serveur fait autorité sur « où j'en suis ». S'il n'est pas
         // d'accord avec l'écran — même compte ouvert sur un deuxième
         // appareil, ou reprise après un redémarrage du serveur — on se recale
         // sur SA scène. Jamais pendant qu'une réponse est en vol ni pendant un
@@ -359,7 +359,7 @@
       if (code === "unknown_game") {
         pendingResults = false; warn("Aucune partie avec ce code.");
         if (pendingCode) pendingCode = null;
-        // openGame affiche « Chargement… » avant de savoir si le code existe :
+        // openGame affiche « Chargement… » avant de savoir si le code existe :
         // sur un code qui n'existe pas, on y restait bloqué, avec un message
         // d'erreur et rien à faire. On revient à l'accueil.
         if (screen === "s-game" && !game) { currentCode = null; setUrl(null); goHome(); }
@@ -399,8 +399,8 @@
   //    (toast) — on sait déjà ce qu'on a tapé.
   //
   // #amStatus ne sert plus qu'à l'état de la connexion, qui est durable : une
-  // notice ne doit pas l'écraser, ni l'effacer en expirant. « Pas de connexion
-  // là » suivi d'une barre vide, c'était le contraire de l'information utile.
+  // notice ne doit pas l'écraser, ni l'effacer en expirant. « Pas de connexion
+  // là » suivi d'une barre vide, c'était le contraire de l'information utile.
   var toastTimer = null;
   // La notice est posée en bas de l'écran : on allonge la page de sa hauteur
   // pour que le dernier bouton reste atteignable en défilant. Allonger le bas
@@ -461,7 +461,7 @@
     }
     return "4827";
   }
-  // Pourquoi un code est refusé — une phrase utile, pas un « non ».
+  // Pourquoi un code est refusé — une phrase utile, pas un « non ».
   function weakPinMsg(why) {
     if (why === "repete") return "Quatre fois le même chiffre, c'est le deuxième code que quelqu'un essaie. Choisis-en un autre.";
     if (why === "suite") return "Une suite de chiffres, c'est trop deviné. Choisis-en un autre.";
@@ -500,10 +500,10 @@
   // manquaient :
   //   - la page ne doit pas défiler DERRIÈRE : glisser sur la fenêtre faisait
   //     bouger le fond (mesuré : 354 px) ;
-  //   - le bouton « retour » doit la fermer, pas quitter le jeu. On empile
+  //   - le bouton « retour » doit la fermer, pas quitter le jeu. On empile
   //     une entrée d'historique par fenêtre ouverte, et on la retire nous-même
   //     quand la fenêtre se ferme autrement — sans quoi il faudrait appuyer
-  //     deux fois sur « retour ».
+  //     deux fois sur « retour ».
   var modalDepth = 0, selfPops = 0;
   function anyModal() {
     return ($("amOverlay") && $("amOverlay").style.display !== "none") ||
@@ -690,7 +690,7 @@
     } catch (e) { return false; }
   }
   // Un partage, un seul lien. Le lien vit DANS le texte, et on ne passe pas
-  // « url » à navigator.share : les applications de messagerie collent l'url
+  // « url » à navigator.share : les applications de messagerie collent l'url
   // à la suite du texte, donc un texte qui finit déjà par le lien le faisait
   // apparaître DEUX FOIS dans le message envoyé. Les aperçus de lien marchent
   // quand même, WhatsApp & co repèrent l'adresse dans le texte.
@@ -702,7 +702,7 @@
   // contexte, et personne ne sera là pour lui expliquer.
   function shareGame(g) {
     var n = g.sceneCount || 20;
-    shareLink((g.hostName === getPseudo() ? "Fais mon test « Are We A Match ? »" : "Rejoins la partie « Are We A Match ? » de " + g.hostName)
+    shareLink((g.hostName === getPseudo() ? "Fais mon test « Are We A Match ? »" : "Rejoins la partie « Are We A Match ? » de " + g.hostName)
       + " : " + n + " scènes, 3 réponses à classer à chaque fois. Tu réponds quand tu veux (2 min, ou demain), et on voit à quel point on fait pareil. Rien à installer → " + gameUrl(g.code));
   }
   function copyText(t) {
@@ -758,8 +758,8 @@
       '<p class="am-hint">Montre ce QR, ou envoie le lien. Ceux qui le reçoivent peuvent répondre quand ils veulent, même dans plusieurs jours.</p>' +
       '<div class="am-qr"><canvas id="amQR" width="400" height="400"></canvas></div>' +
       '<div class="am-code-big">' + esc(g.code) + '</div>' +
-      '<p class="am-hint">Scanne, ou tape ce code dans « Rejoindre ».</p>' +
-      '<div class="am-share-row"><button class="am-primary" id="amShare">Partager le lien</button><button class="am-ghost" id="amCopy">Copier</button></div></div>';
+      '<p class="am-hint">Scanne, ou tape ce code dans « Rejoindre ».</p>' +
+      '<div class="am-share-row"><button class="am-primary" id="amShare">Partager</button><button class="am-ghost" id="amCopy">Copier</button></div></div>';
 
     body += countsBar(g);
     // Seul dans sa partie et rien de commencé : inviter d'abord, c'est le geste
@@ -767,7 +767,7 @@
     var alone = g.players.length <= 1 && me.progress === 0 && !me.finished && !g.closedAt;
     body += alone ? share + action : action;
     if (me.teaser) body += '<div class="am-teaser">💘 <b>' + esc(me.teaser.name) + '</b> : <span class="pct">' + me.teaser.pct + '%</span> sur vos ' + me.teaser.shared + ' scènes en commun. <span class="am-soft">Termine pour voir tout.</span></div>';
-    if (me.finished && finishedNames < 2) body += '<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité — tu recevras la partie en « Nouveaux résultats » dans ta liste.</p>';
+    if (me.finished && finishedNames < 2) body += '<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité — tu recevras la partie en « Nouveaux résultats » dans ta liste.</p>';
     if (!alone && !g.closedAt) body += share;
 
     body += '<div class="am-card"><h3>Qui joue (' + g.players.length + ')' + (finishedNames ? ' <span class="am-soft">· ' + finishedNames + ' fini' + (finishedNames > 1 ? 's' : '') + '</span>' : '') + '</h3>' + renderPlayerRows(g, me.host) + '</div>';
@@ -804,7 +804,7 @@
     });
   }
   // Supprimer une partie détruit AUSSI les réponses des autres. L'alerte dit
-  // donc ce qui disparaît, chiffres à l'appui, plutôt qu'un « êtes-vous sûr ? »
+  // donc ce qui disparaît, chiffres à l'appui, plutôt qu'un « êtes-vous sûr ? »
   // qui n'apprend rien. Et quand quelqu'un d'autre a déjà répondu, il faut
   // recopier le code de la partie : le geste devient impossible par accident.
   function deleteGameSheet(g) {
@@ -893,15 +893,18 @@
     var body = "";
     body += '<div class="am-qmeta"><span>Scène ' + (play.index + 1) + ' / ' + game.scenes.length + '</span><span id="amPlayOthers"></span></div>';
     body += '<div class="am-progress"><i style="width:' + Math.round((play.index / game.scenes.length) * 100) + '%"></i></div>';
-    // Première scène : on redit la règle du jeu, là où elle sert.
-    if (play.index === 0 && !play.submitted) {
-      // « Ordre de préférence » serait faux ici : chaque scène dit elle-même
+    body += '<div class="am-q" style="margin-top:14px">' + esc(q.q) + '</div>' + (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
+    // Première scène : on redit la règle du jeu, là où elle sert — c'est-à-dire
+    // APRÈS la consigne de la scène. Placée avant, « dans l'ordre demandé juste
+    // au-dessus » désignait la barre de progression.
+    var astuce = play.index === 0 && !play.submitted;
+    if (astuce) {
+      // « Ordre de préférence » serait faux ici : chaque scène dit elle-même
       // dans quel sens classer (du plus rédhibitoire, du plus fréquent, du
       // plus vrai…). Le texte générique renvoie donc à la consigne de la
       // scène, il ne la contredit pas.
       body += '<div class="am-tip">👆 <b>Touche les 3 réponses dans l\'ordre demandé juste au-dessus</b> — la 1<sup>re</sup> que tu touches prend la place n°&nbsp;1. Pas de chrono : prends ton temps, tu peux fermer et revenir.</div>';
     }
-    body += '<div class="am-q" style="margin-top:14px">' + esc(q.q) + '</div>' + (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
     if (play.submitted) {
       body += '<div class="am-opts">' + q.o.map(function (label, i) {
         var pos = play.myRank.indexOf(i);
@@ -913,8 +916,12 @@
         return '<button type="button" class="am-opt' + (ranked ? " ranked" : "") + (pos === 0 ? " r1" : "") + '" data-i="' + i + '">' +
           '<span class="am-rankbadge">' + (ranked ? (pos + 1) : "·") + '</span><span class="am-opttext">' + esc(label) + '</span></button>';
       }).join("") + '</div>';
-      body += '<p class="am-ranknote">' + (play.myRank.length === 0 ? "Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1."
-        : (play.myRank.length < n ? "Encore " + (n - play.myRank.length) + " à classer… (touche une réponse classée pour l'enlever)" : "Classement complet !")) + '</p>';
+      // Quand l'astuce est affichée, elle dit déjà tout : on ne répète pas la
+      // même phrase deux fois sur le même écran. Le décompte, lui, reste.
+      var note = play.myRank.length === 0
+        ? (astuce ? "" : "Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1.")
+        : (play.myRank.length < n ? "Encore " + (n - play.myRank.length) + " à classer… (touche une réponse classée pour l'enlever)" : "Classement complet !");
+      if (note) body += '<p class="am-ranknote">' + note + '</p>';
       body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>✅ Valider</button>';
       body += '<p class="am-hint center">En validant, tu découvres les réponses des autres — et ta réponse se fige. Tant que personne d\'autre n\'a répondu à une scène, tu peux encore y revenir.</p>';
       // Valider trop vite arrive. Tant que personne d'autre n'a répondu à la
@@ -1004,7 +1011,7 @@
     $("amResultsBody").innerHTML = '<p class="am-hint center">Calcul…</p>';
     if (socket) socket.emit("game_results", { code: currentCode });
   }
-  // « Où en sont les autres » : tous ceux qui n'ont pas fini, avec leur
+  // « Où en sont les autres » : tous ceux qui n'ont pas fini, avec leur
   // avancée. C'est la promesse du différé — on voit le groupe avancer sans
   // avoir à demander à qui que ce soit.
   function pendingCard(r) {
@@ -1037,7 +1044,7 @@
     drawQR($("amResQR"), resultsUrl(r.code));
     var sb = $("amShareRes");
     if (sb) sb.onclick = function () {
-      shareLink("Où on en est sur « " + gameTitle(r) + " » (Are We A Match ?) : " + r.finishedCount + "/" + r.playerCount +
+      shareLink("Où on en est sur « " + gameTitle(r) + " » (Are We A Match ?) : " + r.finishedCount + "/" + r.playerCount +
         " ont fini. Résultats en direct → " + resultsUrl(r.code));
     };
     var cb = $("amCopyRes"); if (cb) cb.onclick = function () { copyText(resultsUrl(r.code)); };
@@ -1123,7 +1130,7 @@
     wireInstall($("amResultsBody"));
     wireResultsExtras(r);
   }
-  // « Scène par scène » : tous les reveals, y compris ceux qui se sont remplis après coup.
+  // « Scène par scène » : tous les reveals, y compris ceux qui se sont remplis après coup.
   function renderScenesSheet(reveals) {
     var me = getPseudo();
     var html = reveals.length ? reveals.map(function (rv) {
@@ -1271,7 +1278,7 @@
       "<p>Safari ne sait pas installer tout seul : trois gestes, une fois pour toutes.</p>" +
       '<ol class="am-steps compact">' +
       '<li><span class="num">1</span> <span class="t">Touche <b>Partager</b> en bas de Safari — le carré avec la flèche vers le haut.</span></li>' +
-      '<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>' +
+      '<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>' +
       '<li><span class="num">3</span> <span class="t">Touche <b>Ajouter</b>. L\'icône 💘 apparaît avec tes autres apps.</span></li>' +
       "</ol>" +
       "<p class='am-hint'>Ensuite l'app s'ouvre en plein écran, sans la barre du navigateur, et tes parties sont là — ton pseudo et ton code de reprise suffisent.</p>");
@@ -1300,8 +1307,8 @@
 
   // ---------- onboarding ----------
   // Personne ne sera là pour expliquer le jeu : il s'explique tout seul, une
-  // fois, à la première ouverture — et se rouvre à la demande (« ? », ou
-  // « Comment ça marche ? » sur la page d'une partie).
+  // fois, à la première ouverture — et se rouvre à la demande (« ? », ou
+  // « Comment ça marche ? » sur la page d'une partie).
   var ONB = [
     { e: "💘", t: "20 scènes, 3 réponses",
       p: "Pas de bonne réponse : seulement la tienne. À chaque scène, tu ranges les 3 réponses <b>de ta préférée (1) à celle que tu aimes le moins (3)</b> — et quand la scène demande autre chose (la plus fréquente chez toi, la plus agaçante…), elle te le dit juste sous la question." },
