@@ -150,7 +150,7 @@ function mount({ app, io }) {
     const host = escHtml(g.hostName);
     const n = Object.keys(g.players).length;
     const title = `${host} t'invite · Are We A Match ?`;
-    const desc = `${g.sceneIds.length} scènes à classer, quand tu veux. ${n} joueur${n > 1 ? "s" : ""} déjà. Réponds et découvre à quel point vous faites pareil.`;
+    const desc = `${g.sceneIds.length} scènes, 3 réponses à classer à chaque fois. Réponds quand tu veux — personne ne t'attend. ${n} joueur${n > 1 ? "s ont" : " a"} déjà rejoint. À la fin : à quel point vous faites pareil.`;
     const url = `${req.protocol}://${req.get("host")}/AreWeAMatch/g/${g.code}`;
     const meta =
       `<meta property="og:title" content="${title}">` +
@@ -349,6 +349,15 @@ function mount({ app, io }) {
       const r = games.closeGame(code, sess.name);
       socket.emit("game_closed", Object.assign({ code }, r));
       if (r.ok && r.deleted) { ns.to("game:" + code).emit("game_gone", { code, reason: "closed" }); return; }
+      if (r.ok) broadcastGame(code);
+    });
+    // Fermer par erreur ne doit pas être définitif : l'hôte peut rouvrir la porte.
+    socket.on("reopen_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const code = games.normCode(m && m.code);
+      const r = games.reopenGame(code, sess.name);
+      socket.emit("game_reopened", Object.assign({ code }, r));
       if (r.ok) broadcastGame(code);
     });
     socket.on("remove_player", (m) => {

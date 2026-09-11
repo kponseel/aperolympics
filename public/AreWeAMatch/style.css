@@ -69,8 +69,12 @@ input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
 .am-error.warn { color: var(--gold); font-weight: 700; }
 .am-locked { margin-top: 14px; padding: 16px; background: #2a1f0f; border: 2px solid #c80; border-radius: 14px; }
 .am-steps { list-style: none; padding: 0; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
-.am-steps li { display: flex; gap: 12px; align-items: flex-start; background: var(--card); padding: 15px; border-radius: 14px; border: 1px solid var(--border); font-size: 1rem; }
-.am-steps .num { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 800; }
+/* Grille à deux colonnes : la pastille, puis tout le texte d'un bloc. En flex,
+   chaque <b> et chaque bout de phrase du <li> devenait un élément à part et la
+   phrase s'affichait en colonnes. */
+.am-steps li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; background: var(--card); padding: 15px; border-radius: 14px; border: 1px solid var(--border); font-size: 1rem; }
+.am-steps li .t { min-width: 0; }
+.am-steps .num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 800; }
 .am-info { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: var(--border); color: #cdc3ec; border: none; font-size: 0.8rem; font-weight: 800; cursor: pointer; vertical-align: middle; margin-left: 6px; }
 
 /* ---------- hall / packs ---------- */
@@ -149,7 +153,6 @@ input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
 .am-reveal-row .cnt { color: var(--soft); font-size: 0.88rem; white-space: nowrap; }
 .am-perfect { background: #16301f; border: 1px solid #2f7a4a; border-radius: 12px; padding: 12px 14px; margin-top: 10px; }
 .am-perfect b { color: var(--good); }
-.am-count { font-size: 3rem; font-weight: 900; color: var(--accent); line-height: 1; }
 
 /* ---------- results ---------- */
 .am-top-duo { text-align: center; padding: 22px 16px; background: linear-gradient(135deg, #2e1330 0%, #1e1740 100%); border: 2px solid var(--accent); border-radius: 18px; margin-bottom: 14px; }
@@ -240,8 +243,11 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
 .am-share-row { display: flex; gap: 8px; margin-top: 10px; }
 .am-share-row button { flex: 1; margin-top: 0; }
 .am-plist { display: flex; flex-direction: column; gap: 6px; }
-.am-prow { display: flex; align-items: center; gap: 10px; background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; }
-.am-prow .who { flex: 1; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Grille plutôt que flex : la barre d'avancée occupe sa propre ligne sous le
+   nom (grid-column: 1 / -1), quel que soit le nombre de colonnes au-dessus
+   — état seul, ou état + bouton « retirer », ou état + score provisoire. */
+.am-prow { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 0 10px; background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; }
+.am-prow .who { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .am-prow .st { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; color: var(--soft); white-space: nowrap; }
 .am-prow .st.done { color: var(--good); font-weight: 700; }
 .am-prow.me { border-color: var(--accent2); }
@@ -259,6 +265,43 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
 .am-scene-item .line .picks { font-size: 1.05rem; letter-spacing: 1px; }
 .am-provisional .am-duo-row { border-style: dashed; }
 .am-section-title { color: var(--soft); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin: 16px 0 8px; }
+
+/* ---------- combien ont rejoint, combien ont fini ---------- */
+/* Visible de tout le monde, joueur ou pas : c'est la première chose qu'on
+   cherche en ouvrant une partie en différé. */
+.am-counts { display: flex; gap: 8px; margin: 14px 0 0; }
+.am-count {
+  flex: 1; min-width: 0; text-align: center; padding: 12px 6px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+}
+.am-count .v { display: block; font-size: 1.8rem; font-weight: 900; color: var(--accent); line-height: 1.1; }
+.am-count .l { display: block; color: var(--soft); font-size: 0.78rem; line-height: 1.25; margin-top: 2px; }
+.am-progress.group { margin-top: 8px; margin-bottom: 4px; }
+/* Barre d'avancée d'un joueur dans une liste : elle prend toute la largeur
+   sous son nom, d'où la mise en grille de la ligne. */
+.am-progress.mini { height: 4px; margin-top: 8px; grid-column: 1 / -1; }
+.am-pending .am-badge { white-space: nowrap; }
+
+/* ---------- lien de retour vers l'écran final ---------- */
+.am-backlink { border-color: var(--accent2); }
+.am-backlink .am-qr { width: 156px; height: 156px; }
+
+/* ---------- coup de pouce contextuel ---------- */
+.am-tip { background: var(--card2); border: 1px solid var(--accent2); border-radius: 14px; padding: 12px 14px; margin: 12px 0 0; font-size: 0.95rem; color: #e6dffb; }
+
+/* ---------- onboarding ---------- */
+.am-onb { position: fixed; inset: 0; background: #120f1ef2; display: flex; align-items: center; justify-content: center; z-index: 60; padding: 20px; }
+.am-onb-card { width: 100%; max-width: 460px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 26px 22px 18px; text-align: center; }
+.am-onb-slide { min-height: 240px; display: flex; flex-direction: column; justify-content: center; }
+.am-onb-slide .e { font-size: 3.4rem; line-height: 1; }
+.am-onb-slide h2 { margin: 12px 0 8px; font-size: 1.45rem; }
+.am-onb-slide p { margin: 0; color: var(--soft); font-size: 1.02rem; line-height: 1.5; }
+.am-onb-slide b { color: #fff; }
+.am-onb-dots { display: flex; gap: 7px; justify-content: center; margin: 18px 0 4px; }
+.am-onb-dots .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--border); }
+.am-onb-dots .dot.on { background: var(--accent); width: 22px; }
+.am-onb-skip { display: block; width: 100%; margin-top: 10px; padding: 10px; background: none; border: none; color: var(--soft); font-size: 0.92rem; font-weight: 700; cursor: pointer; }
+@media (max-height: 620px) { .am-onb-slide { min-height: 190px; } .am-onb-slide .e { font-size: 2.6rem; } }
 
 /* ---------- overlay ---------- */
 .am-overlay { position: fixed; inset: 0; background: #000a; display: flex; align-items: flex-end; justify-content: center; z-index: 50; padding: 0; }

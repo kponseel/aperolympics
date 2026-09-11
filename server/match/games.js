@@ -12,7 +12,9 @@
 //   - les résultats FINAUX (duo, podium, titres, matrice) portent sur les
 //     joueurs qui ont fini ; une compatibilité PROVISOIRE s'affiche avec ceux
 //     en cours dès MIN_SHARED scènes en commun, marquée comme telle ;
-//   - une partie reste ouverte tant que l'hôte ne la ferme pas.
+//   - une partie reste ouverte tant que l'hôte ne la ferme pas, et FERMER ne
+//     ferme que la PORTE : plus personne ne rejoint, mais ceux qui ont déjà
+//     rejoint gardent un temps illimité pour finir et voir les résultats.
 //
 // Persistance : games.json via storage.js (écriture atomique, quarantaine),
 // hors du dossier déployé. Les écritures sont REGROUPÉES : une réponse ne
@@ -181,6 +183,8 @@ function createGame(opts) {
   return { ok: true, game: g };
 }
 
+// Fermer une partie ferme la PORTE, pas la partie : un joueur déjà inscrit
+// revient quand il veut (y compris pour dé-masquer la partie de sa liste).
 function joinGame(code, name) {
   const g = getGame(code);
   if (!g) return { ok: false, reason: "unknown_game" };
@@ -198,12 +202,16 @@ function joinGame(code, name) {
 // (already_answered) : sinon on pourrait la « corriger » après avoir vu les
 // autres. Quand la dernière scène est validée, le joueur est « fini » et ses
 // classements nourrissent son profil (matchs d'un autre soir), pack par pack.
+//
+// Une partie fermée n'empêche PAS de répondre : fermer ne bloque que les
+// nouvelles arrivées (joinGame). Sinon un joueur resté à 19/20 se retrouvait
+// dans un cul-de-sac — ni finir, ni voir les résultats finaux — parce que
+// l'hôte avait cliqué sur un bouton qui parlait d'inscriptions.
 function answer(code, name, qid, ranking) {
   const g = getGame(code);
   if (!g) return { ok: false, reason: "unknown_game" };
   const p = g.players[key(name)];
   if (!p) return { ok: false, reason: "not_in_game" };
-  if (g.closedAt) return { ok: false, reason: "closed" };
   if (!g.sceneIds.includes(qid)) return { ok: false, reason: "unknown_scene" };
   const q = BY_ID.get(qid);
   if (p.answers[qid]) return { ok: false, reason: "already_answered" };
@@ -315,9 +323,9 @@ function results(code, name) {
   const all = playerList(g);
   const finished = all.filter((p) => p.finishedAt);
   const base = {
-    code: g.code, title: g.title, closed: !!g.closedAt, sceneCount: g.sceneIds.length,
-    players: all.map((p) => ({ name: p.name, progress: progressOf(g, p), finished: !!p.finishedAt, me: p === me })),
-    finishedCount: finished.length,
+    code: g.code, title: g.title, hostName: g.hostName, closed: !!g.closedAt, sceneCount: g.sceneIds.length,
+    players: all.map((p) => ({ name: p.name, progress: progressOf(g, p), finished: !!p.finishedAt, me: p === me, host: key(p.name) === g.hostKey })),
+    playerCount: all.length, finishedCount: finished.length,
   };
   if (!me.finishedAt) {
     return Object.assign(base, { locked: true, progress: progressOf(g, me), teaser: teaserFor(g, me) });
@@ -397,7 +405,7 @@ function state(code, name) {
     code: g.code, title: g.title, hostName: g.hostName, test: g.test,
     sceneCount: g.sceneIds.length, createdAt: g.createdAt, updatedAt: g.updatedAt, closedAt: g.closedAt,
     players: all.map((p) => ({ name: p.name, progress: progressOf(g, p), finished: !!p.finishedAt, host: key(p.name) === g.hostKey, me: p === me, bot: !!p.bot })),
-    finishedCount: all.filter((p) => p.finishedAt).length,
+    playerCount: all.length, finishedCount: all.filter((p) => p.finishedAt).length,
     me: me ? { joined: true, host: k === g.hostKey, progress: progressOf(g, me), finished: !!me.finishedAt, nextIndex: nextIndexOf(g, me), teaser: me.finishedAt ? null : teaserFor(g, me) }
             : { joined: false, host: false, progress: 0, finished: false, nextIndex: 0, teaser: null },
   };
@@ -433,12 +441,24 @@ function markSeen(code, name) {
 function isPlayer(code, name) { const g = getGame(code); return !!(g && g.players[key(name)]); }
 
 // ---------------------------------------------------------------- hôte
+// Ferme les INSCRIPTIONS : plus personne ne rejoint. Ceux qui sont déjà là
+// continuent normalement. (Une partie de test, elle, est simplement supprimée.)
 function closeGame(code, name) {
   const g = getGame(code);
   if (!g) return { ok: false, reason: "unknown_game" };
   if (key(name) !== g.hostKey) return { ok: false, reason: "not_host" };
   if (g.test) { deleteGame(code); return { ok: true, deleted: true }; }
   g.closedAt = g.closedAt || Date.now();
+  touch(g);
+  return { ok: true };
+}
+// … et le geste inverse : fermer par erreur ne doit pas être définitif.
+function reopenGame(code, name) {
+  const g = getGame(code);
+  if (!g) return { ok: false, reason: "unknown_game" };
+  if (key(name) !== g.hostKey) return { ok: false, reason: "not_host" };
+  if (!g.closedAt) return { ok: true, already: true };
+  g.closedAt = null;
   touch(g);
   return { ok: true };
 }
@@ -517,7 +537,7 @@ function _reset() { data = emptyData(); if (saveTimer) { clearTimeout(saveTimer)
 
 module.exports = {
   createGame, joinGame, answer, results, reveal, revealsFor, state, listFor, markSeen, isPlayer,
-  closeGame, removePlayer, hideGame, deleteGame,
+  closeGame, reopenGame, removePlayer, hideGame, deleteGame,
   createTestGame, purgeTestGames, adminList,
   getGame, normCode, flush, question: (id) => { const q = BY_ID.get(id); return q ? pubQuestion(q) : null; },
   SCENES_PER_GAME, MIN_SHARED, MAX_BOTS, BANK_SIZE: BANK.length, CODE_LEN, _reset,

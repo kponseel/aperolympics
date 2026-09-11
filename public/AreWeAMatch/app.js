@@ -72,6 +72,10 @@
     return "il y a " + Math.round(s / 86400) + " j";
   }
   function gameUrl(code) { return location.origin + "/AreWeAMatch/g/" + code; }
+  // Le lien qui ramène droit à l'écran final (la progression de tout le monde,
+  // les résultats dès qu'on a fini). Même page : on ajoute juste ?r=1, que le
+  // serveur ignore et que le client lit au démarrage.
+  function resultsUrl(code) { return gameUrl(code) + "?r=1"; }
   // Empreinte de la progression de tout le monde : si elle change, les
   // résultats affichés sont à recalculer.
   function progressSig(g) {
@@ -98,8 +102,8 @@
 
   // ---------- état ----------
   var socket = null, connected = false, identified = false, booted = false;
-  var myProtected = false, pinMode = false, pendingCode = null, currentCode = null;
-  var gamesCache = null, game = null, lastResults = null, refreshTimer = null;
+  var myProtected = false, pinMode = false, pendingCode = null, pendingResults = false, currentCode = null;
+  var gamesCache = null, game = null, lastResults = null, refreshTimer = null, sceneCountHint = 20;
   // La scène en cours de réponse.
   var play = { code: null, index: 0, myRank: [], submitted: false, reveal: null, finished: false };
   // Mode dev.
@@ -114,8 +118,10 @@
     var q = /[?&](?:g|code)=([A-Za-z0-9-]+)/.exec(location.search);
     return q ? q[1].toUpperCase() : null;
   }
-  function setUrl(code) {
-    try { history.replaceState(null, "", code ? "/AreWeAMatch/g/" + code : "/AreWeAMatch/"); } catch (e) {}
+  function wantsResultsFromUrl() { return /[?&]r=1(?:&|$)/.test(location.search); }
+  function setUrl(code, results) {
+    var to = code ? "/AreWeAMatch/g/" + code + (results ? "?r=1" : "") : "/AreWeAMatch/";
+    try { history.replaceState(null, "", to); } catch (e) {}
   }
 
   // ---------- socket ----------
@@ -166,6 +172,7 @@
     // --- parties ---
     socket.on("games_list", function (m) {
       gamesCache = (m && m.games) || [];
+      if (m && m.scene_count > 0) sceneCountHint = m.scene_count;
       renderVersion(m && m.app);
       if (m && m.dev_enabled === false) { devOn = false; }
       renderHome();
@@ -189,6 +196,14 @@
       var prev = game;
       game = m;
       window.__amGame = game;
+      // Arrivé par le lien « voir la progression » (?r=1) : on file à l'écran
+      // final dès qu'on sait que celui qui ouvre est bien un joueur. Sinon
+      // (un invité qui découvre la partie), la page de la partie, comme d'habitude.
+      if (pendingResults) {
+        pendingResults = false;
+        if (m.me && m.me.joined) { openResults(); return; }
+        setUrl(m.code);
+      }
       if (screen === "s-game" || screen === "s-pseudo" || screen === "s-home") { renderGame(); }
       else if (screen === "s-results" && lastResults && prev && progressSig(prev) !== progressSig(m)) {
         // Quelqu'un a répondu ou fini : les résultats (finaux ou provisoires)
@@ -241,9 +256,13 @@
       renderScenesSheet(m.reveals || []);
     });
     socket.on("game_closed", function (m) {
-      if (!m || !m.ok) { toast("Impossible de fermer la partie."); return; }
+      if (!m || !m.ok) { toast("Impossible de fermer les inscriptions."); return; }
       if (m.deleted) { toast("Partie de test supprimée"); goHome(); return; }
-      toast("Partie fermée");
+      toast("🔒 Inscriptions fermées — tout le monde peut finir");
+    });
+    socket.on("game_reopened", function (m) {
+      if (!m || !m.ok) { toast("Impossible de rouvrir les inscriptions."); return; }
+      toast("🔓 Inscriptions rouvertes");
     });
     socket.on("player_removed", function (m) { if (m && m.ok) toast(m.name + " a été retiré de la partie."); });
     socket.on("game_hidden", function (m) { if (m && m.ok) { toast("Partie masquée"); goHome(); } });
@@ -280,9 +299,9 @@
       if (code === "bad_identity" || code === "no_identity") return;
       if (code === "bad_pin") { toast("PIN invalide (4 chiffres)."); return; }
       if (code === "not_owner") { toast("Ce pseudo appartient à un autre appareil."); return; }
-      if (code === "unknown_game") { toast("Aucune partie avec ce code."); if (pendingCode) { pendingCode = null; setUrl(null); goHome(); } return; }
+      if (code === "unknown_game") { pendingResults = false; toast("Aucune partie avec ce code."); if (pendingCode) { pendingCode = null; setUrl(null); goHome(); } return; }
       if (code === "slow_down") { toast("Trop de codes essayés, attends un peu."); return; }
-      if (code === "closed") { toast("Cette partie est fermée : on ne peut plus la rejoindre."); return; }
+      if (code === "closed") { toast("Les inscriptions de cette partie sont fermées."); return; }
       if (code === "dev_locked") { toast("Mode dev verrouillé."); return; }
       setStatus(code ? "Erreur : " + code : "Erreur");
     });
@@ -393,16 +412,17 @@
     var wrap = $("amGames"); if (!wrap) return;
     var list = gamesCache || [];
     if (!list.length) {
-      wrap.innerHTML = '<div class="am-empty">Aucune partie pour l\'instant.<br>Crée la première et partage son QR, ou rejoins celle d\'un ami avec son code.</div>';
+      wrap.innerHTML = '<div class="am-empty"><b>Aucune partie pour l\'instant.</b><br>Crée la première et partage son QR — tes amis répondront quand ils auront le temps.<br>Ou rejoins celle de quelqu\'un avec son code à 5 caractères.</div>';
       return;
     }
     wrap.innerHTML = list.map(function (g) {
       var pct = g.sceneCount ? Math.round((g.progress / g.sceneCount) * 100) : 0;
       var state = g.finished ? "✓ terminé" : (g.progress ? g.progress + "/" + g.sceneCount : "pas commencé");
       var meta = [
-        "👥 " + g.playerCount + (g.finishedCount ? " · " + g.finishedCount + " fini" + (g.finishedCount > 1 ? "s" : "") : ""),
-        state,
-        g.closed ? "🔒 fermée" : "",
+        "👥 " + g.playerCount + " joueur" + (g.playerCount > 1 ? "s" : ""),
+        g.finishedCount ? "✓ " + g.finishedCount + " fini" + (g.finishedCount > 1 ? "s" : "") : "",
+        "toi : " + state,
+        g.closed ? "🔒 inscriptions fermées" : "",
         g.test ? "🧪 test" : "",
         fmtAgo(g.updatedAt),
       ].filter(Boolean);
@@ -421,7 +441,8 @@
   }
   function createGameSheet() {
     openSheet("➕ Nouvelle partie",
-      '<p>20 scènes tirées au sort, les mêmes pour tout le monde. Tu seras l\'hôte : tu partages le QR, chacun répond quand il veut.</p>' +
+      '<p><b>' + sceneCountHint + ' scènes</b> tirées au sort, les mêmes pour tout le monde et dans le même ordre. Tu seras l\'hôte : tu partages le QR, chacun répond quand il veut, tu vois le groupe avancer.</p>' +
+      '<p class="am-hint">Tu pourras fermer les inscriptions plus tard : ça empêche de nouveaux joueurs d\'entrer, sans jamais couper ceux qui ont commencé.</p>' +
       '<input id="amFormTitle" maxlength="40" placeholder="Un titre (facultatif) : Soirée du 12, Les colocs…" autocomplete="off" />' +
       '<button type="button" class="am-primary" id="amFormGo">🎲 Créer la partie</button>',
       function (body) {
@@ -473,15 +494,32 @@
       return true;
     } catch (e) { return false; }
   }
+  // Le texte doit se suffire à lui-même : celui qui le reçoit n'a aucun
+  // contexte, et personne ne sera là pour lui expliquer.
   function shareGame(g) {
     var url = gameUrl(g.code);
-    var text = (g.hostName === getPseudo() ? "Fais mon test Are We A Match ? " : "Rejoins la partie Are We A Match ? de " + g.hostName + " ") + ": 20 scènes à classer, quand tu veux, on verra qui se ressemble → " + url;
+    var n = g.sceneCount || 20;
+    var text = (g.hostName === getPseudo() ? "Fais mon test « Are We A Match ? »" : "Rejoins la partie « Are We A Match ? » de " + g.hostName)
+      + " : " + n + " scènes, 3 réponses à classer à chaque fois. Tu réponds quand tu veux (2 min, ou demain), et on voit à quel point on fait pareil. Rien à installer → " + url;
     if (navigator.share) { navigator.share({ title: "Are We A Match ?", text: text, url: url }).catch(function () {}); return; }
     copyText(url);
   }
   function copyText(t) {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast("Copié !"); }, function () { toast(t); });
     else toast(t);
+  }
+  // Le compteur que tout le monde voit, joueur ou pas : combien ont rejoint,
+  // combien ont fini, et où en est le groupe.
+  function countsBar(g) {
+    var n = g.playerCount != null ? g.playerCount : g.players.length;
+    var fin = g.finishedCount != null ? g.finishedCount : g.players.filter(function (p) { return p.finished; }).length;
+    var answered = g.players.reduce(function (s, p) { return s + p.progress; }, 0);
+    var pct = (n && g.sceneCount) ? Math.round((answered / (n * g.sceneCount)) * 100) : 0;
+    return '<div class="am-counts">' +
+      '<div class="am-count"><span class="v">' + n + '</span><span class="l">' + (n > 1 ? "joueurs ont rejoint" : "joueur a rejoint") + '</span></div>' +
+      '<div class="am-count"><span class="v">' + fin + '</span><span class="l">' + (fin > 1 ? "ont fini" : "a fini") + '</span></div>' +
+      '<div class="am-count"><span class="v">' + g.sceneCount + '</span><span class="l">scènes</span></div>' +
+      '</div><div class="am-progress group"><i style="width:' + pct + '%"></i></div>';
   }
   function renderGame() {
     if (!game) return;
@@ -490,46 +528,57 @@
     var badge = $("amDevBadge"); if (badge) badge.style.display = g.test ? "" : "none";
     if (screen !== "s-game") show("s-game");
     var body = "";
-    var finishedNames = g.players.filter(function (p) { return p.finished; }).length;
+    var finishedNames = g.finishedCount != null ? g.finishedCount : g.players.filter(function (p) { return p.finished; }).length;
 
     if (!me.joined) {
-      body += '<div class="am-invite"><b>' + esc(g.hostName) + '</b> t\'invite à sa partie : <b>' + g.sceneCount + ' scènes</b> à classer, quand tu veux. ' +
-        (g.players.length ? g.players.length + ' joueur' + (g.players.length > 1 ? 's' : '') + ' déjà' + (finishedNames ? ', ' + finishedNames + ' fini' + (finishedNames > 1 ? 's' : '') : '') + '.' : '') + '</div>';
-      if (g.closedAt) body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Cette partie est fermée, on ne peut plus la rejoindre.</p></div>';
-      else body += '<button class="am-primary xl" id="amJoinGame">🎮 Rejoindre la partie</button>';
-      body += '<div class="am-card"><h3>Joueurs (' + g.players.length + ')</h3>' + renderPlayerRows(g, false) + '</div>';
+      body += '<div class="am-invite"><b>' + esc(g.hostName) + '</b> t\'invite à sa partie.<br>' +
+        '<b>' + g.sceneCount + ' scènes</b> : à chaque fois, 3 réponses à classer de ta préférée à celle que tu aimes le moins. ' +
+        'Tu réponds <b>quand tu veux</b>, personne ne t\'attend. À la fin, on voit à quel point vous faites pareil.</div>';
+      body += countsBar(g);
+      if (g.closedAt) body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Les inscriptions sont fermées.</p><p class="am-hint">' + esc(g.hostName) + ' a fermé la porte : on ne peut plus rejoindre cette partie-là. Demande-lui de la rouvrir, ou crée la tienne.</p></div>';
+      else body += '<button class="am-primary xl" id="amJoinGame">🎮 Rejoindre la partie</button><p class="am-hint center">Gratuit, sans pub, rien à installer. Tes réponses sont sauvées à chaque scène.</p>';
+      body += '<div class="am-card"><h3>Qui joue (' + g.players.length + ')</h3>' + renderPlayerRows(g, false) + '</div>';
+      body += '<button class="am-ghost" id="amHowto">💡 Comment ça marche ?</button>';
       $("amGameBody").innerHTML = body;
       var jb = $("amJoinGame"); if (jb) jb.onclick = function () { if (socket) socket.emit("join_game", { code: g.code }); };
+      var hw = $("amHowto"); if (hw) hw.onclick = function () { openOnboarding(true); };
       return;
     }
 
-    // Bouton principal selon où j'en suis.
+    // Bouton principal selon où j'en suis. Une partie fermée ne bloque plus
+    // celui qui a déjà rejoint : il a tout son temps pour finir.
     var action = "";
-    if (g.closedAt && !me.finished) action = '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Partie fermée par l\'hôte.</p></div>';
-    else if (me.finished) action = '<button class="am-primary xl" id="amResults">💘 Voir les résultats</button>';
+    if (me.finished) action = '<button class="am-primary xl" id="amResults">💘 Voir les résultats</button>';
     else if (me.progress > 0) action = '<button class="am-primary xl" id="amPlay">▶️ Continuer (' + me.progress + '/' + g.sceneCount + ')</button>';
     else action = '<button class="am-primary xl" id="amPlay">🎬 Répondre aux ' + g.sceneCount + ' scènes</button>';
 
     // Partager : QR + lien + code.
     var share = '<div class="am-card am-share"><h3>Inviter</h3>' +
+      '<p class="am-hint">Montre ce QR, ou envoie le lien. Ceux qui le reçoivent peuvent répondre quand ils veulent, même dans plusieurs jours.</p>' +
       '<div class="am-qr"><canvas id="amQR" width="400" height="400"></canvas></div>' +
       '<div class="am-code-big">' + esc(g.code) + '</div>' +
       '<p class="am-hint">Scanne, ou tape ce code dans « Rejoindre ».</p>' +
       '<div class="am-share-row"><button class="am-primary" id="amShare">Partager le lien</button><button class="am-ghost" id="amCopy">Copier</button></div></div>';
 
+    body += countsBar(g);
     // Seul dans sa partie et rien de commencé : inviter d'abord, c'est le geste
     // qui donne un sens à la suite. Sinon, l'action d'abord.
     var alone = g.players.length <= 1 && me.progress === 0 && !me.finished && !g.closedAt;
     body += alone ? share + action : action;
     if (me.teaser) body += '<div class="am-teaser">💘 <b>' + esc(me.teaser.name) + '</b> : <span class="pct">' + me.teaser.pct + '%</span> sur vos ' + me.teaser.shared + ' scènes en commun. <span class="am-soft">Termine pour voir tout.</span></div>';
-    if (me.finished && finishedNames < 2) body += '<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité.</p>';
-    if (!alone) body += share;
+    if (me.finished && finishedNames < 2) body += '<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité — tu recevras la partie en « Nouveaux résultats » dans ta liste.</p>';
+    if (!alone && !g.closedAt) body += share;
 
-    body += '<div class="am-card"><h3>Joueurs (' + g.players.length + ')' + (finishedNames ? ' <span class="am-soft">· ' + finishedNames + ' fini' + (finishedNames > 1 ? 's' : '') + '</span>' : '') + '</h3>' + renderPlayerRows(g, me.host) + '</div>';
+    body += '<div class="am-card"><h3>Qui joue (' + g.players.length + ')' + (finishedNames ? ' <span class="am-soft">· ' + finishedNames + ' fini' + (finishedNames > 1 ? 's' : '') + '</span>' : '') + '</h3>' + renderPlayerRows(g, me.host) + '</div>';
 
-    body += '<p class="am-hint center">' + (g.closedAt ? 'Fermée ' + fmtAgo(g.closedAt) : 'Ouverte · ' + g.sceneCount + ' scènes · réponds quand tu veux, tes réponses sont sauvées') + '</p>';
-    if (me.host && !g.closedAt) body += '<button class="am-ghost" id="amClose">' + (g.test ? '🗑️ Supprimer la partie de test' : '🔒 Fermer la partie (plus personne ne peut rejoindre)') + '</button>';
+    body += '<p class="am-hint center">' + (g.closedAt
+      ? '🔒 Inscriptions fermées ' + fmtAgo(g.closedAt) + ' — plus personne ne peut rejoindre, mais <b>tout le monde garde le temps qu\'il veut pour finir</b>.'
+      : '🔓 Ouverte · ' + g.sceneCount + ' scènes · réponds quand tu veux, tes réponses sont sauvées à chaque scène') + '</p>';
+    if (me.host && g.test) body += '<button class="am-ghost" id="amClose">🗑️ Supprimer la partie de test</button>';
+    else if (me.host && !g.closedAt) body += '<button class="am-ghost" id="amClose">🔒 Fermer les inscriptions</button>';
+    else if (me.host && g.closedAt) body += '<button class="am-ghost" id="amReopen">🔓 Rouvrir les inscriptions</button>';
     if (!me.host) body += '<button class="am-ghost" id="amHide">Masquer cette partie de ma liste</button>';
+    body += '<button class="am-ghost" id="amHowto">💡 Comment ça marche ?</button>';
     $("amGameBody").innerHTML = body;
 
     drawQR($("amQR"), gameUrl(g.code));
@@ -537,9 +586,12 @@
     var rb = $("amResults"); if (rb) rb.onclick = openResults;
     var sb = $("amShare"); if (sb) sb.onclick = function () { shareGame(g); };
     var cb = $("amCopy"); if (cb) cb.onclick = function () { copyText(gameUrl(g.code)); };
+    var hw2 = $("amHowto"); if (hw2) hw2.onclick = function () { openOnboarding(true); };
     var xb = $("amClose"); if (xb) xb.onclick = function () {
-      if (g.test || window.confirm("Fermer la partie ? Plus personne ne pourra la rejoindre ni répondre. Les résultats restent visibles.")) socket.emit("close_game", { code: g.code });
+      if (g.test) { if (window.confirm("Supprimer la partie de test ?")) socket.emit("close_game", { code: g.code }); return; }
+      if (window.confirm("Fermer les inscriptions ?\n\nPlus personne ne pourra rejoindre. Ceux qui ont déjà rejoint gardent tout leur temps pour finir, et les résultats continuent de se remplir.")) socket.emit("close_game", { code: g.code });
     };
+    var ob = $("amReopen"); if (ob) ob.onclick = function () { socket.emit("reopen_game", { code: g.code }); };
     var hb = $("amHide"); if (hb) hb.onclick = function () { if (window.confirm("Masquer cette partie de ta liste ?")) socket.emit("hide_game", { code: g.code }); };
     Array.prototype.forEach.call($("amGameBody").querySelectorAll("[data-kick]"), function (b) {
       b.onclick = function () { var n = b.getAttribute("data-kick"); if (window.confirm("Retirer " + n + " de la partie ?")) socket.emit("remove_player", { code: g.code, name: n }); };
@@ -548,9 +600,11 @@
   function renderPlayerRows(g, canKick) {
     if (!g.players.length) return '<p class="am-hint">Personne pour l\'instant.</p>';
     return '<div class="am-plist">' + g.players.map(function (p) {
+      var pct = g.sceneCount ? Math.round((p.progress / g.sceneCount) * 100) : 0;
       var st = p.finished ? '<span class="st done">✓ fini</span>' : '<span class="st">' + p.progress + '/' + g.sceneCount + '</span>';
       return '<div class="am-prow' + (p.me ? ' me' : '') + '"><span class="who">' + (p.host ? '👑 ' : '') + esc(p.name) + (p.me ? ' <span class="am-soft">(toi)</span>' : '') + '</span>' + st +
-        (canKick && !p.host && !p.me ? '<button type="button" class="kick" data-kick="' + esc(p.name) + '">retirer</button>' : '') + '</div>';
+        (canKick && !p.host && !p.me ? '<button type="button" class="kick" data-kick="' + esc(p.name) + '">retirer</button>' : '') +
+        '<div class="am-progress mini' + (p.finished ? ' done' : '') + '"><i style="width:' + pct + '%"></i></div></div>';
     }).join("") + '</div>';
   }
 
@@ -578,6 +632,10 @@
     var body = "";
     body += '<div class="am-qmeta"><span>Scène ' + (play.index + 1) + ' / ' + game.scenes.length + '</span><span id="amPlayOthers"></span></div>';
     body += '<div class="am-progress"><i style="width:' + Math.round((play.index / game.scenes.length) * 100) + '%"></i></div>';
+    // Première scène : on redit la règle du jeu, là où elle sert.
+    if (play.index === 0 && !play.submitted) {
+      body += '<div class="am-tip">👆 <b>Touche les 3 réponses dans ton ordre de préférence</b> — la 1<sup>re</sup> que tu touches est ta préférée. Pas de chrono : prends ton temps, tu peux fermer et revenir.</div>';
+    }
     body += '<div class="am-q" style="margin-top:14px">' + esc(q.q) + '</div>' + (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
     if (play.submitted) {
       body += '<div class="am-opts">' + q.o.map(function (label, i) {
@@ -643,7 +701,8 @@
     var body = '';
     body += '<div class="am-qmeta"><span>Scène ' + (play.index + 1) + ' / ' + game.scenes.length + '</span><span>' + rv.answers.length + ' réponse' + (rv.answers.length > 1 ? 's' : '') + '</span></div>';
     body += '<div class="am-q" style="margin-top:14px">' + esc(rv.question.q) + '</div>';
-    body += '<div class="am-card"><h3>👀 Les réponses</h3>' + revealHtml(rv, play.myRank, false) + '</div>';
+    body += '<div class="am-card"><h3>👀 Les réponses</h3>' + revealHtml(rv, play.myRank, false) +
+      '<p class="am-hint">Le badge à droite, c\'est <b>ton accord avec cette personne sur cette scène</b> : sur 3 comparaisons possibles, combien tombent pareil. <b>3/3</b> = exactement le même classement.</p></div>';
     body += '<button class="am-primary" id="amNext">' + (play.finished ? "🏁 Voir les résultats" : "Scène suivante →") + '</button>';
     $("amPlayBody").innerHTML = body;
     $("amNext").onclick = function () {
@@ -658,25 +717,70 @@
     if (!currentCode) return;
     lastResults = null;
     show("s-results");
+    setUrl(currentCode, true);
     $("amResTitle").textContent = game ? gameTitle(game) : "Résultats";
     $("amResultsBody").innerHTML = '<p class="am-hint center">Calcul…</p>';
     if (socket) socket.emit("game_results", { code: currentCode });
+  }
+  // « Où en sont les autres » : tous ceux qui n'ont pas fini, avec leur
+  // avancée. C'est la promesse du différé — on voit le groupe avancer sans
+  // avoir à demander à qui que ce soit.
+  function pendingCard(r) {
+    var prov = Object.create(null);
+    (r.provisional || []).forEach(function (p) { prov[p.name] = p; });
+    var pend = r.players.filter(function (p) { return !p.finished && !p.me; })
+      .sort(function (a, b) { return b.progress - a.progress || a.name.localeCompare(b.name); });
+    if (!pend.length) return "";
+    return '<div class="am-card am-pending"><h3>⏳ Où en sont les autres</h3>' +
+      '<p class="am-hint">Personne n\'est pressé : ils ont tout leur temps. Dès que l\'un d\'eux finit ses ' + r.sceneCount + ' scènes, cette page se met à jour toute seule.</p>' +
+      pend.map(function (p) {
+        var pct = r.sceneCount ? Math.round((p.progress / r.sceneCount) * 100) : 0;
+        var pv = prov[p.name];
+        return '<div class="am-prow wide"><span class="who">' + (p.host ? '👑 ' : '') + esc(p.name) + '</span>' +
+          (pv ? '<span class="am-badge b-mixed" title="Sur vos ' + pv.shared + ' scènes en commun">' + pv.pct + ' % provisoire</span>' : '') +
+          '<span class="st">' + p.progress + '/' + r.sceneCount + '</span>' +
+          '<div class="am-progress mini"><i style="width:' + pct + '%"></i></div></div>';
+      }).join("") + '</div>';
+  }
+  // Le lien qui ramène ici : à garder, à renvoyer au groupe, à ouvrir demain
+  // pour voir où ça en est.
+  function backLinkCard(r) {
+    return '<div class="am-card am-share am-backlink"><h3>🔗 Revenir voir la progression</h3>' +
+      '<p class="am-hint">Garde ce lien (ou ce QR) : il rouvre cette page, avec l\'avancée de chacun et les résultats à jour. Rien à réinstaller, ton pseudo et ton PIN suffisent.</p>' +
+      '<div class="am-qr"><canvas id="amResQR" width="400" height="400"></canvas></div>' +
+      '<div class="am-code-big">' + esc(r.code) + '</div>' +
+      '<div class="am-share-row"><button class="am-primary" id="amShareRes">Partager cette page</button><button class="am-ghost" id="amCopyRes">Copier le lien</button></div></div>';
+  }
+  function wireResultsExtras(r) {
+    drawQR($("amResQR"), resultsUrl(r.code));
+    var sb = $("amShareRes");
+    if (sb) sb.onclick = function () {
+      var url = resultsUrl(r.code);
+      var text = "Où on en est sur « " + gameTitle(r) + " » (Are We A Match ?) : " + r.finishedCount + "/" + r.playerCount + " ont fini. Résultats en direct → " + url;
+      if (navigator.share) { navigator.share({ title: "Are We A Match ?", text: text, url: url }).catch(function () {}); return; }
+      copyText(url);
+    };
+    var cb = $("amCopyRes"); if (cb) cb.onclick = function () { copyText(resultsUrl(r.code)); };
   }
   function renderResults() {
     var r = lastResults; if (!r) return;
     var me = getPseudo();
     var body = "";
-    var pending = r.players.filter(function (p) { return !p.finished && !p.me; });
 
     if (r.locked) {
-      body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Termine tes ' + r.sceneCount + ' scènes pour voir les résultats.</p><p class="am-hint">Tu en es à ' + r.progress + '/' + r.sceneCount + '.</p></div>';
+      body += countsBar(r);
+      body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Termine tes ' + r.sceneCount + ' scènes pour voir les résultats.</p><p class="am-hint">Tu en es à ' + r.progress + '/' + r.sceneCount + '. Le détail (ton meilleur match, le podium, les titres) s\'ouvre à la dernière scène.</p></div>';
       if (r.teaser) body += '<div class="am-teaser">💘 <b>' + esc(r.teaser.name) + '</b> : <span class="pct">' + r.teaser.pct + '%</span> sur vos ' + r.teaser.shared + ' scènes en commun.</div>';
       body += '<button class="am-primary xl" id="amPlay2">▶️ Continuer</button>';
+      body += pendingCard(r);
+      body += backLinkCard(r);
       $("amResultsBody").innerHTML = body;
       $("amPlay2").onclick = function () { if (game) startPlay(); else openGame(currentCode); };
+      wireResultsExtras(r);
       return;
     }
 
+    body += countsBar(r);
     var f = r.final || {};
     if (r.finishedCount < 2) {
       body += '<div class="am-card am-center-card"><div class="am-big">🎉</div><p class="am-lead">Tu as fini !</p><p class="am-hint">Dès qu\'un autre joueur aura terminé ses ' + r.sceneCount + ' scènes, votre compatibilité apparaîtra ici toute seule.</p></div>';
@@ -697,11 +801,7 @@
         return '<div class="am-duo-row"><span class="rank">' + medal(i) + '</span><span class="who">' + esc(e.name) + '</span><span class="pct">' + e.pct + '%</span></div>';
       }).join("") + '</div>';
     }
-    if (r.provisional && r.provisional.length) {
-      body += '<div class="am-card am-provisional"><h3>⏳ Provisoire <span class="am-soft">· ils n\'ont pas fini</span></h3>' + r.provisional.map(function (p) {
-        return '<div class="am-duo-row"><span class="who">' + esc(p.name) + ' <span class="am-soft">· ' + p.shared + ' scènes en commun · ' + p.progress + '/' + r.sceneCount + '</span></span><span class="pct">' + p.pct + '%</span></div>';
-      }).join("") + '</div>';
-    }
+    body += pendingCard(r);
     if (f.podium && f.podium.length > 1) {
       body += '<div class="am-card"><h3>Podium des duos</h3>' + f.podium.map(function (p, i) {
         var isMine = (p.a === me || p.b === me);
@@ -734,14 +834,12 @@
       }).join("");
       body += '<div class="am-card"><h3>📊 Tout le monde contre tout le monde</h3><div class="am-matrix-wrap"><table class="am-matrix">' + head + rows + '</table></div></div>';
     }
-    if (pending.length) {
-      body += '<p class="am-hint center">' + pending.map(function (p) { return esc(p.name) + ' ' + p.progress + '/' + r.sceneCount; }).join(" · ") + '<br>' + (pending.length > 1 ? "Ils apparaîtront" : "Il apparaîtra") + ' ici dès que ce sera fini.</p>';
-    }
+    body += '<p class="am-hint center">Le score, c\'est la part de vos comparaisons qui tombent pareil : 3 par scène (A/B, A/C, B/C), 1 point par accord. Deux personnes au hasard tournent autour de 50 %.</p>';
+    body += backLinkCard(r);
     body += '<button class="am-ghost" id="amScenes">👀 Scène par scène</button>';
-    body += '<button class="am-ghost" id="amShare2">Partager la partie</button>';
     $("amResultsBody").innerHTML = body;
     $("amScenes").onclick = function () { if (socket) socket.emit("get_reveals", { code: currentCode }); };
-    $("amShare2").onclick = function () { if (game) shareGame(game); else copyText(gameUrl(currentCode)); };
+    wireResultsExtras(r);
   }
   // « Scène par scène » : tous les reveals, y compris ceux qui se sont remplis après coup.
   function renderScenesSheet(reveals) {
@@ -804,13 +902,41 @@
     };
   }
 
+  // ---------- onboarding ----------
+  // Personne ne sera là pour expliquer le jeu : il s'explique tout seul, une
+  // fois, à la première ouverture — et se rouvre à la demande (« ? », ou
+  // « Comment ça marche ? » sur la page d'une partie).
+  var ONB = [
+    { e: "💘", t: "20 scènes, 3 réponses",
+      p: "Pas de bonne réponse : seulement la tienne. À chaque scène, tu ranges les 3 réponses <b>de ta préférée (1) à celle que tu aimes le moins (3)</b>." },
+    { e: "⏰", t: "Quand tu veux",
+      p: "Rien n'est chronométré et personne ne t'attend. Tu réponds ce soir, ton ami demain dans le métro. <b>Chaque réponse est sauvée tout de suite</b> : tu peux fermer et revenir." },
+    { e: "👀", t: "Le verdict après chaque scène",
+      p: "Dès que tu valides, tu découvres <b>ce que les autres ont répondu</b> — et seulement à ce moment-là. Une réponse validée ne change plus : c'est ce qui rend le score honnête." },
+    { e: "💞", t: "Qui te ressemble",
+      p: "À la fin : ton <b>meilleur match</b>, le podium des duos, les titres de la partie. Les résultats se remplissent <b>au fur et à mesure</b> que les gens finissent — reviens quand tu veux." },
+  ];
+  var onbIndex = 0;
+  function onbSeen() { try { return localStorage.getItem("am.onb") === "1"; } catch (e) { return false; } }
+  function markOnbSeen() { try { localStorage.setItem("am.onb", "1"); } catch (e) {} }
+  function renderOnb() {
+    var s = ONB[onbIndex];
+    $("amOnbSlide").innerHTML = '<div class="e">' + s.e + '</div><h2>' + s.t + '</h2><p>' + s.p + '</p>';
+    $("amOnbDots").innerHTML = ONB.map(function (_, i) { return '<span class="dot' + (i === onbIndex ? " on" : "") + '"></span>'; }).join("");
+    $("amOnbNext").textContent = onbIndex === ONB.length - 1 ? "C'est parti 🎉" : "Suivant →";
+    $("amOnbSkip").textContent = onbIndex === ONB.length - 1 ? "Le détail du calcul" : "Passer";
+  }
+  function openOnboarding() { onbIndex = 0; $("amOnb").style.display = "flex"; renderOnb(); }
+  function closeOnboarding() { markOnbSeen(); $("amOnb").style.display = "none"; }
+
   // ---------- aide ----------
   var HELP = {
     main: { title: "Comment ça marche", body:
-      "<p><b>Une partie = 20 scènes</b>, les mêmes pour tout le monde. Quelqu'un la crée et partage son QR ; chacun répond <b>quand il veut</b>.</p>" +
+      "<p><b>Une partie = 20 scènes</b>, les mêmes pour tout le monde et dans le même ordre. Quelqu'un la crée et partage son QR ; chacun répond <b>quand il veut</b>.</p>" +
       "<p><b>Chaque scène propose 3 réponses.</b> Tu les classes : <b>1re</b> = ta préférée, <b>3e</b> = celle que tu aimes le moins. Une fois validée, ta réponse ne change plus, et tu découvres celles des autres.</p>" +
       "<p><b>Le calcul :</b> pour chaque scène on fait les 3 comparaisons possibles (A/B, A/C, B/C) ; 1 point par accord. Ta compatibilité avec quelqu'un = points obtenus / points possibles. Deux personnes au hasard tournent autour de 50 %.</p>" +
       "<p><b>Les résultats</b> se calculent sur ceux qui ont fini, et se mettent à jour à chaque nouvelle arrivée. En attendant, une compatibilité provisoire s'affiche dès 5 scènes en commun.</p>" +
+      "<p><b>Fermer les inscriptions</b> (l'hôte seulement) empêche de <i>nouveaux</i> joueurs de rejoindre. Ceux qui sont déjà là gardent tout leur temps pour finir.</p>" +
       "<p>🔒 <b>Ton PIN</b> protège ton pseudo et te permet de reprendre tes parties sur n'importe quel téléphone.</p>" },
     pin: { title: "Le code PIN 🔒", body:
       "<p>Le PIN (4 chiffres) <b>réserve ton pseudo</b> : personne d'autre ne peut le prendre, et toi tu peux reprendre tes parties sur un autre téléphone.</p>" +
@@ -821,9 +947,10 @@
   // ---------- bootstrap ----------
   document.addEventListener("DOMContentLoaded", function () {
     pendingCode = codeFromUrl();
+    pendingResults = !!(pendingCode && wantsResultsFromUrl());
     var input = $("amName");
     if (input) input.value = getPseudo();
-    if (pendingCode) { var note = $("amInviteNote"); if (note) { note.style.display = ""; note.textContent = "On t'invite à une partie (" + pendingCode + "). Entre ton pseudo et ton PIN pour la rejoindre."; } }
+    if (pendingCode) { var note = $("amInviteNote"); if (note) { note.style.display = ""; note.innerHTML = "🎟️ <b>On t'invite à une partie</b> (code " + esc(pendingCode) + ").<br>Choisis un pseudo et un code PIN à 4 chiffres — c'est tout, il n'y a rien à installer."; } }
     updateMe();
     $("amContinue").onclick = submitPseudo;
     input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("amPin").focus(); } });
@@ -839,11 +966,21 @@
       if (screen === "s-results") { openGame(currentCode); return; }
       goHome();
     };
-    $("amHelp").onclick = function () { openHelp("main"); };
+    $("amHelp").onclick = openOnboarding;
+    $("amOnbNext").onclick = function () {
+      if (onbIndex < ONB.length - 1) { onbIndex += 1; renderOnb(); return; }
+      closeOnboarding();
+    };
+    $("amOnbSkip").onclick = function () {
+      var last = onbIndex === ONB.length - 1;
+      closeOnboarding();
+      if (last) openHelp("main");
+    };
     $("amSheetClose").onclick = closeSheet;
     $("amOverlay").addEventListener("click", function (e) { if (e.target === $("amOverlay")) closeSheet(); });
     $("amCreate").onclick = createGameSheet;
     $("amJoinBtn").onclick = joinSheet;
+    $("amHowto2").onclick = openOnboarding;
     document.addEventListener("click", function (e) {
       var t = e.target;
       if (t && t.classList && t.classList.contains("am-info")) { e.preventDefault(); openHelp(t.getAttribute("data-help")); }
@@ -851,6 +988,8 @@
     connect();
     if (!getPseudo()) show("s-pseudo");
     else show("s-home");
+    // Première ouverture : le jeu s'explique avant qu'on demande quoi que ce soit.
+    if (!onbSeen()) openOnboarding();
     if (getDevToken()) { var tk = getDevToken(); socket.on("identity_ok", function () { if (getDevToken() === tk && !devOn) socket.emit("dev_unlock", { token: tk }); }); }
     if (/[?&]dev(=|&|$)/.test(location.search)) setTimeout(openDevSheet, 400);
     window.__amForceCloseSheet = forceCloseSheet;

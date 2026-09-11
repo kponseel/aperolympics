@@ -50,10 +50,13 @@
         <button class="am-primary" id="amNewName">Choisir un autre pseudo</button>
       </div>
 
+      <!-- Chaque <li> est une grille à deux cases : la pastille et LE TEXTE, en
+           un seul bloc. Sans ce <span class="t">, chaque <b> et chaque bout de
+           phrase devient une case et le texte s'affiche en colonnes. -->
       <ol class="am-steps">
-        <li><span class="num">1</span> <b>Crée une partie</b> et partage son QR, ou <b>rejoins</b> celle d'un ami.</li>
-        <li><span class="num">2</span> Réponds aux <b>20 scènes</b> quand tu veux : classe les 3 réponses par préférence.</li>
-        <li><span class="num">3</span> Après chaque scène, vois <b>qui a répondu quoi</b>. À la fin : <b>qui te ressemble</b>, au fur et à mesure.</li>
+        <li><span class="num">1</span> <span class="t"><b>Crée une partie</b> et partage son QR, ou <b>rejoins</b> celle d'un ami avec son code.</span></li>
+        <li><span class="num">2</span> <span class="t">Réponds aux <b>20 scènes</b> quand tu veux : classe les 3 réponses de ta préférée à celle que tu aimes le moins. Aucun chrono.</span></li>
+        <li><span class="num">3</span> <span class="t">Après chaque scène, vois <b>qui a répondu quoi</b>. À la fin : <b>qui te ressemble</b> — et ça se complète à mesure que les autres finissent.</span></li>
       </ol>
     </section>
 
@@ -61,11 +64,12 @@
     <section class="am-screen" id="s-home">
       <div class="am-hall-head">
         <h2>Mes parties</h2>
-        <p class="am-lead">Crée une partie, partage le QR, chacun répond quand il veut.</p>
+        <p class="am-lead">Crée une partie, partage le QR, chacun répond quand il veut. Les résultats se remplissent tout seuls.</p>
       </div>
       <div id="amGames"></div>
       <button class="am-primary" id="amCreate">➕ Créer une partie</button>
       <button class="am-ghost" id="amJoinBtn">🔗 Rejoindre avec un code</button>
+      <button class="am-ghost" id="amHowto2">💡 Comment ça marche ?</button>
       <!-- Mode dev : carte 🧪 (vide tant que le mode n'est pas déverrouillé) -->
       <div id="amDev"></div>
       <!-- Version + date de la dernière mise à jour (rempli depuis games_list) -->
@@ -96,6 +100,17 @@
       <div id="amResultsBody"></div>
     </section>
   </main>
+
+  <!-- Onboarding : le principe expliqué une fois, à la première ouverture,
+       et rouvrable à la demande (« ? » ou « Comment ça marche ? »). -->
+  <div class="am-onb" id="amOnb" style="display:none">
+    <div class="am-onb-card">
+      <div class="am-onb-slide" id="amOnbSlide"></div>
+      <div class="am-onb-dots" id="amOnbDots"></div>
+      <button type="button" class="am-primary" id="amOnbNext">Suivant →</button>
+      <button type="button" class="am-onb-skip" id="amOnbSkip">Passer</button>
+    </div>
+  </div>
 
   <!-- Overlay (aide / formulaires / profil) -->
   <div class="am-overlay" id="amOverlay" style="display:none">

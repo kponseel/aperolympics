@@ -10,7 +10,7 @@
 // répond pas. Le nom de cache change tout de même (am-v2) : à l'activation,
 // les anciens caches sont purgés.
 
-const CACHE = "am-v3";
+const CACHE = "am-v4";
 const SHELL = [
   "/AreWeAMatch/", "/AreWeAMatch/index.html", "/AreWeAMatch/app.js", "/AreWeAMatch/style.css",
   "/AreWeAMatch/vendor/qrcode.min.js", "/AreWeAMatch/manifest.webmanifest",
