@@ -4,11 +4,12 @@
   --bg: #120f1e;
   --card: #1c1730;
   --card2: #241d3d;
-  --border: #342a52;
-  --soft: #a99ec9;
+  --border: #453a6b;
+  --soft: #c3b9e0;
   --accent: #ff5d8f;
   --accent2: #7c5cff;
   --gold: #ffd23f;
+  --link: #a894ff;
   --good: #3ddc84;
   --bad: #ff5757;
 }
@@ -40,7 +41,39 @@ body {
 .am-icon { background: #2a2148; color: #fff; border: 1px solid var(--border); border-radius: 10px; width: 38px; height: 38px; font-size: 1rem; cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .am-sub { padding: 8px 16px; color: var(--soft); font-size: 0.92rem; min-height: 1.2em; }
 
-.am-main { max-width: 620px; margin: 0 auto; padding: 0 16px 48px; }
+/* ---------- notices ---------- */
+/* Superposées, jamais dans le flux : une notice ne doit décaler la page ni en
+   apparaissant ni en disparaissant.
+   En bas, et pas en haut : le haut de chaque écran porte ce qu'on est en train
+   de lire (le numéro de scène, la question, les titres) ; posée là, une notice
+   qui reste le cachait. app.js mesure sa hauteur dans --am-notice-h, et
+   .am-main s'allonge d'autant : on peut donc toujours faire défiler jusqu'au
+   bouton du bas. Allonger le bas ne déplace rien — le contenu part du haut.
+   Le conteneur ne capte pas les touches, seule la carte le fait, sinon il
+   masquerait la page sur toute sa largeur. */
+.am-notice {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: flex; justify-content: center; pointer-events: none;
+  padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+}
+.am-toast {
+  pointer-events: auto; width: 100%; max-width: 560px; cursor: pointer;
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start;
+  padding: 13px 14px; border-radius: 14px; font-size: 0.95rem; color: #f1ecff;
+  background: #2e2450; border: 1px solid var(--accent2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  animation: am-toast-in 0.18s ease-out;
+}
+.am-toast.bad { background: #3b2030; border-color: var(--bad); }
+.am-toast .t { min-width: 0; overflow-wrap: anywhere; }
+.am-toast .x { color: var(--soft); font-weight: 800; line-height: 1.2; }
+@keyframes am-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .am-toast { animation: none; } }
+
+/* --am-notice-h : la hauteur de la notice affichée (posée par app.js, 0 sinon).
+   La page s'allonge d'autant pour qu'on puisse défiler jusqu'au dernier
+   bouton même quand une notice occupe le bas. */
+.am-main { max-width: 620px; margin: 0 auto; padding: 0 16px calc(48px + var(--am-notice-h, 0px)); }
 .am-screen { display: none; }
 .am-screen.on { display: block; }
 .am-lead { color: var(--soft); font-size: 1.02rem; margin: 6px 0; }
@@ -54,6 +87,9 @@ body {
 .am-label { display: block; margin: 16px 0 8px; font-weight: 700; font-size: 1.05rem; }
 input { display: block; width: 100%; padding: 15px; font-size: 1.1rem; background: var(--card); border: 2px solid var(--border); border-radius: 14px; color: #fff; }
 input:focus { outline: none; border-color: var(--accent); }
+/* Explicite : la teinte par défaut du navigateur varie (Safari la met bien
+   plus pâle que Chrome) et « Ex : Marie » est une consigne, pas un décor. */
+input::placeholder { color: #9c90c0; opacity: 1; }
 input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
 .am-primary {
   display: block; width: 100%; padding: 17px; margin-top: 14px;
@@ -62,7 +98,10 @@ input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
   cursor: pointer; min-height: 58px;
 }
 .am-primary:active { filter: brightness(0.9); }
-.am-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Un bouton pas encore actif doit rester LISIBLE : « ✅ Valider » à 45 %
+   d'opacité par-dessus le dégradé, on ne lisait plus le mot. Fond plat et
+   texte franc — il est visiblement inactif, mais on sait ce qu'il fera. */
+.am-primary:disabled { opacity: 1; background: #322a52; color: var(--soft); cursor: not-allowed; }
 .am-primary.xl { font-size: 1.3rem; padding: 21px; min-height: 70px; }
 .am-ghost { display: block; width: 100%; padding: 14px; margin-top: 10px; font-size: 1rem; font-weight: 700; background: #2a2148; color: #fff; border: 2px solid var(--border); border-radius: 14px; cursor: pointer; }
 .am-error { color: #ff8a8a; min-height: 1.4em; margin-top: 10px; font-size: 1rem; }
@@ -74,8 +113,8 @@ input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
    phrase s'affichait en colonnes. */
 .am-steps li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; background: var(--card); padding: 15px; border-radius: 14px; border: 1px solid var(--border); font-size: 1rem; }
 .am-steps li .t { min-width: 0; }
-.am-steps .num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 800; }
-.am-info { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: var(--border); color: #cdc3ec; border: none; font-size: 0.8rem; font-weight: 800; cursor: pointer; vertical-align: middle; margin-left: 6px; }
+.am-steps .num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: var(--accent); color: #2a0a14; font-weight: 800; }
+.am-info { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: var(--border); color: #f0ebff; border: none; font-size: 0.8rem; font-weight: 800; cursor: pointer; vertical-align: middle; margin-left: 6px; }
 
 /* ---------- hall / packs ---------- */
 .am-hall-head { text-align: center; margin: 20px 0 16px; }
@@ -96,7 +135,7 @@ input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
 .am-pack-tag { display: block; color: var(--soft); font-size: 0.88rem; line-height: 1.3; }
 .am-pack-state { display: block; font-size: 0.85rem; font-weight: 700; color: var(--soft); margin-top: 2px; }
 /* Version + date de la dernière mise à jour : en petit, tout en bas du hall. */
-.am-version { color: var(--soft); opacity: 0.75; font-size: 0.74rem; text-align: center; margin: 18px 0 6px; min-height: 1em; }
+.am-version { color: var(--soft); font-size: 0.74rem; text-align: center; margin: 18px 0 6px; min-height: 1em; }
 .am-pack-state.live { color: var(--accent); }
 .am-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
 .am-card h3 { margin: 0 0 10px; font-size: 1.1rem; }
@@ -139,7 +178,7 @@ input#amPin { font-size: 1.5rem; letter-spacing: 0.5em; text-align: center; }
   font-weight: 900; font-size: 1.05rem;
   background: var(--border); color: var(--soft);
 }
-.am-opt.ranked .am-rankbadge { background: var(--accent); color: #fff; }
+.am-opt.ranked .am-rankbadge { background: var(--accent); color: #2a0a14; }
 .am-opt.r1 .am-rankbadge { background: var(--gold); color: #3a2f0e; }
 .am-opt .am-opttext { flex: 1; }
 .am-ranknote { color: var(--soft); font-size: 0.9rem; text-align: center; margin: 12px 0 0; }
@@ -179,7 +218,7 @@ table.am-matrix { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
 table.am-matrix th, table.am-matrix td { padding: 7px 6px; text-align: center; border: 1px solid var(--border); white-space: nowrap; }
 table.am-matrix th { color: var(--soft); font-weight: 700; font-size: 0.78rem; }
 table.am-matrix th.rowh { text-align: left; position: sticky; left: 0; background: var(--card); z-index: 1; }
-table.am-matrix td.self { background: #201a36; color: #4b4270; }
+table.am-matrix td.self { background: #201a36; color: #9186c0; }
 .am-mcell { font-weight: 800; border-radius: 6px; padding: 4px 2px; }
 
 .am-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; }
@@ -196,7 +235,7 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
 .am-ans-row .picks { display: inline-flex; align-items: center; gap: 4px; font-size: 1.25rem; line-height: 1; }
 .am-ans-row .sep { color: var(--soft); font-size: 0.9rem; }
 .am-agree { flex: none; min-width: 52px; text-align: center; font-weight: 800; font-size: 0.85rem; padding: 4px 8px; border-radius: 999px; background: #2c2742; color: var(--soft); }
-.am-agree.me { background: var(--accent2); color: #fff; }
+.am-agree.me { background: #5b39d1; color: #fff; }
 .am-agree.a3 { background: #3a1030; color: #ff9ec4; }
 .am-agree.a2 { background: #16302a; color: #6fe0b0; }
 .am-agree.a1 { background: #2c2742; color: var(--soft); }
@@ -288,6 +327,9 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
 
 /* ---------- coup de pouce contextuel ---------- */
 .am-tip { background: var(--card2); border: 1px solid var(--accent2); border-radius: 14px; padding: 12px 14px; margin: 12px 0 0; font-size: 0.95rem; color: #e6dffb; }
+/* « Tu es le premier sur la scène N » : reste tant que la fenêtre de retour
+   est ouverte, juste au-dessus du bouton qui y ramène. */
+.am-tip.am-first { border-color: var(--gold); margin-top: 18px; }
 
 /* ---------- onboarding ---------- */
 .am-onb { position: fixed; inset: 0; background: #120f1ef2; display: flex; align-items: center; justify-content: center; z-index: 60; padding: 20px; }
@@ -332,7 +374,7 @@ table.am-matrix td.self { background: #201a36; color: #4b4270; }
 .am-install:active { background: #2a2148; }
 
 /* Petit lien dans une ligne d'aide (proposer un code au hasard). */
-.am-linkish { background: none; border: none; padding: 0; margin-left: 4px; color: var(--accent2); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.am-linkish { background: none; border: none; padding: 0; margin-left: 4px; color: var(--link); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 
 /* ---------- gestes destructifs ---------- */
 /* Un bouton qui détruit les données des autres ne doit pas ressembler aux
