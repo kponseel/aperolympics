@@ -22,15 +22,41 @@ const packs = require("./packs");
 const { constantTimeEquals } = require("../admin");
 
 const MAX_PIN_ATTEMPTS = 5;
-const PIN_LOCK_MS = 15 * 60 * 1000;
+// Le blocage S'ALLONGE à chaque série ratée, il ne se réarme pas à l'identique.
+// Avant, 15 minutes puis cinq nouveaux essais indéfiniment : 20 tentatives par
+// heure, soit près de 500 par jour — de quoi couvrir une bonne part des 10 000
+// combinaisons en quelques jours pour qui est motivé. Un joueur qui a
+// réellement oublié son code s'y reprend une ou deux fois, pas cinquante.
+// Durées surchargeables (millisecondes, séparées par des virgules) : sans ça,
+// vérifier que le blocage s'allonge vraiment demanderait d'attendre 15 minutes,
+// puis une heure, puis six. Personne n'écrirait ce test.
+const PIN_LOCK_STEPS_MS = (process.env.MATCH_PIN_LOCK_STEPS_MS || "")
+  .split(",").map((x) => Number(x.trim())).filter((x) => x > 0);
+if (!PIN_LOCK_STEPS_MS.length) PIN_LOCK_STEPS_MS.push(15 * 60 * 1000, 60 * 60 * 1000, 6 * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
+const PIN_FAILS_TTL_MS = Number(process.env.MATCH_PIN_FAILS_TTL_MS) > 0 ? Number(process.env.MATCH_PIN_FAILS_TTL_MS) : 48 * 60 * 60 * 1000;
+const PIN_FAILS_MAX_ENTRIES = 5000;
 // Anti-brute-force au niveau du MODULE, clé = pseudo en minuscules — pas de
 // la session socket : sinon 5 essais par CONNEXION revenait à un PIN à 4
 // chiffres cassable en rechargeant simplement la page entre les tentatives.
-const pinFailsByName = new Map(); // name(lowercase) -> { count, lockedUntil }
+const pinFailsByName = new Map(); // name(lowercase) -> { count, strikes, lockedUntil, seenAt }
+// Renvoie l'entrée si elle existe. Quand un blocage vient d'expirer, on remet
+// le compteur d'essais à zéro mais on GARDE le nombre de séries : c'est lui qui
+// fait durer le blocage suivant. Sans ça, expirer revenait à tout pardonner.
 function pinFailsFor(k) {
   const e = pinFailsByName.get(k);
-  if (e && e.lockedUntil && Date.now() > e.lockedUntil) { pinFailsByName.delete(k); return null; }
-  return e || null;
+  if (!e) return null;
+  const now = Date.now();
+  if (now - (e.seenAt || 0) > PIN_FAILS_TTL_MS) { pinFailsByName.delete(k); return null; }
+  if (e.lockedUntil && now > e.lockedUntil) { e.count = 0; e.lockedUntil = 0; }
+  return e;
+}
+function pinLockMs(strikes) { return PIN_LOCK_STEPS_MS[Math.min(strikes, PIN_LOCK_STEPS_MS.length) - 1]; }
+// Une table indexée par un pseudo que n'importe qui peut inventer ne doit pas
+// grossir sans fin.
+function sweepPinFails() {
+  const now = Date.now();
+  for (const [k, e] of pinFailsByName) if (now - (e.seenAt || 0) > PIN_FAILS_TTL_MS) pinFailsByName.delete(k);
+  if (pinFailsByName.size > PIN_FAILS_MAX_ENTRIES) pinFailsByName.clear();
 }
 
 // Codes de partie inconnus : 20 par heure et par adresse, au-delà on ralentit.
@@ -269,15 +295,21 @@ function mount({ app, io }) {
         return;
       }
       if (res.reason === "pin_needed") { socket.emit("pin_needed", { name }); return; }
+      if (res.reason === "pin_weak") { socket.emit("pin_weak", { name, why: res.why }); return; }
       if (res.reason === "name_taken") { socket.emit("name_taken", { name }); return; }
       if (res.reason === "pin_required") { socket.emit("pin_required", { name }); return; }
       if (res.reason === "pin_wrong") {
-        const cur = pinFailsByName.get(k) || { count: 0, lockedUntil: 0 };
+        if (pinFailsByName.size > PIN_FAILS_MAX_ENTRIES) sweepPinFails();
+        const cur = pinFailsFor(k) || { count: 0, strikes: 0, lockedUntil: 0 };
         cur.count += 1;
-        if (cur.count >= MAX_PIN_ATTEMPTS) cur.lockedUntil = Date.now() + PIN_LOCK_MS;
+        cur.seenAt = Date.now();
+        if (cur.count >= MAX_PIN_ATTEMPTS) {
+          cur.strikes += 1;
+          cur.lockedUntil = Date.now() + pinLockMs(cur.strikes);
+        }
         pinFailsByName.set(k, cur);
         const left = Math.max(0, MAX_PIN_ATTEMPTS - cur.count);
-        if (left <= 0) socket.emit("identity_locked", { name });
+        if (left <= 0) socket.emit("identity_locked", { name, ms: pinLockMs(cur.strikes), strikes: cur.strikes });
         else socket.emit("pin_wrong", { name, attempts_left: left });
         return;
       }
@@ -289,6 +321,8 @@ function mount({ app, io }) {
       if (!sess || !sess.cid || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
       const pin = m && m.pin != null ? String(m.pin).trim() : "";
       if (!players.PIN_RE.test(pin)) { socket.emit("error_msg", { msg: "bad_pin" }); return; }
+      const weak = players.weakPin(pin);
+      if (weak) { socket.emit("pin_weak", { name: sess.name, why: weak }); return; }
       const acc = players.getAccount(sess.name);
       if (acc && acc.ownerCid && acc.ownerCid !== sess.cid) { socket.emit("error_msg", { msg: "not_owner" }); return; }
       players.setPin(sess.name, pin);
