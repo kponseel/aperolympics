@@ -15,13 +15,14 @@
 // sert les fichiers du disque depuis son propre cache en ignorant
 // Cache-Control : changer l'URL est le seul moyen sûr d'obtenir la dernière
 // version. Voir le commentaire détaillé dans index.html.
-const V = "2.3";
-const CACHE = "am-v6";
+const V = "2.5";
+const CACHE = "am-v8";
 const SHELL = [
   "/AreWeAMatch/", "/AreWeAMatch/index.html",
   "/AreWeAMatch/app.js?v=" + V, "/AreWeAMatch/style.css?v=" + V,
-  "/AreWeAMatch/vendor/qrcode.min.js?v=" + V, "/AreWeAMatch/manifest.webmanifest",
-  "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-180.png",
+  "/AreWeAMatch/vendor/qrcode.min.js?v=" + V,
+  // Le manifeste vient de Node (no-store) : on ne le met pas en cache.
+  "/icons/am-192.png?v=" + V, "/icons/am-512.png?v=" + V, "/icons/am-180.png?v=" + V,
 ];
 
 self.addEventListener("install", (e) => {

@@ -105,7 +105,7 @@
   var myProtected = false, pinMode = false, pendingCode = null, pendingResults = false, currentCode = null;
   var gamesCache = null, game = null, lastResults = null, refreshTimer = null, sceneCountHint = 20;
   // La scène en cours de réponse.
-  var play = { code: null, index: 0, myRank: [], submitted: false, reveal: null, finished: false };
+  var play = { code: null, index: 0, myRank: [], submitted: false, reveal: null, finished: false, sent: {} };
   // Mode dev.
   var devOn = false, devInfo = null, devBots = 2;
   function getDevToken() { try { return localStorage.getItem("am.devToken") || ""; } catch (e) { return ""; } }
@@ -222,6 +222,10 @@
           play.index = m.me.nextIndex; play.myRank = [];
           renderScene();
         }
+        // Quelqu'un vient de répondre à la scène d'avant : la fenêtre de retour
+        // se referme, le bouton doit disparaître tout de suite. Sinon il reste
+        // affiché et ne marche plus — pire qu'une absence de bouton.
+        else if (!play.submitted && !play.reveal && prev && undoSig(prev) !== undoSig(m)) renderScene();
       }
     });
     socket.on("answer_ack", function (m) {
@@ -237,13 +241,32 @@
       // Personne d'autre n'a encore répondu à cette scène : pas d'écran vide,
       // on enchaîne, avec un mot.
       if (play.reveal && play.reveal.answers.length <= 1 && !play.finished) {
-        toast("🥇 Tu es le premier à répondre à cette scène — les autres apparaîtront ici après coup.");
+        toast("🥇 Premier sur cette scène — tu peux encore y revenir tant que personne n'a répondu.");
         play.index = (m.index != null) ? m.index : play.index + 1;
         play.myRank = []; play.submitted = false; play.reveal = null;
         renderScene();
         return;
       }
       renderReveal();
+    });
+    // Retour sur une réponse : le serveur l'a effacée, on repose l'écran sur
+    // cette scène, avec le classement qu'on avait envoyé — il suffit de
+    // corriger ce qui n'allait pas plutôt que de tout refaire.
+    socket.on("unanswer_ack", function (m) {
+      if (!m) return;
+      if (!m.ok) {
+        if (m.reason === "revealed") toast("Trop tard : quelqu'un a répondu à cette scène, tu as vu sa réponse.");
+        else if (m.reason === "finished") toast("Tu as terminé la partie : les réponses sont définitives.");
+        else if (m.reason === "not_answered") toast("Tu n'as pas encore répondu à cette scène.");
+        else toast("Impossible de revenir sur cette réponse.");
+        return;
+      }
+      if (screen !== "s-play") return;
+      play.index = (m.index != null) ? m.index : Math.max(0, play.index - 1);
+      play.myRank = ((play.sent && play.sent[m.qid]) || []).slice();
+      play.submitted = false; play.reveal = null; play.finished = false;
+      renderScene();
+      toast("↩️ Tu peux refaire ton classement.");
     });
     socket.on("game_results", function (m) {
       if (!m || (currentCode && m.code !== currentCode)) return;
@@ -409,6 +432,7 @@
   }
   function renderHome() {
     updateMe();
+    renderInstall();
     var wrap = $("amGames"); if (!wrap) return;
     var list = gamesCache || [];
     if (!list.length) {
@@ -611,10 +635,18 @@
   // ---------- répondre ----------
   function startPlay() {
     if (!game || !game.me || !game.me.joined) return;
-    play = { code: game.code, index: game.me.nextIndex || 0, myRank: [], submitted: false, reveal: null, finished: !!game.me.finished };
+    play = { code: game.code, index: game.me.nextIndex || 0, myRank: [], submitted: false, reveal: null, finished: !!game.me.finished, sent: {} };
     show("s-play");
     renderScene();
   }
+  // Peut-on revenir sur la scène d'avant ? Le serveur tranche (games.unanswer),
+  // mais il nous dit d'avance lesquelles sont encore ouvertes : celles où on
+  // est le seul à avoir répondu, donc où il n'y avait rien à voir.
+  function canUndo(index) {
+    var u = game && game.me && game.me.undoable;
+    return !!(u && index >= 0 && u.indexOf(index) >= 0);
+  }
+  function undoSig(g) { return (g && g.me && g.me.undoable ? g.me.undoable : []).join(","); }
   function othersAnswered(index) {
     // Chacun répond dans l'ordre : ceux dont la progression dépasse l'index
     // ont répondu à cette scène.
@@ -655,7 +687,12 @@
       body += '<p class="am-ranknote">' + (play.myRank.length === 0 ? "Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1."
         : (play.myRank.length < n ? "Encore " + (n - play.myRank.length) + " à classer… (touche une réponse classée pour l'enlever)" : "Classement complet !")) + '</p>';
       body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>✅ Valider</button>';
-      body += '<p class="am-hint center">Une fois validée, ta réponse ne change plus : tu verras alors celles des autres.</p>';
+      body += '<p class="am-hint center">En validant, tu découvres les réponses des autres — et ta réponse se fige. Tant que personne d\'autre n\'a répondu à une scène, tu peux encore y revenir.</p>';
+      // Valider trop vite arrive. Tant que personne d'autre n'a répondu à la
+      // scène d'avant, il n'y avait rien à voir : on peut y retourner.
+      if (canUndo(play.index - 1)) {
+        body += '<button class="am-ghost" id="amUndo">↩️ Revenir sur la scène ' + play.index + '</button>';
+      }
     }
     $("amPlayBody").innerHTML = body;
     updatePlayMeta();
@@ -673,8 +710,15 @@
       if (play.myRank.length !== n || !socket) return;
       if (!connected) { toast("Pas de connexion là — réessaie dans un instant."); return; }
       play.submitted = true;
+      play.sent[q.id] = play.myRank.slice();   // pour repré-remplir si on revient dessus
       socket.emit("answer", { code: play.code, qid: q.id, ranking: play.myRank.slice() });
       renderScene();
+    };
+    var ub = $("amUndo");
+    if (ub) ub.onclick = function () {
+      if (!socket || !connected) { toast("Pas de connexion là — réessaie dans un instant."); return; }
+      var prev = game.scenes[play.index - 1];
+      if (prev) socket.emit("unanswer", { code: play.code, qid: prev.id });
     };
   }
   // Le reveal d'une scène : ce que les autres ont répondu, et mon accord avec chacun.
@@ -841,8 +885,10 @@
     body += '<p class="am-hint center">Le score, c\'est la part de vos comparaisons qui tombent pareil : 3 par scène (A/B, A/C, B/C), 1 point par accord. Deux personnes au hasard tournent autour de 50 %.</p>';
     body += backLinkCard(r);
     body += '<button class="am-ghost" id="amScenes">👀 Scène par scène</button>';
+    body += installHtml();     // après les résultats, c'est là qu'on a envie de garder l'app
     $("amResultsBody").innerHTML = body;
     $("amScenes").onclick = function () { if (socket) socket.emit("get_reveals", { code: currentCode }); };
+    wireInstall($("amResultsBody"));
     wireResultsExtras(r);
   }
   // « Scène par scène » : tous les reveals, y compris ceux qui se sont remplis après coup.
@@ -905,6 +951,85 @@
       socket.emit("dev_start", { bots: devBots });
     };
   }
+
+  // ---------- installation sur l'écran d'accueil ----------
+  // L'app est installable depuis toujours (manifeste + service worker), mais
+  // personne ne le savait : Chrome le range dans un sous-menu, et Safari ne
+  // propose rien du tout. On le dit donc nous-mêmes, différemment selon le
+  // téléphone, et jamais quand c'est déjà fait.
+  var deferredInstall = null, installed = false;
+  function isStandalone() {
+    try {
+      return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+             window.navigator.standalone === true;
+    } catch (e) { return false; }
+  }
+  // Safari iOS n'émet jamais beforeinstallprompt et n'a pas d'API : la seule
+  // chose possible est d'expliquer le geste.
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent || "") ||
+           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);   // iPad récent
+  }
+  function installState() {
+    if (installed || isStandalone()) return "done";
+    if (deferredInstall) return "prompt";
+    if (isIOS()) return "ios";
+    return "none";
+  }
+  function installHtml() {
+    var st = installState();
+    if (st === "done" || st === "none") return "";
+    return '<button type="button" class="am-ghost am-install" data-install="' + st + '">📲 ' +
+      (st === "ios" ? "Ajouter à l'écran d'accueil" : "Installer l'app") + '</button>';
+  }
+  function wireInstall(root) {
+    var b = (root || document).querySelector("[data-install]");
+    if (!b) return;
+    b.onclick = function () { b.getAttribute("data-install") === "ios" ? iosInstallSheet() : runInstallPrompt(); };
+  }
+  function runInstallPrompt() {
+    var e = deferredInstall;
+    if (!e) { renderInstall(); return; }
+    deferredInstall = null;                       // l'événement ne se rejoue pas
+    try { e.prompt(); } catch (err) { renderInstall(); return; }
+    var choice = e.userChoice && e.userChoice.then ? e.userChoice : null;
+    if (choice) choice.then(function (r) {
+      if (r && r.outcome === "accepted") { installed = true; toast("📲 C'est installé — regarde ton écran d'accueil."); }
+      renderInstall();
+    }, function () { renderInstall(); });
+    else renderInstall();
+  }
+  function iosInstallSheet() {
+    openSheet("📲 Sur ton iPhone",
+      "<p>Safari ne sait pas installer tout seul : trois gestes, une fois pour toutes.</p>" +
+      '<ol class="am-steps compact">' +
+      '<li><span class="num">1</span> <span class="t">Touche <b>Partager</b> en bas de Safari — le carré avec la flèche vers le haut.</span></li>' +
+      '<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>' +
+      '<li><span class="num">3</span> <span class="t">Touche <b>Ajouter</b>. L\'icône 💘 apparaît avec tes autres apps.</span></li>' +
+      "</ol>" +
+      "<p class='am-hint'>Ensuite l'app s'ouvre en plein écran, sans la barre du navigateur, et tes parties sont là — ton pseudo et ton PIN suffisent.</p>");
+  }
+  function renderInstall() {
+    var host = $("amInstall");
+    if (host) { host.innerHTML = installHtml(); wireInstall(host); }
+    // Sur l'écran des résultats, le bloc est reconstruit avec le reste.
+    if (screen === "s-results" && lastResults) {
+      var inRes = document.querySelector("#amResultsBody [data-install]");
+      if (inRes && installState() === "done") inRes.parentNode.removeChild(inRes);
+    }
+  }
+  // Enregistré au chargement du script, pas dans DOMContentLoaded :
+  // beforeinstallprompt peut arriver très tôt, et il ne se rejoue pas.
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredInstall = e;
+    renderInstall();
+  });
+  window.addEventListener("appinstalled", function () {
+    installed = true; deferredInstall = null;
+    renderInstall();
+    toast("📲 C'est installé — regarde ton écran d'accueil.");
+  });
 
   // ---------- onboarding ----------
   // Personne ne sera là pour expliquer le jeu : il s'explique tout seul, une
@@ -994,6 +1119,7 @@
     else show("s-home");
     // Première ouverture : le jeu s'explique avant qu'on demande quoi que ce soit.
     if (!onbSeen()) openOnboarding();
+    renderInstall();
     if (getDevToken()) { var tk = getDevToken(); socket.on("identity_ok", function () { if (getDevToken() === tk && !devOn) socket.emit("dev_unlock", { token: tk }); }); }
     if (/[?&]dev(=|&|$)/.test(location.search)) setTimeout(openDevSheet, 400);
     window.__amForceCloseSheet = forceCloseSheet;

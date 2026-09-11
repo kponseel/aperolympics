@@ -297,7 +297,49 @@ function answer(code, name, qid, ranking) {
     }
   }
   touch(g);
-  return { ok: true, finished, index: nextIndexOf(g, p), progress: progressOf(g, p), reveal: sceneReveal(g, qid, key(name)) };
+  return { ok: true, finished, index: nextIndexOf(g, p), progress: progressOf(g, p),
+    reveal: sceneReveal(g, qid, key(name)), undoable: soleAnswerer(g, p, qid) };
+}
+
+// Suis-je le SEUL à avoir répondu à cette scène ? C'est la seule fenêtre où
+// revenir sur sa réponse ne peut rien m'apprendre : le reveal était vide.
+function soleAnswerer(g, me, qid) {
+  if (!me.answers[qid]) return false;
+  for (const p of playerList(g)) if (p !== me && p.answers[qid]) return false;
+  return true;
+}
+
+// Revenir sur une réponse déjà validée. Valider trop vite arrive, et rester
+// coincé sur un classement qu'on n'a pas voulu est une frustration réelle.
+//
+// Mais « une réponse validée ne se change plus » n'est pas une lubie : on voit
+// les réponses des autres DÈS qu'on valide, donc pouvoir revenir dessus après,
+// ce serait recopier. La règle devient donc : on peut revenir tant qu'on est
+// le SEUL à avoir répondu à cette scène — là, il n'y avait rien à voir.
+//
+// Et jamais après avoir fini : le profil a déjà compté la partie, défaire
+// rouvrirait la porte au double comptage que l'audit avait fermée.
+function unanswer(code, name, qid) {
+  const g = getGame(code);
+  if (!g) return { ok: false, reason: "unknown_game" };
+  const p = g.players[key(name)];
+  if (!p) return { ok: false, reason: "not_in_game" };
+  if (!g.sceneIds.includes(qid)) return { ok: false, reason: "unknown_scene" };
+  if (!p.answers[qid]) return { ok: false, reason: "not_answered" };
+  if (p.finishedAt) return { ok: false, reason: "finished" };
+  if (!soleAnswerer(g, p, qid)) return { ok: false, reason: "revealed" };
+  delete p.answers[qid];
+  touch(g);
+  return { ok: true, index: nextIndexOf(g, p), progress: progressOf(g, p) };
+}
+// Les scènes sur lesquelles le joueur peut encore revenir : celles auxquelles
+// il a répondu et où il est seul. Le client s'en sert pour proposer le retour,
+// mais c'est unanswer() qui fait autorité.
+function undoableIndexes(g, p) {
+  if (p.finishedAt) return [];
+  const out = [];
+  g.sceneIds.forEach((id, i) => { if (p.answers[id] && soleAnswerer(g, p, id)) out.push(i); });
+  return out;
 }
 function recordProfile(g, p) {
   const byPack = {};
@@ -464,8 +506,8 @@ function state(code, name) {
     sceneCount: g.sceneIds.length, createdAt: g.createdAt, updatedAt: g.updatedAt, closedAt: g.closedAt,
     players: all.map((p) => ({ name: p.name, progress: progressOf(g, p), finished: !!p.finishedAt, host: key(p.name) === g.hostKey, me: p === me, bot: !!p.bot })),
     playerCount: all.length, finishedCount: all.filter((p) => p.finishedAt).length,
-    me: me ? { joined: true, host: k === g.hostKey, progress: progressOf(g, me), finished: !!me.finishedAt, nextIndex: nextIndexOf(g, me), teaser: me.finishedAt ? null : teaserFor(g, me) }
-            : { joined: false, host: false, progress: 0, finished: false, nextIndex: 0, teaser: null },
+    me: me ? { joined: true, host: k === g.hostKey, progress: progressOf(g, me), finished: !!me.finishedAt, nextIndex: nextIndexOf(g, me), teaser: me.finishedAt ? null : teaserFor(g, me), undoable: undoableIndexes(g, me) }
+            : { joined: false, host: false, progress: 0, finished: false, nextIndex: 0, teaser: null, undoable: [] },
   };
   if (me) out.scenes = scenes(g);   // le contenu des scènes, réservé aux joueurs de la partie
   return out;
@@ -594,7 +636,7 @@ function adminList() {
 function _reset() { data = emptyData(); if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } }
 
 module.exports = {
-  createGame, joinGame, answer, results, reveal, revealsFor, state, listFor, markSeen, isPlayer,
+  createGame, joinGame, answer, unanswer, results, reveal, revealsFor, state, listFor, markSeen, isPlayer,
   closeGame, reopenGame, removePlayer, hideGame, deleteGame,
   createTestGame, purgeTestGames, adminList,
   getGame, normCode, flush, question: (id) => { const q = BY_ID.get(id); return q ? pubQuestion(q) : null; },

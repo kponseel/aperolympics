@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Are We A Match ?">
+  <defs>
+    <linearGradient id="h" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff6f9c"/>
+      <stop offset="1" stop-color="#7c5cff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#17122a"/>
+  <!-- flèche : deux segments, elle passe DERRIÈRE le cœur -->
+  <g stroke="#ffd23f" stroke-width="22" stroke-linecap="round" fill="none">
+    <path d="M74 400 L168 322"/>
+    <path d="M348 218 L442 140"/>
+  </g>
+  <path d="M442 140 L470 112 L462 158 Z" fill="#ffd23f"/>
+  <path d="M74 400 L46 428 L92 420 Z" fill="#ffd23f"/>
+  <!-- cœur -->
+  <g transform="translate(96 118) scale(3.2)">
+    <path d="M50,88 C20,66 5,48 5,32 C5,18 16,8 29,8 C38,8 46,13 50,20 C54,13 62,8 71,8 C84,8 95,18 95,32 C95,48 80,66 50,88 Z" fill="url(#h)"/>
+  </g>
+</svg>

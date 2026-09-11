@@ -8,9 +8,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Are We A Match" />
-  <link rel="manifest" href="/AreWeAMatch/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon.svg" />
-  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+  <!-- Servi par Node (voir server/match/index.js) : l'hébergeur rendait le
+       .webmanifest en text/plain et son CDN le gardait en cache. -->
+  <link rel="manifest" href="/AreWeAMatch/app.webmanifest" />
+  <link rel="icon" href="/icons/am-icon.svg?v=2.5" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/am-192.png?v=2.5" />
+  <link rel="apple-touch-icon" href="/icons/am-180.png?v=2.5" />
   <!-- ?v=… : OBLIGATOIRE, et à faire suivre VERSION dans server/match/version.js
        (le test verify_cachebust échoue sinon).
 
@@ -23,7 +26,7 @@
        l'URL à chaque version : le CDN ne l'a jamais vue, il va la chercher.
        index.html, lui, n'est pas mis en cache (x-hcdn-cache-status: DYNAMIC),
        c'est ce qui rend l'astuce fiable. -->
-  <link rel="stylesheet" href="/AreWeAMatch/style.css?v=2.3" />
+  <link rel="stylesheet" href="/AreWeAMatch/style.css?v=2.5" />
 </head>
 <body>
   <header class="am-topbar">
@@ -82,6 +85,9 @@
       <button class="am-primary" id="amCreate">➕ Créer une partie</button>
       <button class="am-ghost" id="amJoinBtn">🔗 Rejoindre avec un code</button>
       <button class="am-ghost" id="amHowto2">💡 Comment ça marche ?</button>
+      <!-- Installation sur l'écran d'accueil : rempli par app.js seulement
+           quand c'est possible et que ce n'est pas déjà fait. -->
+      <div id="amInstall"></div>
       <!-- Mode dev : carte 🧪 (vide tant que le mode n'est pas déverrouillé) -->
       <div id="amDev"></div>
       <!-- Version + date de la dernière mise à jour (rempli depuis games_list) -->
@@ -133,10 +139,10 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/AreWeAMatch/vendor/qrcode.min.js?v=2.3"></script>
-  <script src="/AreWeAMatch/app.js?v=2.3"></script>
+  <script src="/AreWeAMatch/vendor/qrcode.min.js?v=2.5"></script>
+  <script src="/AreWeAMatch/app.js?v=2.5"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js?v=2.3", { scope: "/AreWeAMatch/" });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js?v=2.5", { scope: "/AreWeAMatch/" });
   </script>
 </body>
 </html>
