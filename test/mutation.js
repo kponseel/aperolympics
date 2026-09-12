@@ -141,6 +141,15 @@ const MUTATIONS = [
 
   // La langue du t\u00e9l\u00e9phone n'est plus lue au d\u00e9marrage : tout d\u00e9marre en
   // fran\u00e7ais, quel que soit le r\u00e9glage.
+  // Le cas qui a \u00e9chapp\u00e9 \u00e0 la premi\u00e8re version du contr\u00f4le : du fran\u00e7ais SANS
+  // accent, invisible \u00e0 une liste de mots devin\u00e9e. « Partager » s'affichait tel
+  // quel aux anglophones sur l'\u00e9cran de partie.
+  ["public/AreWeAMatch/app.js",
+    'id="amShare">\' + T("Partager") + \'',
+    'id="amShare">Partager',
+    "15-langues",
+    "du fran\u00e7ais sans accent ressort sans T() (\u00ab Partager \u00bb)"],
+
   ["public/AreWeAMatch/app.js",
     "    lang = langInitiale();",
     '    lang = "fr";',
