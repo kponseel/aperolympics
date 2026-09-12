@@ -27,6 +27,25 @@ const players = require("./players");
 const storage = require("../storage");
 
 const SCENES_PER_GAME = Number(process.env.MATCH_SCENES) > 0 ? Number(process.env.MATCH_SCENES) : 20;
+// ---------------------------------------------------------------- langues
+// Une scène existe dans TOUTES les langues, avec les mêmes options dans le
+// même ordre : un classement est un tableau d'indices dans `o`, et deux
+// langues désalignées feraient mentir tous les scores en silence. C'est ce
+// qui permet à un francophone et à un anglophone de jouer la même partie.
+// La suite de tests 15-langues garde cet alignement.
+//
+// Déclaré ICI, avant tout le reste : ensureGameSchema() tourne dès le
+// chargement du module (il relit les parties sauvegardées) et appelle
+// nbOptions(). Plus bas dans le fichier, le serveur plantait au démarrage
+// dès qu'une partie existait sur le disque.
+const LANGS = ["fr", "en"];
+const LANG_DEFAUT = "fr";
+function normLang(l) { return LANGS.includes(String(l || "").slice(0, 2).toLowerCase()) ? String(l).slice(0, 2).toLowerCase() : LANG_DEFAUT; }
+// Le nombre d'options, identique dans toutes les langues par construction.
+function nbOptions(q) { return (q && q[LANG_DEFAUT] && q[LANG_DEFAUT].o.length) || 0; }
+// Les libellés d'options dans une langue donnée, pour les résultats.
+function options(q, lang) { return (q[normLang(lang)] || q[LANG_DEFAUT]).o; }
+
 const MIN_SHARED = 5;                 // scènes communes minimum pour une compatibilité provisoire
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"; // sans 0/O, 1/I/L : tapable sans hésiter
 const CODE_LEN = 5;
@@ -106,7 +125,7 @@ function ensureGameSchema(g) {
     const a = (p.answers && typeof p.answers === "object") ? p.answers : {};
     for (const qid of Object.keys(a)) {
       const q = BY_ID.get(qid);
-      if (q && g.sceneIds.includes(qid) && engine.isValidRanking(a[qid], q.o.length)) answers[qid] = a[qid].slice();
+      if (q && g.sceneIds.includes(qid) && engine.isValidRanking(a[qid], nbOptions(q))) answers[qid] = a[qid].slice();
     }
     ps[k] = { name: String(p.name), joinedAt: p.joinedAt || 0, finishedAt: p.finishedAt || null, answers, hidden: !!p.hidden, seenAt: p.seenAt || 0, bot: !!p.bot };
   }
@@ -165,12 +184,16 @@ function genCode() {
 
 // ---------------------------------------------------------------- accès
 function getGame(code) { const c = normCode(code); return (c && data.byCode[c]) || null; }
-function pubQuestion(q) {
-  const out = { id: q.id, q: q.q, o: q.o.slice(), pack: q.pack };
-  if (q.ctx) out.ctx = q.ctx;
+// Ce qui part vers le client, dans SA langue. `axis` et `heat` restent au
+// serveur : ils diraient au joueur le plan de la partie et le niveau d'aveu
+// d'une scène avant qu'il réponde.
+function pubQuestion(q, lang) {
+  const b = q[normLang(lang)] || q[LANG_DEFAUT];
+  const out = { id: q.id, q: b.q, o: b.o.slice(), pack: q.pack };
+  if (b.ctx) out.ctx = b.ctx;
   return out;
 }
-function scenes(g) { return g.sceneIds.map((id) => pubQuestion(BY_ID.get(id))); }
+function scenes(g, lang) { return g.sceneIds.map((id) => pubQuestion(BY_ID.get(id), lang)); }
 function progressOf(g, p) { let n = 0; for (const id of g.sceneIds) if (p.answers[id]) n++; return n; }
 function nextIndexOf(g, p) { for (let i = 0; i < g.sceneIds.length; i++) if (!p.answers[g.sceneIds[i]]) return i; return g.sceneIds.length; }
 function touch(g) { g.updatedAt = Date.now(); scheduleSave(); }
@@ -278,7 +301,7 @@ function joinGame(code, name) {
 // nouvelles arrivées (joinGame). Sinon un joueur resté à 19/20 se retrouvait
 // dans un cul-de-sac — ni finir, ni voir les résultats finaux — parce que
 // l'hôte avait cliqué sur un bouton qui parlait d'inscriptions.
-function answer(code, name, qid, ranking) {
+function answer(code, name, qid, ranking, lang) {
   const g = getGame(code);
   if (!g) return { ok: false, reason: "unknown_game" };
   const p = g.players[key(name)];
@@ -286,7 +309,7 @@ function answer(code, name, qid, ranking) {
   if (!g.sceneIds.includes(qid)) return { ok: false, reason: "unknown_scene" };
   const q = BY_ID.get(qid);
   if (p.answers[qid]) return { ok: false, reason: "already_answered" };
-  if (!engine.isValidRanking(ranking, q.o.length)) return { ok: false, reason: "bad_ranking" };
+  if (!engine.isValidRanking(ranking, nbOptions(q))) return { ok: false, reason: "bad_ranking" };
   p.answers[qid] = ranking.slice();
   let finished = false;
   if (progressOf(g, p) === g.sceneIds.length) {
@@ -311,7 +334,7 @@ function answer(code, name, qid, ranking) {
   }
   touch(g);
   return { ok: true, finished, index: nextIndexOf(g, p), progress: progressOf(g, p),
-    reveal: sceneReveal(g, qid, key(name)), undoable: soleAnswerer(g, p, qid) };
+    reveal: sceneReveal(g, qid, key(name), lang), undoable: soleAnswerer(g, p, qid) };
 }
 
 // Suis-je le SEUL à avoir répondu à cette scène ? C'est la seule fenêtre où
@@ -368,7 +391,7 @@ function recordProfile(g, p) {
 // Ce que voit un joueur qui a répondu à une scène : les classements de TOUS
 // ceux qui y ont répondu (lui compris), le classement du groupe, les accords
 // parfaits, et qui manque encore. Jamais rien si le joueur n'a pas répondu.
-function sceneReveal(g, qid, viewerKey) {
+function sceneReveal(g, qid, viewerKey, lang) {
   const me = g.players[viewerKey];
   if (!me || !me.answers[qid]) return null;
   const q = BY_ID.get(qid);
@@ -379,27 +402,27 @@ function sceneReveal(g, qid, viewerKey) {
     if (p.answers[qid]) { byName[p.name] = p.answers[qid]; answers.push({ name: p.name, ranking: p.answers[qid].slice(), me: p === me }); }
     else missing.push(p.name);
   }
-  const gr = engine.groupRanking(byName, q.o.length);
+  const gr = engine.groupRanking(byName, nbOptions(q));
   return {
-    qid, index: g.sceneIds.indexOf(qid), question: pubQuestion(q),
+    qid, index: g.sceneIds.indexOf(qid), question: pubQuestion(q, lang),
     answers, missing,
-    group: gr.order.map((x) => ({ option: x.option, label: q.o[x.option], score: x.score, firstPicks: x.firstPicks })),
+    group: gr.order.map((x) => ({ option: x.option, label: options(q, lang)[x.option], score: x.score, firstPicks: x.firstPicks })),
     voters: gr.voters,
-    perfect: engine.perfectPairsFor(byName, q.o.length),
+    perfect: engine.perfectPairsFor(byName, nbOptions(q)),
   };
 }
-function reveal(code, name, qid) {
+function reveal(code, name, qid, lang) {
   const g = getGame(code);
   if (!g) return null;
-  return sceneReveal(g, qid, key(name));
+  return sceneReveal(g, qid, key(name), lang);
 }
 // « Scène par scène » : tous les reveals auxquels le joueur a droit.
-function revealsFor(code, name) {
+function revealsFor(code, name, lang) {
   const g = getGame(code);
   if (!g) return null;
   const k = key(name);
   if (!g.players[k]) return null;
-  return g.sceneIds.map((qid) => sceneReveal(g, qid, k)).filter(Boolean);
+  return g.sceneIds.map((qid) => sceneReveal(g, qid, k, lang)).filter(Boolean);
 }
 
 // ---------------------------------------------------------------- résultats
@@ -427,7 +450,7 @@ function teaserFor(g, me) {
   return best;
 }
 
-function results(code, name) {
+function results(code, name, lang) {
   const g = getGame(code);
   if (!g) return null;
   const k = key(name);
@@ -471,13 +494,14 @@ function results(code, name) {
     },
     personal: engine.personalFor(me.name, res),
     provisional,
-    moments: moments(g, finished),
+    moments: moments(g, finished, lang),
   });
 }
 
 // Les moments de la partie, sur les joueurs finis : la scène qui divise le
 // plus, la scène unanime, le duo le plus souvent en accord parfait.
-function moments(g, finished) {
+function moments(g, finished, lang) {
+  const lang0 = normLang(lang);
   if (finished.length < 2) return null;
   let divisive = null, unanimous = null;
   const perfectCount = Object.create(null);
@@ -489,13 +513,13 @@ function moments(g, finished) {
     if (names.length < 2) continue;
     let agree = 0, total = 0;
     for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
-      const r = engine.pairAgreement(byName[names[i]], byName[names[j]], q.o.length);
+      const r = engine.pairAgreement(byName[names[i]], byName[names[j]], nbOptions(q));
       agree += r.agree; total += r.total;
     }
     const pct = total ? Math.round((agree / total) * 100) : 0;
-    if (!divisive || pct < divisive.pct) divisive = { qid: id, q: q.q, pct };
-    if (pct === 100 && (!unanimous || names.length > unanimous.voters)) unanimous = { qid: id, q: q.q, voters: names.length };
-    for (const pair of engine.perfectPairsFor(byName, q.o.length)) {
+    if (!divisive || pct < divisive.pct) divisive = { qid: id, q: q[lang0].q, pct };
+    if (pct === 100 && (!unanimous || names.length > unanimous.voters)) unanimous = { qid: id, q: q[lang0].q, voters: names.length };
+    for (const pair of engine.perfectPairsFor(byName, nbOptions(q))) {
       const pk = [pair.a, pair.b].sort().join(" & ");
       perfectCount[pk] = (perfectCount[pk] || 0) + 1;
     }
@@ -508,7 +532,7 @@ function moments(g, finished) {
 // ---------------------------------------------------------------- état public
 // Ce que voit quelqu'un qui ouvre la partie (joueur ou non). Jamais une
 // réponse : celles-ci ne sortent que par sceneReveal / results.
-function state(code, name) {
+function state(code, name, lang) {
   const g = getGame(code);
   if (!g) return null;
   const k = key(name);
@@ -522,7 +546,7 @@ function state(code, name) {
     me: me ? { joined: true, host: k === g.hostKey, progress: progressOf(g, me), finished: !!me.finishedAt, nextIndex: nextIndexOf(g, me), teaser: me.finishedAt ? null : teaserFor(g, me), undoable: undoableIndexes(g, me) }
             : { joined: false, host: false, progress: 0, finished: false, nextIndex: 0, teaser: null, undoable: [] },
   };
-  if (me) out.scenes = scenes(g);   // le contenu des scènes, réservé aux joueurs de la partie
+  if (me) out.scenes = scenes(g, lang);   // le contenu des scènes, réservé aux joueurs de la partie
   return out;
 }
 
@@ -646,7 +670,7 @@ function createTestGame(hostName, bots) {
     for (const id of g.sceneIds) {
       const q = BY_ID.get(id);
       const perm = BOT_PERMS[i];
-      p.answers[id] = perm.length === q.o.length ? perm.slice() : Array.from({ length: q.o.length }, (_, k2) => k2);
+      p.answers[id] = perm.length === nbOptions(q) ? perm.slice() : Array.from({ length: nbOptions(q) }, (_, k2) => k2);
     }
     g.players[key(p.name)] = p;
   }
@@ -685,6 +709,7 @@ module.exports = {
   createGame, joinGame, answer, unanswer, results, reveal, revealsFor, state, listFor, markSeen, isPlayer,
   closeGame, reopenGame, removePlayer, hideGame, deleteGame, deleteGameAsHost, deletionImpact,
   createTestGame, purgeTestGames, adminList,
-  getGame, normCode, flush, question: (id) => { const q = BY_ID.get(id); return q ? pubQuestion(q) : null; },
+  getGame, normCode, flush, question: (id, lang) => { const q = BY_ID.get(id); return q ? pubQuestion(q, lang) : null; },
+  LANGS, LANG_DEFAUT, normLang,
   SCENES_PER_GAME, SCENE_CHOICES, MIN_SHARED, MAX_BOTS, BANK_SIZE: BANK.length, CODE_LEN, _reset,
 };

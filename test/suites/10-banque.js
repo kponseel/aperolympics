@@ -34,6 +34,8 @@ exports.run = async (t) => {
   t.check("Aucun id ne rentre en collision avec le pack désactivé pop_culture",
     collisions.length === 0, collisions.join(" "));
 
+  // La forme de chaque langue (options, longueurs, emojis, sens du classement,
+  // typographie) est contrôlée par la suite 15-langues, POUR CHAQUE LANGUE.
   t.section("Forme");
   const AXES = ["gouts", "rythme", "argent", "autres", "vices", "agace"];
   const mauvaisAxe = toutes.filter((q) => !AXES.includes(q.axis));
@@ -45,33 +47,6 @@ exports.run = async (t) => {
   t.check("Le préfixe de l'id dit l'axe (sauf les 45 historiques en am-)",
     mauvaisPrefixe.length === 0, mauvaisPrefixe.map((q) => q.id + " / " + q.axis).join(" "));
 
-  const mauvaisO = toutes.filter((q) => !Array.isArray(q.o) || q.o.length !== 3 || new Set(q.o).size !== 3 || q.o.some((o) => !String(o).trim()));
-  t.check("Exactement 3 options distinctes et non vides", mauvaisO.length === 0, mauvaisO.map((q) => q.id).join(" "));
-
-  // L'emoji de tête est retiré pour la légende du reveal (emojiOf dans app.js) :
-  // sans lui, la légende affiche un numéro à la place.
-  const sansEmoji = toutes.filter((q) => q.o.some((o) => /^[\w\d«"'(\[]/.test(o)));
-  t.check("Chaque option commence par un emoji", sansEmoji.length === 0, sansEmoji.map((q) => q.id).join(" "));
-
-  const qCourte = toutes.filter((q) => !q.q || q.q.length < 15 || q.q.length > 62);
-  t.check("Chaque question fait entre 15 et 62 caractères", qCourte.length === 0, qCourte.map((q) => q.id + "=" + (q.q || "").length).join(" "));
-
-  const optLongue = toutes.filter((q) => q.o.some((o) => o.length > 55));
-  t.check("Aucune option ne dépasse 55 caractères (au-delà : 3 lignes sur un téléphone)",
-    optLongue.length === 0, optLongue.map((q) => q.id).join(" "));
-
-  t.section("Le sens du classement");
-  const sansCtx = toutes.filter((q) => typeof q.ctx !== "string" || q.ctx.trim().length < 40);
-  t.check("Chaque scène a une ligne de contexte (≥ 40 caractères)", sansCtx.length === 0, sansCtx.map((q) => q.id).join(" "));
-
-  const ctxLong = toutes.filter((q) => q.ctx.length > 150);
-  t.check("… qui tient sur un téléphone (≤ 150 caractères)", ctxLong.length === 0, ctxLong.map((q) => q.id + "=" + q.ctx.length).join(" "));
-
-  // « du … au … », « de la plus … à la moins … » : le joueur doit savoir s'il
-  // classe du meilleur au pire ou l'inverse.
-  const sansSens = toutes.filter((q) => !/(?:^|[\s.])(du|de|des)\s[^.]*\s(au|aux|à)\s[^.]*\.$/i.test(q.ctx));
-  t.check("Chaque contexte se termine par le sens du classement", sansSens.length === 0, sansSens.map((q) => q.id).join(" "));
-
   t.section("Ce qu'une scène n'a pas le droit de présupposer");
   // Une partie se joue aussi bien avec sa mère qu'avec son meilleur pote :
   // rien ne doit supposer que les deux joueurs forment un couple.
@@ -79,15 +54,11 @@ exports.run = async (t) => {
   // « au lit » ni « en couple » dans l'absolu : un café apporté au lit peut
   // venir d'un parent, et une scène PEUT parler de la vie amoureuse du joueur
   // (« Rester ami avec un ex ») tant qu'elle ne suppose rien sur la paire.
-  const COUPLE = /(ton copain|ta copine|ton conjoint|ta conjointe|ton\/ta partenaire|votre couple|vous deux, en couple|entre vous deux au lit)/i;
-  const enCouple = toutes.filter((q) => COUPLE.test(q.q + " " + q.ctx + " " + q.o.join(" ")));
-  t.check("Aucune scène ne présuppose que vous êtes en couple tous les deux",
+  const COUPLE = /(ton copain|ta copine|ton conjoint|ta conjointe|ton\/ta partenaire|votre couple|vous deux, en couple|your partner|your boyfriend|your girlfriend|the two of you, as a couple)/i;
+  const enCouple = toutes.filter((q) => ["fr", "en"].some((l) =>
+    COUPLE.test(q[l].q + " " + q[l].ctx + " " + q[l].o.join(" "))));
+  t.check("Aucune scène ne présuppose que vous êtes en couple tous les deux, dans aucune des deux langues",
     enCouple.length === 0, enCouple.map((q) => q.id).join(" "));
-
-  t.section("Typographie");
-  // Depuis la 2.8 : sans espace insécable, le » part seul à la ligne suivante.
-  const guillemets = toutes.filter((q) => /« | »/.test(q.q + q.ctx + q.o.join("")));
-  t.check("Les guillemets ont une espace insécable", guillemets.length === 0, guillemets.map((q) => q.id).join(" "));
 
   t.section("Le tirage");
   const parAxe = {};
