@@ -245,10 +245,20 @@ function spreadAxes(list) {
 function playerList(g) { return Object.keys(g.players).map((k) => g.players[k]); }
 
 // ---------------------------------------------------------------- créer / rejoindre
-// Les trois longueurs proposées à la création. 5 est volontairement au-dessus
-// de MIN_SHARED : en dessous, le score de compatibilité ne reposerait sur rien
-// et l'app afficherait un chiffre qui ment.
-const SCENE_CHOICES = [5, 10, 20].filter((n) => n >= MIN_SHARED && n <= BANK.length);
+// La fourchette proposée à la création, de 5 à 50 scènes.
+//
+// Le plancher n'est pas arbitraire : c'est MIN_SHARED, le nombre de scènes en
+// dessous duquel le score de compatibilité ne repose sur rien — l'app
+// afficherait un pourcentage qui ment.
+//
+// Le plafond non plus. Une partie que personne ne finit n'a pas de résultats :
+// le score final ne se calcule qu'entre joueurs qui sont allés au bout. À 50
+// scènes on est déjà à ~25 minutes ; au-delà, on vendrait une partie qui
+// finira en réponses à moitié données. Il est aussi borné par la banque, pour
+// que demander plus de scènes qu'il n'en existe reste impossible.
+const SCENE_MIN = Math.max(5, MIN_SHARED);
+const SCENE_MAX = Math.min(50, BANK.length);
+const SCENE_STEP = 5;                // les crans du curseur, côté client
 
 function createGame(opts) {
   const o = opts || {};
@@ -256,13 +266,13 @@ function createGame(opts) {
   const hostKey = key(hostName);
   if (!hostKey) return { ok: false, reason: "bad_name" };
   // Une longueur absurde (négative, nulle, pas un nombre) retombe sur la
-  // valeur par défaut ; une longueur valide est bornée à [MIN_SHARED, banque].
-  // Le plancher n'est pas 1 : en dessous de MIN_SHARED le score de
+  // valeur par défaut ; une longueur valide est bornée à [SCENE_MIN,
+  // SCENE_MAX]. Le plancher n'est pas 1 : en dessous de MIN_SHARED le score de
   // compatibilité ne repose sur rien, et l'app afficherait un pourcentage qui
   // ment. Avant, sceneCount = -7 donnait une partie d'UNE scène.
   const demande = Number(o.sceneCount);
   const n = Number.isFinite(demande) && demande > 0
-    ? Math.max(MIN_SHARED, Math.min(BANK.length, Math.floor(demande)))
+    ? Math.max(SCENE_MIN, Math.min(SCENE_MAX, Math.floor(demande)))
     : SCENES_PER_GAME;
   const sceneIds = drawScenes(n).map((q) => q.id);
   const now = Date.now();
@@ -711,5 +721,5 @@ module.exports = {
   createTestGame, purgeTestGames, adminList,
   getGame, normCode, flush, question: (id, lang) => { const q = BY_ID.get(id); return q ? pubQuestion(q, lang) : null; },
   LANGS, LANG_DEFAUT, normLang,
-  SCENES_PER_GAME, SCENE_CHOICES, MIN_SHARED, MAX_BOTS, BANK_SIZE: BANK.length, CODE_LEN, _reset,
+  SCENES_PER_GAME, SCENE_MIN, SCENE_MAX, SCENE_STEP, MIN_SHARED, MAX_BOTS, BANK_SIZE: BANK.length, CODE_LEN, _reset,
 };

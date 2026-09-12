@@ -85,16 +85,22 @@ const MUTATIONS = [
     "un bouton redevient trop petit pour un doigt"],
 
   ["server/match/index.js",
-    "games.SCENE_CHOICES.includes(Number(m && m.sceneCount)) ? Number(m.sceneCount) : undefined",
-    "Number(m && m.sceneCount) || undefined",
+    "Number.isInteger(brut) && brut >= games.SCENE_MIN && brut <= games.SCENE_MAX ? brut : undefined",
+    "brut",
     "35-longueur",
     "le serveur accepte n'importe quelle longueur envoyée par le client"],
 
   ["server/match/games.js",
-    "? Math.max(MIN_SHARED, Math.min(BANK.length, Math.floor(demande)))",
-    "? Math.max(1, Math.min(BANK.length, Math.floor(demande)))",
+    "? Math.max(SCENE_MIN, Math.min(SCENE_MAX, Math.floor(demande)))",
+    "? Math.max(1, Math.min(SCENE_MAX, Math.floor(demande)))",
     "35-longueur",
     "une partie peut retomber à une seule scène (le score ne repose plus sur rien)"],
+
+  ["server/match/games.js",
+    "const SCENE_MAX = Math.min(50, BANK.length);",
+    "const SCENE_MAX = BANK.length;",
+    "35-longueur",
+    "le plafond de 50 saute et une partie peut demander toute la banque"],
 
   // ---- les deux langues ----
 
@@ -121,6 +127,25 @@ const MUTATIONS = [
     "",
     "15-langues",
     "une traduction dispara\u00eet du dictionnaire"],
+
+  // Une cl\u00e9 venue d'index.html ampute\u00e9e de sa balise fermante : elle reste
+  // une sous-cha\u00eene valide du fichier, donc ni orpheline ni manquante — mais
+  // elle ne correspond plus \u00e0 ce que le navigateur calcule, et la phrase
+  // s'affiche en fran\u00e7ais. C'est exactement ce qui \u00e9tait arriv\u00e9 au libell\u00e9
+  // du code de reprise.
+  ["public/AreWeAMatch/i18n.js",
+    '(4 chiffres)</span>": "\ud83d\udd12 Your recovery code <span class=\\"am-soft\\">(4 digits)</span>',
+    '(4 chiffres)": "\ud83d\udd12 Your recovery code <span class=\\"am-soft\\">(4 digits)',
+    "15-langues",
+    "une cl\u00e9 d'index.html est tronqu\u00e9e et la phrase reste en fran\u00e7ais"],
+
+  // La langue du t\u00e9l\u00e9phone n'est plus lue au d\u00e9marrage : tout d\u00e9marre en
+  // fran\u00e7ais, quel que soit le r\u00e9glage.
+  ["public/AreWeAMatch/app.js",
+    "    lang = langInitiale();",
+    '    lang = "fr";',
+    "96-tout-en-anglais",
+    "la langue du t\u00e9l\u00e9phone est ignor\u00e9e au d\u00e9marrage"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");

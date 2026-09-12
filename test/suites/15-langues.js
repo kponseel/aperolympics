@@ -192,6 +192,34 @@ exports.run = async (t) => {
   t.check("Aucune phrase française n'échappe à T()", nues.length === 0,
     nues.length + " restante(s) : " + nues.slice(0, 5).join(" | "));
 
+  // Une clé tronquée ne se voit pas : elle reste une sous-chaîne valide du
+  // fichier source, donc elle n'a l'air ni orpheline ni manquante — mais elle
+  // ne correspond plus à ce que le navigateur calcule, et la phrase s'affiche
+  // en français. C'est arrivé à « 🔒 Ton code de reprise <span…>(4 chiffres) »,
+  // amputée de son </span> : le libellé du code de reprise n'a jamais été
+  // traduit. Les balises d'une clé doivent donc être équilibrées.
+  const desequilibre = (s) => {
+    const ouvrants = (s.match(/<([a-z]+)(?: [^>]*)?>/g) || []).map((x) => /<([a-z]+)/.exec(x)[1]).filter((n) => n !== "br");
+    const fermants = (s.match(/<\/([a-z]+)>/g) || []).map((x) => /<\/([a-z]+)/.exec(x)[1]);
+    return ouvrants.sort().join(",") !== fermants.sort().join(",");
+  };
+  //
+  // Ne concerne QUE les clés venues d'index.html (les data-t) : là, la clé est
+  // comparée à ce que le navigateur calcule pour innerHTML, donc elle doit
+  // être un bloc complet. Les clés d'app.js, elles, sont légitimement des
+  // morceaux de phrase — le littéral du code EST la clé, l'égalité est exacte.
+  // (Ces morceaux restent fragiles pour d'autres raisons ; c'est un autre
+  // chantier, pas une régression.)
+  const tronquees = [];
+  for (const [k, v] of Object.entries(dico)) {
+    if (dures.has(k)) continue;                       // clé d'app.js : fragment autorisé
+    if (htmlPlat.indexOf(plat(k)) < 0) continue;      // ni app.js ni index.html : déjà signalée
+    if (desequilibre(k)) tronquees.push("clé : " + k.slice(0, 60));
+    else if (desequilibre(v)) tronquees.push("traduction de : " + k.slice(0, 60));
+  }
+  t.check("Les blocs d'index.html ne sont pas tronqués dans le dictionnaire", tronquees.length === 0,
+    tronquees.slice(0, 3).join(" | "));
+
   // Les blocs HTML traduits gardent leurs id : c'est le code qui s'y accroche.
   const idsCasses = [];
   for (const [k, v] of Object.entries(dico)) {
