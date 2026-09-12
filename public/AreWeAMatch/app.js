@@ -44,6 +44,56 @@
     for (var i = 1; i < arguments.length; i++) out = out.split("%" + i).join(String(arguments[i]));
     return out;
   }
+  var LANGUES = ["fr", "en"];
+  var NOM_LANGUE = { fr: "Français", en: "English" };
+  function normLang(l) { l = String(l || "").slice(0, 2).toLowerCase(); return LANGUES.indexOf(l) >= 0 ? l : "fr"; }
+  // La langue au premier chargement : ce que le joueur a choisi ici, sinon
+  // celle du téléphone. Le serveur la confirmera depuis le compte, pour qu'elle
+  // suive d'un appareil à l'autre.
+  function langInitiale() {
+    var l = null;
+    try { l = localStorage.getItem("am.lang"); } catch (e) {}
+    return normLang(l || (navigator.language || "fr"));
+  }
+  function setLang(l, prevenirServeur) {
+    l = normLang(l);
+    if (l === lang) return;
+    lang = l;
+    try { localStorage.setItem("am.lang", l); } catch (e) {}
+    document.documentElement.lang = l;
+    appliquerLangueStatique();
+    if (prevenirServeur !== false && socket && connected) socket.emit("set_lang", { lang: l });
+    // Repeindre l'écran courant : sans ça il faudrait recharger la page.
+    if (screen === "s-home") renderHome();
+    else if (screen === "s-game" && game) renderGame();
+    else if (screen === "s-play" && game) { if (play.reveal) renderReveal(); else renderScene(); }
+    else if (screen === "s-results" && lastResults) renderResults();
+    updateMe();
+  }
+  // Les textes écrits en dur dans index.html : le français du fichier EST la
+  // clé, comme dans le code. On le mémorise au premier passage, sinon on
+  // traduirait une traduction en changeant deux fois de langue.
+  function appliquerLangueStatique() {
+    var els = document.querySelectorAll("[data-t]");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      // Les suites d'espaces et les retours à la ligne de l'indentation sont
+      // réduits : sans ça la clé dépendrait de la mise en forme du fichier.
+      // Le HTML les réduit lui-même à l'affichage, rien ne change à l'écran.
+      if (el.__fr == null) el.__fr = el.innerHTML.replace(/\s+/g, " ").trim();
+      el.innerHTML = T(el.__fr);
+    }
+    var att = document.querySelectorAll("[data-t-attr]");
+    for (var j = 0; j < att.length; j++) {
+      var e2 = att[j], noms = e2.getAttribute("data-t-attr").split(",");
+      if (!e2.__fra) e2.__fra = {};
+      for (var k = 0; k < noms.length; k++) {
+        var n = noms[k].trim();
+        if (e2.__fra[n] == null) e2.__fra[n] = e2.getAttribute(n) || "";
+        e2.setAttribute(n, T(e2.__fra[n]));
+      }
+    }
+  }
 
   // ---------- helpers ----------
   function $(id) { return document.getElementById(id); }
@@ -104,13 +154,19 @@
   }
   function gameTitle(g) { return g.title || (T("Partie de %1", g.hostName)); }
   function bandFor(pct) {
-    if (pct == null) return { label: "—", emoji: "❔" };
-    if (pct >= 90) return { label: "Âmes sœurs", emoji: "💞" };
-    if (pct >= 75) return { label: T("Très compatibles"), emoji: "💘" };
-    if (pct >= 60) return { label: "Bonne entente", emoji: "🙂" };
-    if (pct >= 40) return { label: T("Ça dépend des jours"), emoji: "🤷" };
-    return { label: T("Opposés"), emoji: "⚔️" };
+    if (pct == null) return { key: "unknown", label: "—", emoji: "❔" };
+    if (pct >= 90) return { key: "soulmates", label: T("Âmes sœurs"), emoji: "💞" };
+    if (pct >= 75) return { key: "high", label: T("Très compatibles"), emoji: "💘" };
+    if (pct >= 60) return { key: "good", label: T("Bonne entente"), emoji: "🙂" };
+    if (pct >= 40) return { key: "mixed", label: T("Ça dépend des jours"), emoji: "🤷" };
+    return { key: "opposite", label: T("Opposés"), emoji: "⚔️" };
   }
+  // Les paliers calculés par le serveur arrivent avec leur libellé FRANÇAIS et
+  // une clé. On traduit depuis la clé : le serveur ne connaît pas la langue de
+  // celui qui regarde les résultats d'une partie bilingue.
+  var PALIERS = { unknown: "—", soulmates: "Âmes sœurs", high: "Très compatibles",
+                  good: "Bonne entente", mixed: "Ça dépend des jours", opposite: "Opposés" };
+  function bandLabel(b) { return b ? T(PALIERS[b.key] || b.label) : ""; }
   function bandClass(b) { return "b-" + ((b && b.key) || "mixed"); }
   function cellColor(pct) {
     if (pct == null) return "#2c2742";
@@ -155,6 +211,7 @@
     socket = io("/match", { transports: ["websocket", "polling"] });
     socket.on("connect", function () {
       connected = true; setStatus("");
+      socket.emit("set_lang", { lang: lang });
       if (getPseudo()) socket.emit("set_identity", { cid: getCid(), name: getPseudo() });
     });
     socket.on("disconnect", function () { connected = false; identified = false; setStatus("Connexion perdue — reconnexion…"); });
@@ -1134,13 +1191,13 @@
     }
     if (f.top) {
       var tb = bandFor(f.top.pct);
-      body += T('<div class="am-top-duo"><div class="lbl">🏆 Le duo le plus compatible</div><div class="names">') + esc(f.top.a) + " 💞 " + esc(f.top.b) + '</div><div class="pct">' + f.top.pct + '%</div><div class="band">' + tb.emoji + " " + tb.label + '</div>' +
+      body += T('<div class="am-top-duo"><div class="lbl">🏆 Le duo le plus compatible</div><div class="names">') + esc(f.top.a) + " 💞 " + esc(f.top.b) + '</div><div class="pct">' + f.top.pct + '%</div><div class="band">' + tb.emoji + " " + bandLabel(tb) + '</div>' +
         (f.top.sameTop ? '<div class="lbl">' + f.top.sameTop + ' coup' + (f.top.sameTop > 1 ? "s" : "") + ' de cœur en commun</div>' : "") + '</div>';
     }
     var perso = r.personal;
     if (perso && perso.best) {
       body += T('<div class="am-personal"><div class="am-pack-tag">💘 TON meilleur match</div><div class="names" style="font-size:1.3rem;font-weight:900;margin:4px 0">') + esc(perso.best.name) + '</div><div class="pct">' + perso.best.pct + '%</div>' +
-        '<div><span class="am-badge ' + bandClass(perso.best.band) + '">' + esc(perso.best.band.emoji + " " + perso.best.band.label) + '</span></div>' +
+        '<div><span class="am-badge ' + bandClass(perso.best.band) + '">' + esc(perso.best.band.emoji + " " + bandLabel(perso.best.band)) + '</span></div>' +
         (perso.average != null ? T('<p class="am-hint">Ta compatibilité moyenne avec le groupe : ') + perso.average + '%</p>' : "") + '</div>';
     }
     if (perso && perso.ranking && perso.ranking.length > 1) {
@@ -1207,9 +1264,19 @@
       '<p class="am-hint">' + p.games + ' partie' + (p.games > 1 ? "s" : "") + ' finie' + (p.games > 1 ? "s" : "") + ' · ' + p.answered + T(' réponses enregistrées</p></div>') +
       T('<button type="button" class="am-ghost" id="amChangePin">🔒 Changer mon code de reprise</button>') +
       T('<button type="button" class="am-ghost" id="amLogout">🚪 Me déconnecter de ce téléphone</button>');
-    openSheet("👤 Profil", html, function (body) {
+    html = '<div class="am-card"><h3>🌍 ' + T("Langue") + '</h3><div class="am-lengths" id="amLangs">' +
+      LANGUES.map(function (l) {
+        return '<button type="button" class="am-length' + (l === lang ? " on" : "") + '" data-lang="' + l + '">' +
+          '<span class="lbl">' + NOM_LANGUE[l] + '</span></button>';
+      }).join("") + '</div><p class="am-hint">' +
+      T("Les scènes et l'interface suivent ta langue. Tu peux jouer la même partie que quelqu'un qui a choisi l'autre.") +
+      '</p></div>' + html;
+    openSheet("👤 " + T("Profil"), html, function (body) {
       body.querySelector("#amChangePin").onclick = function () { protectName(false); };
       body.querySelector("#amLogout").onclick = logout;
+      Array.prototype.forEach.call(body.querySelectorAll("[data-lang]"), function (b) {
+        b.onclick = function () { setLang(b.getAttribute("data-lang")); closeSheet(); };
+      });
     });
   }
 
@@ -1412,6 +1479,9 @@
 
   // ---------- bootstrap ----------
   document.addEventListener("DOMContentLoaded", function () {
+    lang = langInitiale();
+    document.documentElement.lang = lang;
+    appliquerLangueStatique();
     pendingCode = codeFromUrl();
     pendingResults = !!(pendingCode && wantsResultsFromUrl());
     var input = $("amName");

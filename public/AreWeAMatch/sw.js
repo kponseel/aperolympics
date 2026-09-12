@@ -15,11 +15,11 @@
 // sert les fichiers du disque depuis son propre cache en ignorant
 // Cache-Control : changer l'URL est le seul moyen sûr d'obtenir la dernière
 // version. Voir le commentaire détaillé dans index.html.
-const V = "3.0";
-const CACHE = "am-v13";
+const V = "3.1";
+const CACHE = "am-v14";
 const SHELL = [
   "/AreWeAMatch/", "/AreWeAMatch/index.html",
-  "/AreWeAMatch/app.js?v=" + V, "/AreWeAMatch/style.css?v=" + V,
+  "/AreWeAMatch/app.js?v=" + V, "/AreWeAMatch/i18n.js?v=" + V, "/AreWeAMatch/style.css?v=" + V,
   "/AreWeAMatch/vendor/qrcode.min.js?v=" + V,
   // Le manifeste vient de Node (no-store) : on ne le met pas en cache.
   "/icons/am-192.png?v=" + V, "/icons/am-512.png?v=" + V, "/icons/am-180.png?v=" + V,

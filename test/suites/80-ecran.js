@@ -16,7 +16,7 @@ exports.run = async (t) => {
   const b = await t.navigateur();
   if (!b) return;
   const srv = await t.serveur({ MATCH_SCENES: "6" });
-  const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, locale: "fr-FR" });
   const p = await ctx.newPage();
   const erreurs = [];
   p.on("pageerror", (e) => erreurs.push("JS : " + e.message));

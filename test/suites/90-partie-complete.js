@@ -19,7 +19,7 @@ exports.run = async (t) => {
   const soucis = [];
 
   const ouvrir = async (nom, url) => {
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, locale: "fr-FR" });
     const p = await ctx.newPage();
     p.on("pageerror", (e) => soucis.push(nom + " — erreur JS : " + e.message));
     p.on("console", (m) => { if (m.type() === "error") soucis.push(nom + " — console : " + m.text()); });
