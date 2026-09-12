@@ -396,3 +396,21 @@ table.am-matrix td.self { background: #201a36; color: #9186c0; }
 .am-info::after, .am-prow .kick::after, .am-linkish::after {
   content: ""; position: absolute; inset: -11px;
 }
+
+/* ---------- longueur d'une partie ---------- */
+/* Trois cases côte à côte, assez hautes pour un doigt (la règle des 44 px
+   vaut aussi ici). Le nombre est ce qu'on lit en premier, le nom vient
+   ensuite, la durée en petit. */
+.am-lengths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 0; }
+.am-length {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 6px; min-height: 76px; cursor: pointer;
+  background: var(--card); color: #fff;
+  border: 2px solid var(--border); border-radius: 14px;
+}
+.am-length .n { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+.am-length .lbl { font-size: 0.9rem; font-weight: 700; }
+.am-length .dur { font-size: 0.8rem; color: var(--soft); }
+.am-length.on { border-color: var(--accent); background: #2a1626; }
+.am-length.on .dur { color: #f0d8e4; }
+.am-length:active { filter: brightness(1.1); }

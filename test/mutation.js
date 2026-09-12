@@ -83,6 +83,18 @@ const MUTATIONS = [
     ".am-help { width: 30px; height: 30px;",
     "80-ecran",
     "un bouton redevient trop petit pour un doigt"],
+
+  ["server/match/index.js",
+    "games.SCENE_CHOICES.includes(Number(m && m.sceneCount)) ? Number(m.sceneCount) : undefined",
+    "Number(m && m.sceneCount) || undefined",
+    "35-longueur",
+    "le serveur accepte n'importe quelle longueur envoyée par le client"],
+
+  ["server/match/games.js",
+    "? Math.max(MIN_SHARED, Math.min(BANK.length, Math.floor(demande)))",
+    "? Math.max(1, Math.min(BANK.length, Math.floor(demande)))",
+    "35-longueur",
+    "une partie peut retomber à une seule scène (le score ne repose plus sur rien)"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");

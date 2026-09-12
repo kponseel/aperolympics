@@ -11,9 +11,9 @@
   <!-- Servi par Node (voir server/match/index.js) : l'hébergeur rendait le
        .webmanifest en text/plain et son CDN le gardait en cache. -->
   <link rel="manifest" href="/AreWeAMatch/app.webmanifest" />
-  <link rel="icon" href="/icons/am-icon.svg?v=2.9" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/am-192.png?v=2.9" />
-  <link rel="apple-touch-icon" href="/icons/am-180.png?v=2.9" />
+  <link rel="icon" href="/icons/am-icon.svg?v=3.0" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/am-192.png?v=3.0" />
+  <link rel="apple-touch-icon" href="/icons/am-180.png?v=3.0" />
   <!-- ?v=… : OBLIGATOIRE, et à faire suivre VERSION dans server/match/version.js
        (le test verify_cachebust échoue sinon).
 
@@ -26,7 +26,7 @@
        l'URL à chaque version : le CDN ne l'a jamais vue, il va la chercher.
        index.html, lui, n'est pas mis en cache (x-hcdn-cache-status: DYNAMIC),
        c'est ce qui rend l'astuce fiable. -->
-  <link rel="stylesheet" href="/AreWeAMatch/style.css?v=2.9" />
+  <link rel="stylesheet" href="/AreWeAMatch/style.css?v=3.0" />
 </head>
 <body>
   <header class="am-topbar">
@@ -51,7 +51,7 @@
       <div class="am-hero">
         <div class="am-hero-emoji">💘</div>
         <h1>Are We A Match ?</h1>
-        <p class="am-lead">Vingt scènes, trois réponses à classer. On calcule qui te ressemble le plus.</p>
+        <p class="am-lead">Cinq, dix ou vingt scènes. Trois réponses à classer à chaque fois. On calcule qui te ressemble le plus.</p>
       </div>
       <div class="am-invite" id="amInviteNote" style="display:none"></div>
       <label class="am-label" for="amName">Ton pseudo</label>
@@ -79,7 +79,7 @@
            phrase devient une case et le texte s'affiche en colonnes. -->
       <ol class="am-steps">
         <li><span class="num">1</span> <span class="t"><b>Crée une partie</b> et partage son QR, ou <b>rejoins</b> celle d'un ami avec son code.</span></li>
-        <li><span class="num">2</span> <span class="t">Réponds aux <b>20 scènes</b> quand tu veux : classe les 3 réponses dans l'ordre que la scène demande. Aucun chrono.</span></li>
+        <li><span class="num">2</span> <span class="t">Réponds aux scènes <b>quand tu veux</b> : classe les 3 réponses dans l'ordre que la scène demande. Aucun chrono.</span></li>
         <li><span class="num">3</span> <span class="t">Après chaque scène, vois <b>qui a répondu quoi</b>. À la fin : <b>qui te ressemble</b> — et ça se complète à mesure que les autres finissent.</span></li>
       </ol>
     </section>
@@ -148,10 +148,10 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/AreWeAMatch/vendor/qrcode.min.js?v=2.9"></script>
-  <script src="/AreWeAMatch/app.js?v=2.9"></script>
+  <script src="/AreWeAMatch/vendor/qrcode.min.js?v=3.0"></script>
+  <script src="/AreWeAMatch/app.js?v=3.0"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js?v=2.9", { scope: "/AreWeAMatch/" });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js?v=3.0", { scope: "/AreWeAMatch/" });
   </script>
 </body>
 </html>

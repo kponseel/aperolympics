@@ -109,6 +109,10 @@
   var socket = null, connected = false, identified = false, booted = false;
   var myProtected = false, pinMode = false, pendingCode = null, pendingResults = false, currentCode = null;
   var gamesCache = null, game = null, lastResults = null, refreshTimer = null, sceneCountHint = 20;
+  // Les longueurs de partie proposées, annoncées par le serveur (c'est lui qui
+  // tranche : voir SCENE_CHOICES dans games.js). La valeur par repli sert le
+  // temps de la première connexion.
+  var sceneChoices = [5, 10, 20], sceneChoice = 20;
   // La scène en cours de réponse.
   var play = { code: null, index: 0, myRank: [], submitted: false, reveal: null, finished: false, sent: {} };
   // Mode dev.
@@ -190,6 +194,10 @@
     socket.on("games_list", function (m) {
       gamesCache = (m && m.games) || [];
       if (m && m.scene_count > 0) sceneCountHint = m.scene_count;
+      if (m && Array.isArray(m.scene_choices) && m.scene_choices.length) {
+        sceneChoices = m.scene_choices;
+        if (sceneChoices.indexOf(sceneChoice) < 0) sceneChoice = sceneChoices[sceneChoices.length - 1];
+      }
       renderVersion(m && m.app);
       if (m && m.dev_enabled === false) { devOn = false; }
       renderHome();
@@ -634,15 +642,51 @@
       b.onclick = function () { openGame(b.getAttribute("data-code")); };
     });
   }
+  // Ce que chaque longueur vaut vraiment. Le score est une part d'accords par
+  // paires : 3 comparaisons par scène. Sur 5 scènes ça fait 15 comparaisons —
+  // assez pour s'amuser, pas assez pour affirmer quoi que ce soit. On le dit,
+  // plutôt que d'afficher un pourcentage qui a l'air aussi sûr qu'un autre.
+  var LONGUEURS = {
+    5:  { nom: "Express", duree: "2 min", note: "Un aperçu. Sur 5 scènes, le score est une impression, pas un verdict." },
+    10: { nom: "Rapide", duree: "5 min", note: "Le bon compromis quand le groupe est déjà lancé." },
+    20: { nom: "Complet", duree: "10 min", note: "La version qui dit vraiment quelque chose de vous. Recommandé." },
+  };
   function createGameSheet() {
+    if (sceneChoices.indexOf(sceneChoice) < 0) sceneChoice = sceneChoices[sceneChoices.length - 1];
+    var choix = '<div class="am-lengths" id="amLengths">' + sceneChoices.map(function (n) {
+      var d = LONGUEURS[n] || { nom: n + " scènes", duree: "", note: "" };
+      return '<button type="button" class="am-length' + (n === sceneChoice ? " on" : "") + '" data-n="' + n + '">' +
+        '<span class="n">' + n + '</span><span class="lbl">' + d.nom + '</span><span class="dur">' + d.duree + '</span></button>';
+    }).join("") + '</div><p class="am-hint" id="amLengthNote"></p>';
+
     openSheet("➕ Nouvelle partie",
-      '<p><b>' + sceneCountHint + ' scènes</b> tirées au sort, les mêmes pour tout le monde et dans le même ordre. Tu seras l\'hôte : tu partages le QR, chacun répond quand il veut, tu vois le groupe avancer.</p>' +
-      '<p class="am-hint">Tu pourras fermer les inscriptions plus tard : ça empêche de nouveaux joueurs d\'entrer, sans jamais couper ceux qui ont commencé.</p>' +
+      '<p>Des scènes tirées au sort, <b>les mêmes pour tout le monde et dans le même ordre</b>. Tu seras l\'hôte : tu partages le QR, chacun répond quand il veut, tu vois le groupe avancer.</p>' +
+      '<label class="am-label">Longueur de la partie</label>' + choix +
       '<input id="amFormTitle" maxlength="40" placeholder="Un titre (facultatif) : Soirée du 12, Les colocs…" autocomplete="off" />' +
+      '<p class="am-hint">Tu pourras fermer les inscriptions plus tard : ça empêche de nouveaux joueurs d\'entrer, sans jamais couper ceux qui ont commencé.</p>' +
       '<button type="button" class="am-primary" id="amFormGo">🎲 Créer la partie</button>',
       function (body) {
         var input = body.querySelector("#amFormTitle");
-        function go() { if (!socket || !connected) { warn("Pas de connexion."); return; } socket.emit("create_game", { title: (input.value || "").trim() }); closeSheet(); }
+        var note = body.querySelector("#amLengthNote");
+        function peindre() {
+          Array.prototype.forEach.call(body.querySelectorAll(".am-length"), function (b) {
+            var on = Number(b.getAttribute("data-n")) === sceneChoice;
+            b.classList.toggle("on", on);
+            b.setAttribute("aria-pressed", on ? "true" : "false");
+          });
+          note.textContent = (LONGUEURS[sceneChoice] || {}).note || "";
+        }
+        Array.prototype.forEach.call(body.querySelectorAll(".am-length"), function (b) {
+          b.onclick = function () { sceneChoice = Number(b.getAttribute("data-n")); peindre(); };
+        });
+        peindre();
+        // La longueur ne se change plus après : les scènes sont tirées une
+        // fois, et tout le monde doit voir les mêmes.
+        function go() {
+          if (!socket || !connected) { warn("Pas de connexion."); return; }
+          socket.emit("create_game", { title: (input.value || "").trim(), sceneCount: sceneChoice });
+          closeSheet();
+        }
         body.querySelector("#amFormGo").onclick = go;
         input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
       });
@@ -1310,7 +1354,7 @@
   // fois, à la première ouverture — et se rouvre à la demande (« ? », ou
   // « Comment ça marche ? » sur la page d'une partie).
   var ONB = [
-    { e: "💘", t: "20 scènes, 3 réponses",
+    { e: "💘", t: "Des scènes, 3 réponses",
       p: "Pas de bonne réponse : seulement la tienne. À chaque scène, tu ranges les 3 réponses <b>de ta préférée (1) à celle que tu aimes le moins (3)</b> — et quand la scène demande autre chose (la plus fréquente chez toi, la plus agaçante…), elle te le dit juste sous la question." },
     { e: "⏰", t: "Quand tu veux",
       p: "Rien n'est chronométré et personne ne t'attend. Tu réponds ce soir, ton ami demain dans le métro. <b>Chaque réponse est sauvée tout de suite</b> : tu peux fermer et revenir." },
@@ -1336,7 +1380,7 @@
   // ---------- aide ----------
   var HELP = {
     main: { title: "Comment ça marche", body:
-      "<p><b>Une partie = 20 scènes</b>, les mêmes pour tout le monde et dans le même ordre. Quelqu'un la crée et partage son QR ; chacun répond <b>quand il veut</b>.</p>" +
+      "<p><b>Une partie = 5, 10 ou 20 scènes</b> selon ce que l'hôte a choisi en la créant — les mêmes pour tout le monde et dans le même ordre. Quelqu'un la crée et partage son QR ; chacun répond <b>quand il veut</b>.</p>" +
       "<p><b>Chaque scène propose 3 réponses.</b> Tu les classes de 1 à 3. Le sens du classement est écrit sous la question — le plus souvent <b>1</b> = ta préférée, parfois la plus fréquente chez toi ou celle qui t'agace le plus. Une fois validée, ta réponse ne change plus, et tu découvres celles des autres.</p>" +
       "<p><b>Le calcul :</b> pour chaque scène on fait les 3 comparaisons possibles (A/B, A/C, B/C) ; 1 point par accord. Ta compatibilité avec quelqu'un = points obtenus / points possibles. Deux personnes au hasard tournent autour de 50 %.</p>" +
       "<p><b>Les résultats</b> se calculent sur ceux qui ont fini, et se mettent à jour à chaque nouvelle arrivée. En attendant, une compatibilité provisoire s'affiche dès 5 scènes en commun.</p>" +

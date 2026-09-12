@@ -12,8 +12,10 @@ exports.titre = "Une partie de bout en bout";
 exports.run = async (t) => {
   const b = await t.navigateur();
   if (!b) return;
-  const N = 6;                       // 6 scènes au lieu de 20 : même chemin, plus court
-  const srv = await t.serveur({ MATCH_SCENES: String(N) });
+  // On joue une partie de 5 scènes : même chemin qu'une partie de 20, en plus
+  // court — et ça fait passer le choix de longueur par le vrai parcours.
+  const N = 5;
+  const srv = await t.serveur();
   const soucis = [];
 
   const ouvrir = async (nom, url) => {
@@ -54,10 +56,22 @@ exports.run = async (t) => {
   await entrer(K, "Kevin", "4827");
   await sur(K, "s-home");
   await balayer(K, "accueil");
-  await K.click("#amCreate"); await K.waitForSelector("#amFormGo"); await K.click("#amFormGo");
+  await K.click("#amCreate"); await K.waitForSelector("#amLengths", { timeout: 8000 });
+  t.check("La feuille de création propose trois longueurs",
+    (await K.$$(".am-length")).length === 3, String((await K.$$(".am-length")).length));
+  t.check("La plus longue est choisie par défaut",
+    await K.evaluate(() => document.querySelector(".am-length.on").getAttribute("data-n") === "20"));
+  await K.click('.am-length[data-n="' + N + '"]');
+  await K.waitForTimeout(200);
+  t.check("Choisir une longueur explique ce qu'elle vaut",
+    /impression, pas un verdict/.test(await K.textContent("#amLengthNote")), await K.textContent("#amLengthNote"));
+  await K.click("#amFormGo");
   await K.waitForFunction(() => document.querySelector(".am-code-big"), null, { timeout: 10000 });
   const code = (await K.textContent(".am-code-big")).trim();
   t.check("La partie est créée et affiche son code", /^[A-Z0-9]+$/.test(code), code);
+  t.check("… et elle fait bien " + N + " scènes",
+    (await K.evaluate(() => window.__amGame.sceneCount)) === N,
+    String(await K.evaluate(() => window.__amGame.sceneCount)));
   await balayer(K, "partie (seul)");
   t.check("Seul, on lui propose d'abord d'inviter", !!(await K.$("#amQR")));
 

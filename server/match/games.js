@@ -222,12 +222,25 @@ function spreadAxes(list) {
 function playerList(g) { return Object.keys(g.players).map((k) => g.players[k]); }
 
 // ---------------------------------------------------------------- créer / rejoindre
+// Les trois longueurs proposées à la création. 5 est volontairement au-dessus
+// de MIN_SHARED : en dessous, le score de compatibilité ne reposerait sur rien
+// et l'app afficherait un chiffre qui ment.
+const SCENE_CHOICES = [5, 10, 20].filter((n) => n >= MIN_SHARED && n <= BANK.length);
+
 function createGame(opts) {
   const o = opts || {};
   const hostName = String(o.hostName || "").trim().slice(0, 16);
   const hostKey = key(hostName);
   if (!hostKey) return { ok: false, reason: "bad_name" };
-  const n = Math.max(1, Math.min(BANK.length, Number(o.sceneCount) || SCENES_PER_GAME));
+  // Une longueur absurde (négative, nulle, pas un nombre) retombe sur la
+  // valeur par défaut ; une longueur valide est bornée à [MIN_SHARED, banque].
+  // Le plancher n'est pas 1 : en dessous de MIN_SHARED le score de
+  // compatibilité ne repose sur rien, et l'app afficherait un pourcentage qui
+  // ment. Avant, sceneCount = -7 donnait une partie d'UNE scène.
+  const demande = Number(o.sceneCount);
+  const n = Number.isFinite(demande) && demande > 0
+    ? Math.max(MIN_SHARED, Math.min(BANK.length, Math.floor(demande)))
+    : SCENES_PER_GAME;
   const sceneIds = drawScenes(n).map((q) => q.id);
   const now = Date.now();
   const g = {
@@ -673,5 +686,5 @@ module.exports = {
   closeGame, reopenGame, removePlayer, hideGame, deleteGame, deleteGameAsHost, deletionImpact,
   createTestGame, purgeTestGames, adminList,
   getGame, normCode, flush, question: (id) => { const q = BY_ID.get(id); return q ? pubQuestion(q) : null; },
-  SCENES_PER_GAME, MIN_SHARED, MAX_BOTS, BANK_SIZE: BANK.length, CODE_LEN, _reset,
+  SCENES_PER_GAME, SCENE_CHOICES, MIN_SHARED, MAX_BOTS, BANK_SIZE: BANK.length, CODE_LEN, _reset,
 };

@@ -334,13 +334,18 @@ function mount({ app, io }) {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
       leaveView(socket, sess);
-      socket.emit("games_list", { games: games.listFor(sess.name), app: APP_VERSION, dev_enabled: DEV_ENABLED, scene_count: games.SCENES_PER_GAME });
+      socket.emit("games_list", { games: games.listFor(sess.name), app: APP_VERSION, dev_enabled: DEV_ENABLED, scene_count: games.SCENES_PER_GAME, scene_choices: games.SCENE_CHOICES });
     });
 
     socket.on("create_game", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
-      const r = games.createGame({ hostName: sess.name, title: m && m.title });
+      // La longueur est choisie à la création, et JAMAIS après : les scènes
+      // sont tirées une fois pour toutes, et tout le monde doit voir les
+      // mêmes. Le client propose trois choix, le serveur ne croit que cette
+      // liste-là — sinon on pourrait se créer une partie d'une scène.
+      const n = games.SCENE_CHOICES.includes(Number(m && m.sceneCount)) ? Number(m.sceneCount) : undefined;
+      const r = games.createGame({ hostName: sess.name, title: m && m.title, sceneCount: n });
       if (!r.ok) { socket.emit("error_msg", { msg: r.reason }); return; }
       socket.emit("game_created", { code: r.game.code });
       openGame(socket, sess, r.game.code);
