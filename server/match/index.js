@@ -239,7 +239,7 @@ function mount({ app, io }) {
   const sessions = new Map(); // socket.id -> { cid, name, dev, viewing }
   const APP_VERSION = require("./version");
 
-  function stateFor(code, sess) { return games.state(code, sess && sess.name); }
+  function stateFor(code, sess) { return games.state(code, sess && sess.name, sess && sess.lang); }
   // Diffuse l'état d'une partie à ceux qui l'ont ouverte (personnalisé :
   // « me » n'est pas le même pour chacun), et prévient les autres joueurs de
   // la partie, où qu'ils soient dans l'app, que quelque chose a bougé.
@@ -263,7 +263,21 @@ function mount({ app, io }) {
   }
 
   ns.on("connection", (socket) => {
-    sessions.set(socket.id, { cid: null, name: null, dev: false, viewing: null });
+    sessions.set(socket.id, { cid: null, name: null, dev: false, viewing: null, lang: games.LANG_DEFAUT });
+
+    // La langue du joueur. Elle suit la session, pas la partie : un francophone
+    // et un anglophone jouent les mêmes scènes, chacun dans sa langue. Le
+    // client la pose dès la connexion, avant même de s'identifier.
+    socket.on("set_lang", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess) return;
+      sess.lang = games.normLang(m && m.lang);
+      if (sess.name) players.setLang(sess.name, sess.lang);
+      // Ré-émettre l'écran courant dans la nouvelle langue, sinon il faudrait
+      // recharger la page pour voir le changement.
+      if (sess.viewing) socket.emit("game_state", stateFor(sess.viewing, sess));
+      socket.emit("lang_set", { lang: sess.lang });
+    });
 
     // Identité : pseudo + PIN (obligatoire depuis la v2, voir players.js).
     socket.on("set_identity", (m) => {
@@ -334,13 +348,18 @@ function mount({ app, io }) {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
       leaveView(socket, sess);
-      socket.emit("games_list", { games: games.listFor(sess.name), app: APP_VERSION, dev_enabled: DEV_ENABLED, scene_count: games.SCENES_PER_GAME });
+      socket.emit("games_list", { games: games.listFor(sess.name), app: APP_VERSION, dev_enabled: DEV_ENABLED, scene_count: games.SCENES_PER_GAME, scene_choices: games.SCENE_CHOICES });
     });
 
     socket.on("create_game", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
-      const r = games.createGame({ hostName: sess.name, title: m && m.title });
+      // La longueur est choisie à la création, et JAMAIS après : les scènes
+      // sont tirées une fois pour toutes, et tout le monde doit voir les
+      // mêmes. Le client propose trois choix, le serveur ne croit que cette
+      // liste-là — sinon on pourrait se créer une partie d'une scène.
+      const n = games.SCENE_CHOICES.includes(Number(m && m.sceneCount)) ? Number(m.sceneCount) : undefined;
+      const r = games.createGame({ hostName: sess.name, title: m && m.title, sceneCount: n });
       if (!r.ok) { socket.emit("error_msg", { msg: r.reason }); return; }
       socket.emit("game_created", { code: r.game.code });
       openGame(socket, sess, r.game.code);
@@ -379,7 +398,7 @@ function mount({ app, io }) {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) { socket.emit("answer_ack", { ok: false, reason: "no_identity" }); return; }
       const code = games.normCode(m && m.code);
-      const r = games.answer(code, sess.name, String((m && m.qid) || ""), m && m.ranking);
+      const r = games.answer(code, sess.name, String((m && m.qid) || ""), m && m.ranking, sess.lang);
       socket.emit("answer_ack", Object.assign({ qid: m && m.qid }, r));
       if (r.ok) broadcastGame(code);
     });
@@ -398,18 +417,18 @@ function mount({ app, io }) {
     socket.on("get_reveal", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) return;
-      socket.emit("scene_reveal", { code: games.normCode(m && m.code), reveal: games.reveal(m && m.code, sess.name, String((m && m.qid) || "")) });
+      socket.emit("scene_reveal", { code: games.normCode(m && m.code), reveal: games.reveal(m && m.code, sess.name, String((m && m.qid) || ""), sess.lang) });
     });
     socket.on("get_reveals", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) return;
-      socket.emit("scene_reveals", { code: games.normCode(m && m.code), reveals: games.revealsFor(m && m.code, sess.name) || [] });
+      socket.emit("scene_reveals", { code: games.normCode(m && m.code), reveals: games.revealsFor(m && m.code, sess.name, sess.lang) || [] });
     });
 
     socket.on("game_results", (m) => {
       const sess = sessions.get(socket.id);
       if (!sess || !sess.name) return;
-      const r = games.results(m && m.code, sess.name);
+      const r = games.results(m && m.code, sess.name, sess.lang);
       socket.emit("game_results", r || { code: games.normCode(m && m.code), error: "not_in_game" });
     });
 

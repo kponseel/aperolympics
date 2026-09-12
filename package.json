@@ -6,7 +6,10 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node server/index.js"
+    "dev": "node server/index.js",
+    "test": "node test/run.js",
+    "test:fast": "node test/run.js --fast",
+    "test:dents": "node test/mutation.js"
   },
   "engines": {
     "node": ">=18"
@@ -14,5 +17,8 @@
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
   }
 }

@@ -346,8 +346,19 @@ function adminResetPin(name) {
 
 function _reset() { data = emptyData(); try { fs.unlinkSync(FILE); } catch (e) {} }
 
+// La langue choisie, rangée dans le compte : elle suit le joueur d'un
+// téléphone à l'autre, alors que localStorage reste sur l'appareil.
+function setLang(name, lang) {
+  const a = getAccount(name);
+  if (!a) return false;
+  a.lang = String(lang || "").slice(0, 2).toLowerCase();
+  save();
+  return true;
+}
+function getLang(name) { const a = getAccount(name); return (a && a.lang) || null; }
+
 module.exports = {
-  authenticate, isProtected, getAccount, setPin, recordGame, recordAnswersByPack,
+  authenticate, isProtected, getAccount, setPin, setLang, getLang, recordGame, recordAnswersByPack,
   historicMatches, profile,
   adminList, adminDelete, adminResetPin,
   PIN_RE, weakPin, TOP_N, _reset,
