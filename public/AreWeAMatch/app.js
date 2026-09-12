@@ -266,7 +266,8 @@
     });
     socket.on("pin_required", function (m) { enterPinMode(m && m.name, T("🔒 Ce pseudo est déjà à quelqu\u2019un. Entre son code de reprise.")); });
     socket.on("pin_wrong", function (m) {
-      enterPinMode(m && m.name, "❌ Code incorrect. Il te reste " + (m && m.attempts_left) + " essai" + ((m && m.attempts_left) > 1 ? "s" : "") + ".");
+      var reste = (m && m.attempts_left) || 0;
+      enterPinMode(m && m.name, reste > 1 ? T("❌ Code incorrect. Il te reste %1 essais.", reste) : T("❌ Code incorrect. Il te reste 1 essai."));
       var pin = $("amPin"); if (pin) { pin.value = ""; pin.focus(); }
     });
     socket.on("identity_locked", function (m) {
@@ -716,7 +717,7 @@
         g.finishedCount ? "✓ " + g.finishedCount + " fini" + (g.finishedCount > 1 ? "s" : "") : "",
         "toi : " + state,
         g.closed ? T("🔒 inscriptions fermées") : "",
-        g.test ? "🧪 test" : "",
+        g.test ? T("🧪 test") : "",
         fmtAgo(g.updatedAt),
       ].filter(Boolean);
       return '<button type="button" class="am-game-card' + (g.hasNew ? " new" : "") + '" data-code="' + esc(g.code) + '">' +
@@ -862,9 +863,9 @@
     var answered = g.players.reduce(function (s, p) { return s + p.progress; }, 0);
     var pct = (n && g.sceneCount) ? Math.round((answered / (n * g.sceneCount)) * 100) : 0;
     return '<div class="am-counts">' +
-      '<div class="am-count"><span class="v">' + n + '</span><span class="l">' + (n > 1 ? "joueurs ont rejoint" : "joueur a rejoint") + '</span></div>' +
-      '<div class="am-count"><span class="v">' + fin + '</span><span class="l">' + (fin > 1 ? "ont fini" : "a fini") + '</span></div>' +
-      '<div class="am-count"><span class="v">' + g.sceneCount + T('</span><span class="l">scènes</span></div>') +
+      '<div class="am-count"><span class="v">' + n + '</span><span class="l">' + (n > 1 ? T("joueurs ont rejoint") : T("joueur a rejoint")) + '</span></div>' +
+      '<div class="am-count"><span class="v">' + fin + '</span><span class="l">' + (fin > 1 ? T("ont fini") : T("a fini")) + '</span></div>' +
+      '<div class="am-count"><span class="v">' + g.sceneCount + '</span><span class="l">' + T("scènes") + '</span></div>' +
       '</div><div class="am-progress group"><i style="width:' + pct + '%"></i></div>';
   }
   function renderGame() {
@@ -877,13 +878,13 @@
     var finishedNames = g.finishedCount != null ? g.finishedCount : g.players.filter(function (p) { return p.finished; }).length;
 
     if (!me.joined) {
-      body += '<div class="am-invite"><b>' + esc(g.hostName) + T('</b> t\'invite à sa partie.<br>') +
-        '<b>' + g.sceneCount + T(' scènes</b> : à chaque fois, 3 réponses à classer — le plus souvent de ta préférée à celle que tu aimes le moins, chaque scène le précise. ') +
-        T('Tu réponds <b>quand tu veux</b>, personne ne t\'attend. À la fin, on voit à quel point vous faites pareil.</div>');
+      body += '<div class="am-invite">' +
+        T("<b>%1</b> t'invite à sa partie.<br><b>%2 scènes</b> : à chaque fois, 3 réponses à classer — le plus souvent de ta préférée à celle que tu aimes le moins, chaque scène le précise. Tu réponds <b>quand tu veux</b>, personne ne t'attend. À la fin, on voit à quel point vous faites pareil.", esc(g.hostName), g.sceneCount) +
+        '</div>';
       body += countsBar(g);
-      if (g.closedAt) body += T('<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Les inscriptions sont fermées.</p><p class="am-hint">') + esc(g.hostName) + T(' a fermé la porte : on ne peut plus rejoindre cette partie-là. Demande-lui de la rouvrir, ou crée la tienne.</p></div>');
+      if (g.closedAt) body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">' + T("Les inscriptions sont fermées.") + '</p><p class="am-hint">' + T("%1 a fermé la porte : on ne peut plus rejoindre cette partie-là. Demande-lui de la rouvrir, ou crée la tienne.", esc(g.hostName)) + '</p></div>';
       else body += T('<button class="am-primary xl" id="amJoinGame">🎮 Rejoindre la partie</button><p class="am-hint center">Gratuit, sans pub, rien à installer. Tes réponses sont sauvées à chaque scène.</p>');
-      body += '<div class="am-card"><h3>Qui joue (' + g.players.length + ')</h3>' + renderPlayerRows(g, false) + '</div>';
+      body += '<div class="am-card"><h3>' + T("Qui joue (%1)", g.players.length) + '</h3>' + renderPlayerRows(g, false) + '</div>';
       body += T('<button class="am-ghost" id="amHowto">💡 Comment ça marche ?</button>');
       $("amGameBody").innerHTML = body;
       var jb = $("amJoinGame"); if (jb) jb.onclick = function () { if (socket) socket.emit("join_game", { code: g.code }); };
@@ -894,32 +895,34 @@
     // Bouton principal selon où j'en suis. Une partie fermée ne bloque plus
     // celui qui a déjà rejoint : il a tout son temps pour finir.
     var action = "";
-    if (me.finished) action = T('<button class="am-primary xl" id="amResults">💘 Voir les résultats</button>');
-    else if (me.progress > 0) action = '<button class="am-primary xl" id="amPlay">▶️ Continuer (' + me.progress + '/' + g.sceneCount + ')</button>';
-    else action = T('<button class="am-primary xl" id="amPlay">🎬 Répondre aux ') + g.sceneCount + T(' scènes</button>');
+    if (me.finished) action = '<button class="am-primary xl" id="amResults">' + T("💘 Voir les résultats") + '</button>';
+    else if (me.progress > 0) action = '<button class="am-primary xl" id="amPlay">' + T("▶️ Continuer (%1/%2)", me.progress, g.sceneCount) + '</button>';
+    else action = '<button class="am-primary xl" id="amPlay">' + T("🎬 Répondre aux %1 scènes", g.sceneCount) + '</button>';
 
     // Partager : QR + lien + code.
-    var share = '<div class="am-card am-share"><h3>Inviter</h3>' +
-      T('<p class="am-hint">Montre ce QR, ou envoie le lien. Ceux qui le reçoivent peuvent répondre quand ils veulent, même dans plusieurs jours.</p>') +
+    var share = '<div class="am-card am-share"><h3>' + T("Inviter") + '</h3>' +
+      '<p class="am-hint">' + T("Montre ce QR, ou envoie le lien. Ceux qui le reçoivent peuvent répondre quand ils veulent, même dans plusieurs jours.") + '</p>' +
       '<div class="am-qr"><canvas id="amQR" width="400" height="400"></canvas></div>' +
       '<div class="am-code-big">' + esc(g.code) + '</div>' +
-      T('<p class="am-hint">Scanne, ou tape ce code dans « Rejoindre ».</p>') +
-      '<div class="am-share-row"><button class="am-primary" id="amShare">Partager</button><button class="am-ghost" id="amCopy">Copier</button></div></div>';
+      '<p class="am-hint">' + T("Scanne, ou tape ce code dans « Rejoindre avec un code ».") + '</p>' +
+      '<div class="am-share-row"><button class="am-primary" id="amShare">' + T("Partager") + '</button><button class="am-ghost" id="amCopy">' + T("Copier") + '</button></div></div>';
 
     body += countsBar(g);
     // Seul dans sa partie et rien de commencé : inviter d'abord, c'est le geste
     // qui donne un sens à la suite. Sinon, l'action d'abord.
     var alone = g.players.length <= 1 && me.progress === 0 && !me.finished && !g.closedAt;
     body += alone ? share + action : action;
-    if (me.teaser) body += '<div class="am-teaser">💘 <b>' + esc(me.teaser.name) + '</b> : <span class="pct">' + me.teaser.pct + T('%</span> sur vos ') + me.teaser.shared + T(' scènes en commun. <span class="am-soft">Termine pour voir tout.</span></div>');
+    if (me.teaser) body += '<div class="am-teaser">' + T('💘 <b>%1</b> : <span class="pct">%2 %</span> sur vos %3 scènes en commun. <span class="am-soft">Termine pour voir tout.</span>', esc(me.teaser.name), me.teaser.pct, me.teaser.shared) + '</div>';
     if (me.finished && finishedNames < 2) body += T('<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité — tu recevras la partie en « Nouveaux résultats » dans ta liste.</p>');
     if (!alone && !g.closedAt) body += share;
 
-    body += '<div class="am-card"><h3>Qui joue (' + g.players.length + ')' + (finishedNames ? ' <span class="am-soft">· ' + finishedNames + ' fini' + (finishedNames > 1 ? 's' : '') + '</span>' : '') + '</h3>' + renderPlayerRows(g, me.host) + '</div>';
+    body += '<div class="am-card"><h3>' + T("Qui joue (%1)", g.players.length) +
+      (finishedNames ? ' <span class="am-soft">· ' + (finishedNames > 1 ? T("%1 finis", finishedNames) : T("1 fini")) + '</span>' : '') +
+      '</h3>' + renderPlayerRows(g, me.host) + '</div>';
 
     body += '<p class="am-hint center">' + (g.closedAt
-      ? T('🔒 Inscriptions fermées ') + fmtAgo(g.closedAt) + T(' — plus personne ne peut rejoindre, mais <b>tout le monde garde le temps qu\'il veut pour finir</b>.')
-      : '🔓 Ouverte · ' + g.sceneCount + T(' scènes · réponds quand tu veux, tes réponses sont sauvées à chaque scène')) + '</p>';
+      ? T("🔒 Inscriptions fermées %1 — plus personne ne peut rejoindre, mais <b>tout le monde garde le temps qu'il veut pour finir</b>.", fmtAgo(g.closedAt))
+      : T("🔓 Ouverte · %1 scènes · réponds quand tu veux, tes réponses sont sauvées à chaque scène", g.sceneCount)) + '</p>';
     if (me.host && g.test) body += T('<button class="am-ghost" id="amClose">🗑️ Supprimer la partie de test</button>');
     else if (me.host && !g.closedAt) body += T('<button class="am-ghost" id="amClose">🔒 Fermer les inscriptions</button>');
     else if (me.host && g.closedAt) body += T('<button class="am-ghost" id="amReopen">🔓 Rouvrir les inscriptions</button>');
@@ -1006,9 +1009,9 @@
     if (!g.players.length) return T('<p class="am-hint">Personne pour l\'instant.</p>');
     return '<div class="am-plist">' + g.players.map(function (p) {
       var pct = g.sceneCount ? Math.round((p.progress / g.sceneCount) * 100) : 0;
-      var st = p.finished ? '<span class="st done">✓ fini</span>' : '<span class="st">' + p.progress + '/' + g.sceneCount + '</span>';
-      return '<div class="am-prow' + (p.me ? ' me' : '') + '"><span class="who">' + (p.host ? '👑 ' : '') + esc(p.name) + (p.me ? ' <span class="am-soft">(toi)</span>' : '') + '</span>' + st +
-        (canKick && !p.host && !p.me ? '<button type="button" class="kick" data-kick="' + esc(p.name) + '">retirer</button>' : '') +
+      var st = p.finished ? '<span class="st done">' + T("✓ fini") + '</span>' : '<span class="st">' + p.progress + '/' + g.sceneCount + '</span>';
+      return '<div class="am-prow' + (p.me ? ' me' : '') + '"><span class="who">' + (p.host ? '👑 ' : '') + esc(p.name) + (p.me ? ' <span class="am-soft">' + T("(toi)") + '</span>' : '') + '</span>' + st +
+        (canKick && !p.host && !p.me ? '<button type="button" class="kick" data-kick="' + esc(p.name) + '">' + T("retirer") + '</button>' : '') +
         '<div class="am-progress mini' + (p.finished ? ' done' : '') + '"><i style="width:' + pct + '%"></i></div></div>';
     }).join("") + '</div>';
   }
@@ -1043,7 +1046,7 @@
     var q = game.scenes[play.index];
     var n = q.o.length;
     var body = "";
-    body += T('<div class="am-qmeta"><span>Scène ') + (play.index + 1) + ' / ' + game.scenes.length + '</span><span id="amPlayOthers"></span></div>';
+    body += '<div class="am-qmeta"><span>' + T("Scène %1 / %2", play.index + 1, game.scenes.length) + '</span><span id="amPlayOthers"></span></div>';
     body += '<div class="am-progress"><i style="width:' + Math.round((play.index / game.scenes.length) * 100) + '%"></i></div>';
     body += '<div class="am-q" style="margin-top:14px">' + esc(q.q) + '</div>' + (q.ctx ? '<p class="am-qctx">' + esc(q.ctx) + '</p>' : '');
     // Première scène : on redit la règle du jeu, là où elle sert — c'est-à-dire
@@ -1083,8 +1086,8 @@
       // scène-là — c'est-à-dire au moment où elle cesse d'être vraie, et pas
       // trois secondes après s'être affichée.
       if (canUndo(play.index - 1)) {
-        body += T('<div class="am-tip am-first">🥇 <b>Tu es le premier sur la scène ') + play.index + T('</b> — personne d\'autre n\'y a encore répondu, il n\'y avait donc rien à te montrer. Tant que ça dure, tu peux y revenir.</div>');
-        body += T('<button class="am-ghost" id="amUndo">↩️ Revenir sur la scène ') + play.index + '</button>';
+        body += '<div class="am-tip am-first">' + T("🥇 <b>Tu es le premier sur la scène %1</b> — personne d'autre n'y a encore répondu, il n'y avait donc rien à te montrer. Tant que ça dure, tu peux y revenir.", play.index) + '</div>';
+        body += '<button class="am-ghost" id="amUndo">' + T("↩️ Revenir sur la scène %1", play.index) + '</button>';
       }
     }
     $("amPlayBody").innerHTML = body;
@@ -1128,22 +1131,25 @@
     }).join("");
     html += '<p class="am-hint am-legend">' + q.o.map(function (l, i) { return '<span>' + esc(emojiOf(l, i)) + ' ' + esc(l.replace(/^\S+\s/, "")) + '</span>'; }).join(" · ") + '</p>';
     if (!compact) {
-      if (rv.perfect && rv.perfect.length) html += '<div class="am-perfect">✨ Accord parfait : ' + rv.perfect.map(function (p) { return "<b>" + esc(p.a) + " & " + esc(p.b) + "</b>"; }).join(", ") + '</div>';
-      if (rv.answers.length >= 2) html += T('<div class="am-card" style="margin-top:12px"><h3>🏅 Le classement du groupe</h3>') + rv.group.map(function (g, i) {
-        var mark = (mine && mine[0] === g.option) ? ' <span class="am-badge b-high">ton n°1</span>' : "";
-        return '<div class="am-reveal-row"><span class="pos">' + (i + 1) + '.</span><span class="lbl">' + esc(g.label) + mark + '</span><span class="cnt">' + g.score + ' pt' + (g.score > 1 ? "s" : "") + '</span></div>';
+      if (rv.perfect && rv.perfect.length) html += '<div class="am-perfect">' + T("✨ Accord parfait : %1", rv.perfect.map(function (p) { return "<b>" + esc(p.a) + " & " + esc(p.b) + "</b>"; }).join(", ")) + '</div>';
+      if (rv.answers.length >= 2) html += '<div class="am-card" style="margin-top:12px"><h3>' + T("🏅 Le classement du groupe") + '</h3>' + rv.group.map(function (g, i) {
+        var mark = (mine && mine[0] === g.option) ? ' <span class="am-badge b-high">' + T("ton n°1") + '</span>' : "";
+        return '<div class="am-reveal-row"><span class="pos">' + (i + 1) + '.</span><span class="lbl">' + esc(g.label) + mark + '</span><span class="cnt">' + (g.score > 1 ? T("%1 pts", g.score) : T("1 pt")) + '</span></div>';
       }).join("") + '</div>';
-      if (rv.missing && rv.missing.length) html += '<p class="am-hint center">' + esc(rv.missing.join(", ")) + (rv.missing.length > 1 ? " n'ont" : " n'a") + T(' pas encore répondu à celle-ci.</p>');
+      if (rv.missing && rv.missing.length) html += '<p class="am-hint center">' +
+        (rv.missing.length > 1 ? T("%1 n'ont pas encore répondu à celle-ci.", esc(rv.missing.join(", ")))
+                               : T("%1 n'a pas encore répondu à celle-ci.", esc(rv.missing.join(", ")))) + '</p>';
     }
     return html;
   }
   function renderReveal() {
     var rv = play.reveal; if (!rv) { renderScene(); return; }
     var body = '';
-    body += T('<div class="am-qmeta"><span>Scène ') + (play.index + 1) + ' / ' + game.scenes.length + '</span><span>' + rv.answers.length + T(' réponse') + (rv.answers.length > 1 ? 's' : '') + '</span></div>';
+    body += '<div class="am-qmeta"><span>' + T("Scène %1 / %2", play.index + 1, game.scenes.length) + '</span><span>' +
+      (rv.answers.length > 1 ? T("%1 réponses", rv.answers.length) : T("1 réponse")) + '</span></div>';
     body += '<div class="am-q" style="margin-top:14px">' + esc(rv.question.q) + '</div>';
-    body += T('<div class="am-card"><h3>👀 Les réponses</h3>') + revealHtml(rv, play.myRank, false) +
-      T('<p class="am-hint">Le badge à droite, c\'est <b>ton accord avec cette personne sur cette scène</b> : sur 3 comparaisons possibles, combien tombent pareil. <b>3/3</b> = exactement le même classement.</p></div>');
+    body += '<div class="am-card"><h3>' + T("👀 Les réponses") + '</h3>' + revealHtml(rv, play.myRank, false) +
+      '<p class="am-hint">' + T("Le badge à droite, c'est <b>ton accord avec cette personne sur cette scène</b> : sur 3 comparaisons possibles, combien tombent pareil. <b>3/3</b> = exactement le même classement.") + '</p></div>';
     body += '<button class="am-primary" id="amNext">' + (play.finished ? T("🏁 Voir les résultats") : T("Scène suivante →")) + '</button>';
     $("amPlayBody").innerHTML = body;
     $("amNext").onclick = function () {
@@ -1160,7 +1166,7 @@
     show("s-results");
     setUrl(currentCode, true);
     $("amResTitle").textContent = game ? gameTitle(game) : T("Résultats");
-    $("amResultsBody").innerHTML = '<p class="am-hint center">Calcul…</p>';
+    $("amResultsBody").innerHTML = '<p class="am-hint center">' + T("Calcul…") + '</p>';
     if (socket) socket.emit("game_results", { code: currentCode });
   }
   // « Où en sont les autres » : tous ceux qui n'ont pas fini, avec leur
@@ -1172,13 +1178,13 @@
     var pend = r.players.filter(function (p) { return !p.finished && !p.me; })
       .sort(function (a, b) { return b.progress - a.progress || a.name.localeCompare(b.name); });
     if (!pend.length) return "";
-    return T('<div class="am-card am-pending"><h3>⏳ Où en sont les autres</h3>') +
-      T('<p class="am-hint">Personne n\'est pressé : ils ont tout leur temps. Dès que l\'un d\'eux finit ses ') + r.sceneCount + T(' scènes, cette page se met à jour toute seule.</p>') +
+    return '<div class="am-card am-pending"><h3>' + T("⏳ Où en sont les autres") + '</h3>' +
+      '<p class="am-hint">' + T("Personne n'est pressé : ils ont tout leur temps. Dès que l'un d'eux finit ses %1 scènes, cette page se met à jour toute seule.", r.sceneCount) + '</p>' +
       pend.map(function (p) {
         var pct = r.sceneCount ? Math.round((p.progress / r.sceneCount) * 100) : 0;
         var pv = prov[p.name];
         return '<div class="am-prow wide"><span class="who">' + (p.host ? '👑 ' : '') + esc(p.name) + '</span>' +
-          (pv ? '<span class="am-badge b-mixed" title="Sur vos ' + pv.shared + T(' scènes en commun">') + pv.pct + ' % provisoire</span>' : '') +
+          (pv ? '<span class="am-badge b-mixed" title="' + esc(T("Sur vos %1 scènes en commun", pv.shared)) + '">' + T("%1 % provisoire", pv.pct) + '</span>' : '') +
           '<span class="st">' + p.progress + '/' + r.sceneCount + '</span>' +
           '<div class="am-progress mini"><i style="width:' + pct + '%"></i></div></div>';
       }).join("") + '</div>';
@@ -1186,11 +1192,11 @@
   // Le lien qui ramène ici : à garder, à renvoyer au groupe, à ouvrir demain
   // pour voir où ça en est.
   function backLinkCard(r) {
-    return T('<div class="am-card am-share am-backlink"><h3>🔗 Revenir voir la progression</h3>') +
-      T('<p class="am-hint">Garde ce lien (ou ce QR) : il rouvre cette page, avec l\'avancée de chacun et les résultats à jour. Rien à réinstaller, ton pseudo et ton code de reprise suffisent.</p>') +
+    return '<div class="am-card am-share am-backlink"><h3>' + T("🔗 Revenir voir la progression") + '</h3>' +
+      '<p class="am-hint">' + T("Garde ce lien (ou ce QR) : il rouvre cette page, avec l'avancée de chacun et les résultats à jour. Rien à réinstaller, ton pseudo et ton code de reprise suffisent.") + '</p>' +
       '<div class="am-qr"><canvas id="amResQR" width="400" height="400"></canvas></div>' +
       '<div class="am-code-big">' + esc(r.code) + '</div>' +
-      T('<div class="am-share-row"><button class="am-primary" id="amShareRes">Partager cette page</button><button class="am-ghost" id="amCopyRes">Copier le lien</button></div></div>');
+      '<div class="am-share-row"><button class="am-primary" id="amShareRes">' + T("Partager cette page") + '</button><button class="am-ghost" id="amCopyRes">' + T("Copier le lien") + '</button></div></div>';
   }
   function wireResultsExtras(r) {
     drawQR($("amResQR"), resultsUrl(r.code));
@@ -1208,9 +1214,9 @@
 
     if (r.locked) {
       body += countsBar(r);
-      body += T('<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">Termine tes ') + r.sceneCount + T(' scènes pour voir les résultats.</p><p class="am-hint">Tu en es à ') + r.progress + '/' + r.sceneCount + T('. Le détail (ton meilleur match, le podium, les titres) s\'ouvre à la dernière scène.</p></div>');
-      if (r.teaser) body += '<div class="am-teaser">💘 <b>' + esc(r.teaser.name) + '</b> : <span class="pct">' + r.teaser.pct + T('%</span> sur vos ') + r.teaser.shared + T(' scènes en commun.</div>');
-      body += '<button class="am-primary xl" id="amPlay2">▶️ Continuer</button>';
+      body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">' + T("Termine tes %1 scènes pour voir les résultats.", r.sceneCount) + '</p><p class="am-hint">' + T("Tu en es à %1/%2. Le détail (ton meilleur match, le podium, les titres) s'ouvre à la dernière scène.", r.progress, r.sceneCount) + '</p></div>';
+      if (r.teaser) body += '<div class="am-teaser">' + T('💘 <b>%1</b> : <span class="pct">%2 %</span> sur vos %3 scènes en commun.', esc(r.teaser.name), r.teaser.pct, r.teaser.shared) + '</div>';
+      body += '<button class="am-primary xl" id="amPlay2">' + T("▶️ Continuer") + '</button>';
       body += pendingCard(r);
       body += backLinkCard(r);
       $("amResultsBody").innerHTML = body;
@@ -1222,27 +1228,27 @@
     body += countsBar(r);
     var f = r.final || {};
     if (r.finishedCount < 2) {
-      body += T('<div class="am-card am-center-card"><div class="am-big">🎉</div><p class="am-lead">Tu as fini !</p><p class="am-hint">Dès qu\'un autre joueur aura terminé ses ') + r.sceneCount + T(' scènes, votre compatibilité apparaîtra ici toute seule.</p></div>');
+      body += '<div class="am-card am-center-card"><div class="am-big">🎉</div><p class="am-lead">' + T("Tu as fini !") + '</p><p class="am-hint">' + T("Dès qu'un autre joueur aura terminé ses %1 scènes, votre compatibilité apparaîtra ici toute seule.", r.sceneCount) + '</p></div>';
     }
     if (f.top) {
       var tb = bandFor(f.top.pct);
-      body += T('<div class="am-top-duo"><div class="lbl">🏆 Le duo le plus compatible</div><div class="names">') + esc(f.top.a) + " 💞 " + esc(f.top.b) + '</div><div class="pct">' + f.top.pct + '%</div><div class="band">' + tb.emoji + " " + bandLabel(tb) + '</div>' +
+      body += '<div class="am-top-duo"><div class="lbl">' + T("🏆 Le duo le plus compatible") + '</div><div class="names">' + esc(f.top.a) + " 💞 " + esc(f.top.b) + '</div><div class="pct">' + f.top.pct + '%</div><div class="band">' + tb.emoji + " " + bandLabel(tb) + '</div>' +
         (f.top.sameTop ? '<div class="lbl">' + (f.top.sameTop > 1 ? T("%1 coups de cœur en commun", f.top.sameTop) : T("1 coup de cœur en commun")) + '</div>' : "") + '</div>';
     }
     var perso = r.personal;
     if (perso && perso.best) {
-      body += T('<div class="am-personal"><div class="am-pack-tag">💘 TON meilleur match</div><div class="names" style="font-size:1.3rem;font-weight:900;margin:4px 0">') + esc(perso.best.name) + '</div><div class="pct">' + perso.best.pct + '%</div>' +
+      body += '<div class="am-personal"><div class="am-pack-tag">' + T("💘 TON meilleur match") + '</div><div class="names" style="font-size:1.3rem;font-weight:900;margin:4px 0">' + esc(perso.best.name) + '</div><div class="pct">' + perso.best.pct + '%</div>' +
         '<div><span class="am-badge ' + bandClass(perso.best.band) + '">' + esc(perso.best.band.emoji + " " + bandLabel(perso.best.band)) + '</span></div>' +
-        (perso.average != null ? T('<p class="am-hint">Ta compatibilité moyenne avec le groupe : ') + perso.average + '%</p>' : "") + '</div>';
+        (perso.average != null ? '<p class="am-hint">' + T("Ta compatibilité moyenne avec le groupe : %1 %", perso.average) + '</p>' : "") + '</div>';
     }
     if (perso && perso.ranking && perso.ranking.length > 1) {
-      body += T('<div class="am-card"><h3>Toi et chacun</h3>') + perso.ranking.map(function (e, i) {
+      body += '<div class="am-card"><h3>' + T("Toi et chacun") + '</h3>' + perso.ranking.map(function (e, i) {
         return '<div class="am-duo-row"><span class="rank">' + medal(i) + '</span><span class="who">' + esc(e.name) + '</span><span class="pct">' + e.pct + '%</span></div>';
       }).join("") + '</div>';
     }
     body += pendingCard(r);
     if (f.podium && f.podium.length > 1) {
-      body += T('<div class="am-card"><h3>Podium des duos</h3>') + f.podium.map(function (p, i) {
+      body += '<div class="am-card"><h3>' + T("Podium des duos") + '</h3>' + f.podium.map(function (p, i) {
         var isMine = (p.a === me || p.b === me);
         return '<div class="am-duo-row"' + (isMine ? ' style="border-color:var(--accent2)"' : "") + '><span class="rank">' + medal(i) + '</span><span class="who">' + esc(p.a) + " & " + esc(p.b) + '</span><span class="pct">' + p.pct + '%</span></div>';
       }).join("") + '</div>';
@@ -1257,7 +1263,7 @@
       if (r.moments.perfectPair) extras.push({ e: "✨", l: T("Le duo en accord parfait"), n: r.moments.perfectPair.pair, v: r.moments.perfectPair.count + "×" });
     }
     if (extras.length) {
-      body += T('<div class="am-card"><h3>Les titres de la partie</h3><div class="am-extras">') + extras.map(function (x) {
+      body += '<div class="am-card"><h3>' + T("Les titres de la partie") + '</h3><div class="am-extras">' + extras.map(function (x) {
         return '<div class="am-extra"><span class="e">' + x.e + '</span><span class="l">' + esc(x.l) + '</span><span class="v">' + esc(x.v) + '</span><span class="n">' + esc(x.n) + '</span></div>';
       }).join("") + '</div></div>';
     }
@@ -1271,7 +1277,7 @@
           return '<td><span class="am-mcell" style="background:' + cellColor(v) + '">' + (v == null ? "–" : v + "%") + '</span></td>';
         }).join("") + '</tr>';
       }).join("");
-      body += T('<div class="am-card"><h3>📊 Tout le monde contre tout le monde</h3><div class="am-matrix-wrap"><table class="am-matrix">') + head + rows + '</table></div></div>';
+      body += '<div class="am-card"><h3>' + T("📊 Tout le monde contre tout le monde") + '</h3><div class="am-matrix-wrap"><table class="am-matrix">' + head + rows + '</table></div></div>';
     }
     body += T('<p class="am-hint center">Le score, c\'est la part de vos comparaisons qui tombent pareil : 3 par scène (A/B, A/C, B/C), 1 point par accord. Deux personnes au hasard tournent autour de 50 %.</p>');
     body += backLinkCard(r);
@@ -1296,7 +1302,8 @@
   function openProfile(m) {
     var p = m.profile;
     var html = '<div class="am-card"><h3>' + (p.locked ? "🔒 " : "") + esc(p.name) + '</h3>' +
-      '<p class="am-hint">' + p.games + ' partie' + (p.games > 1 ? "s" : "") + ' finie' + (p.games > 1 ? "s" : "") + ' · ' + p.answered + T(' réponses enregistrées</p></div>') +
+      '<p class="am-hint">' + (p.games > 1 ? T("%1 parties finies", p.games) : T("1 partie finie")) + ' · ' +
+      (p.answered > 1 ? T("%1 réponses enregistrées", p.answered) : T("1 réponse enregistrée")) + '</p></div>' +
       T('<button type="button" class="am-ghost" id="amChangePin">🔒 Changer mon code de reprise</button>') +
       T('<button type="button" class="am-ghost" id="amLogout">🚪 Me déconnecter de ce téléphone</button>');
     html = '<div class="am-card"><h3>🌍 ' + T("Langue") + '</h3><div class="am-lengths" id="amLangs">' +
@@ -1323,7 +1330,7 @@
     if (!myProtected) {
       openSheet(T("🚪 Se déconnecter"),
         T("<p>Pose d'abord un code de reprise. Sans lui, ce téléphone ne pourrait plus rouvrir ton pseudo — et personne d'autre non plus.</p>") +
-        '<button type="button" class="am-primary" id="amGoPin">🔒 Choisir mon code</button>',
+        '<button type="button" class="am-primary" id="amGoPin">' + T("🔒 Choisir mon code") + '</button>',
         function (body) { body.querySelector("#amGoPin").onclick = function () { sheetLocked = false; protectName(false); }; });
       return;
     }
@@ -1352,7 +1359,7 @@
   function devSheetError(msg) { var err = $("amDevErr"); if (err) err.textContent = msg; else if (msg) warn(msg); }
   function openDevSheet() {
     if (devOn) {
-      openSheet("🧪 Mode dev", T('<p>Le mode dev est <b>actif</b> sur cet appareil : la carte 🧪 de l\'accueil crée une partie de test avec des bots.</p><button type="button" class="am-ghost" id="amDevOff">Désactiver le mode dev</button>'),
+      openSheet(T("🧪 Mode dev"), T('<p>Le mode dev est <b>actif</b> sur cet appareil : la carte 🧪 de l\'accueil crée une partie de test avec des bots.</p><button type="button" class="am-ghost" id="amDevOff">Désactiver le mode dev</button>'),
         function (body) { body.querySelector("#amDevOff").onclick = function () { devOn = false; devInfo = null; setDevToken(""); renderDevCard(); closeSheet(); toast(T("Mode dev désactivé")); }; });
       return;
     }
@@ -1377,10 +1384,10 @@
     var host = $("amDev"); if (!host) return;
     if (!devOn || !devInfo) { host.innerHTML = ""; return; }
     var maxBots = devInfo.max_bots || 4;
-    host.innerHTML = T('<div class="am-card am-devcard"><h3>🧪 Mode dev — partie de test</h3>') +
+    host.innerHTML = '<div class="am-card am-devcard"><h3>' + T("🧪 Mode dev — partie de test") + '</h3>' +
       T('<p class="am-hint">Des bots qui ont déjà répondu à tout (Bot A = ton ordre si tu classes dans l\'ordre affiché, Bot B = l\'inverse). Rien n\'est enregistré.</p>') +
-      '<div class="am-devrow"><label for="amDevBots">Bots</label><input id="amDevBots" type="number" inputmode="numeric" min="0" max="' + maxBots + '" value="' + devBots + '" /></div>' +
-      T('<button type="button" class="am-primary" id="amDevGo">🧪 Créer une partie de test</button></div>');
+      '<div class="am-devrow"><label for="amDevBots">' + T("Bots") + '</label><input id="amDevBots" type="number" inputmode="numeric" min="0" max="' + maxBots + '" value="' + devBots + '" /></div>' +
+      '<button type="button" class="am-primary" id="amDevGo">' + T("🧪 Créer une partie de test") + '</button></div>';
     $("amDevGo").onclick = function () {
       var v = parseInt($("amDevBots").value, 10); if (isNaN(v)) v = 2; devBots = Math.max(0, Math.min(maxBots, v));
       if (!socket || !connected) { warn(T("Pas de connexion.")); return; }

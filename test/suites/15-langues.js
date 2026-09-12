@@ -171,8 +171,24 @@ exports.run = async (t) => {
   // Une regexp ne suffit pas ici : les apostrophes des commentaires et les
   // littéraux régexp (/[&<>"']/g) ouvrent de fausses chaînes et noient le
   // résultat. On relit donc le fichier caractère par caractère.
+  //
+  // Le détecteur ne DEVINE pas une liste de mots français : il la tire du
+  // dictionnaire lui-même. Une liste devinée laissait passer « Partager »,
+  // « Copier », « Inviter », « Continuer » — du français sans le moindre
+  // accent, affiché tel quel aux anglophones sur l'écran de partie.
   const chaines = lireChaines(fs.readFileSync(path.join(racine, "app.js"), "utf8"));
-  const FRANCAIS = /[éèêàçôûîï]|\b(les?|la|une?|des|du|de|et|tu|on|dans|pour|avec|sans|que|qui|est|sont|pas|ne|se|sa|son|ses|ce|cette|autres?|joueurs?|parties?|réponses?|dont|déjà|tout|tous|rien|très|encore|aussi|mais|donc|alors|quand|comme|ton|ta|tes)\b/i;
+  const mots = (s) => s.replace(/<[^>]*>/g, " ").toLowerCase().match(/[a-zàâçéèêëîïôûùüœ]{3,}/g) || [];
+  const VOCABULAIRE = new Set();
+  for (const k of Object.keys(dico)) for (const w of mots(k)) VOCABULAIRE.add(w);
+  // Français si ça porte un accent, ou si l'essentiel de ses mots sont déjà
+  // dans le vocabulaire français de l'app.
+  const FRANCAIS = (visible) => {
+    if (/[éèêàçôûîï]/.test(visible)) return true;
+    const w = mots(visible);
+    if (!w.length) return false;
+    const connus = w.filter((x) => VOCABULAIRE.has(x)).length;
+    return connus === w.length || (w.length >= 2 && connus / w.length >= 0.6);
+  };
   // Ce qui n'est pas de la prose : sélecteurs, classes, attributs, urls.
   const TECHNIQUE = /^[#.\/?&=_a-zA-Z0-9:@%+\- ]*$|am-|^data-|^https?:/;
   // Les noms de mois et de langues restent dans leur langue, par définition.
@@ -183,10 +199,12 @@ exports.run = async (t) => {
   const nues = [];
   for (const c of chaines) {
     if (dures.has(c.val) || permis.has(c.val) || c.val.length < 4) continue;
-    if (TECHNIQUE.test(c.val)) continue;
-    // Le texte visible d'un bloc HTML compte, ses balises non.
+    // Le texte visible d'un bloc HTML compte, ses balises non — et c'est LUI
+    // qu'on filtre. Tester la chaîne brute écartait tout littéral contenant
+    // une classe « am-… », donc la quasi-totalité du HTML de l'app : « (toi) »
+    // et « Ouverte » passaient à travers pour cette seule raison.
     const visible = c.val.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    if (visible.length < 4 || !FRANCAIS.test(visible)) continue;
+    if (visible.length < 4 || TECHNIQUE.test(visible) || !FRANCAIS(visible)) continue;
     nues.push("l." + c.ligne + " " + JSON.stringify(c.val.slice(0, 40)));
   }
   t.check("Aucune phrase française n'échappe à T()", nues.length === 0,
@@ -198,26 +216,27 @@ exports.run = async (t) => {
   // en français. C'est arrivé à « 🔒 Ton code de reprise <span…>(4 chiffres) »,
   // amputée de son </span> : le libellé du code de reprise n'a jamais été
   // traduit. Les balises d'une clé doivent donc être équilibrées.
+  // Les balises vides de HTML n'ont pas de fermante : les compter en
+  // ouvrantes ferait passer tout bloc contenant un <input> pour un morceau.
+  const VIDES = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
   const desequilibre = (s) => {
-    const ouvrants = (s.match(/<([a-z]+)(?: [^>]*)?>/g) || []).map((x) => /<([a-z]+)/.exec(x)[1]).filter((n) => n !== "br");
+    const ouvrants = (s.match(/<([a-z]+)(?: [^>]*)?>/g) || []).map((x) => /<([a-z]+)/.exec(x)[1]).filter((n) => !VIDES.has(n));
     const fermants = (s.match(/<\/([a-z]+)>/g) || []).map((x) => /<\/([a-z]+)/.exec(x)[1]);
     return ouvrants.sort().join(",") !== fermants.sort().join(",");
   };
   //
-  // Ne concerne QUE les clés venues d'index.html (les data-t) : là, la clé est
-  // comparée à ce que le navigateur calcule pour innerHTML, donc elle doit
-  // être un bloc complet. Les clés d'app.js, elles, sont légitimement des
-  // morceaux de phrase — le littéral du code EST la clé, l'égalité est exacte.
-  // (Ces morceaux restent fragiles pour d'autres raisons ; c'est un autre
-  // chantier, pas une régression.)
+  // La règle vaut pour TOUTES les clés. Longtemps une quarantaine d'entre
+  // elles étaient des morceaux — « <div class="am-card"><h3>Podium des duos</h3> »
+  // d'un côté, « scènes en commun.</div> » de l'autre, un nombre recollé au
+  // milieu. Ça marchait, mais le traducteur ne voyait jamais la phrase, et le
+  // pluriel ne pouvait pas tomber ailleurs qu'en français. Une clé est
+  // maintenant une phrase ou un bloc complet : ses balises s'équilibrent.
   const tronquees = [];
   for (const [k, v] of Object.entries(dico)) {
-    if (dures.has(k)) continue;                       // clé d'app.js : fragment autorisé
-    if (htmlPlat.indexOf(plat(k)) < 0) continue;      // ni app.js ni index.html : déjà signalée
     if (desequilibre(k)) tronquees.push("clé : " + k.slice(0, 60));
     else if (desequilibre(v)) tronquees.push("traduction de : " + k.slice(0, 60));
   }
-  t.check("Les blocs d'index.html ne sont pas tronqués dans le dictionnaire", tronquees.length === 0,
+  t.check("Aucune clé n'est un morceau de phrase (balises équilibrées)", tronquees.length === 0,
     tronquees.slice(0, 3).join(" | "));
 
   // Les blocs HTML traduits gardent leurs id : c'est le code qui s'y accroche.
