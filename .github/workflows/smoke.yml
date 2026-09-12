@@ -9,6 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # Les tests comparent la branche à main (VERSION a-t-elle été
+        # incrémentée quand le jeu change ?) : il leur faut l'historique.
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -16,6 +20,15 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Chromium pour les suites qui mesurent ce qui se passe VRAIMENT à
+      # l'écran : contraste, cibles tactiles, fenêtres modales, partage. Sans
+      # lui elles s'ignorent proprement, et le reste tourne quand même.
+      - name: Chromium (suites navigateur)
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests
+        run: npm test
 
       - name: Smoke test — server boots and key routes return 200
         run: |
