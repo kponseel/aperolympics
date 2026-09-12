@@ -1,19 +1,19 @@
 // Are We A Match? — les scènes sur LE RAPPORT AUX AUTRES.
 //
-// Le fichier s'appelle encore date.js et son pack garde l'id « date » : cet id
+// Le fichier s'appelle encore date.js et son pack garde l'id « date » : cet id
 // est la clé sous laquelle les réponses sont rangées dans les profils, il ne
 // bouge pas. En revanche le contenu a changé de nature. Il ne s'agit plus de
 // vie de couple : toutes les scènes ici passent LE TEST DES TROIS RELATIONS —
 // elles ont du sens classées entre toi et ta mère, toi et ton meilleur pote,
-// et toi et ton/ta partenaire. Ce qui présupposait un couple (« En couple, le
-// week-end », « Dire je t'aime », « L'argent à deux ») est parti.
+// et toi et ton/ta partenaire. Ce qui présupposait un couple (« En couple, le
+// week-end », « Dire je t'aime », « L'argent à deux ») est parti.
 //
 // Format, identique au pack amis :
 //   q    — une vraie question, courte, affichée en gros.
 //   ctx  — la scène en une phrase, PUIS le sens du classement. Sans lui,
-//          « classer » ne veut rien dire, et deux joueurs qui lisent la
+//          « classer » ne veut rien dire, et deux joueurs qui lisent la
 //          consigne à l'envers produisent un désaccord qui n'existe pas.
-//   o    — 3 options clivantes (aucune socialement « juste »).
+//   o    — 3 options clivantes (aucune socialement « juste »).
 //   axis — ce que la scène révèle. Sert au tirage équilibré (games.js).
 //
 // RÈGLE DE STABILITÉ — les réponses mémorisées sont des classements d'INDEX
@@ -79,7 +79,7 @@ module.exports = [
     o: ["😎 Que tu es drôle", "🧠 Que tu es brillant", "❤️ Qu'on peut compter sur toi"] },
   { id: "au-compliment", axis: "autres", q: "Quel compliment te fait le plus plaisir ?",
     ctx: "Dit sincèrement, par quelqu'un dont l'avis compte. De celui qui te fait le plus plaisir au moins.",
-    o: ["🤣 « Tu me fais trop rire »", "🧠 « T'es vraiment intelligent »", "🫶 « On peut compter sur toi »"] },
+    o: ["🤣 « Tu me fais trop rire »", "🧠 « T'es vraiment intelligent »", "🫶 « On peut compter sur toi »"] },
   { id: "au-tabou", axis: "autres", q: "Quel sujet tu évites le plus à table ?",
     ctx: "Repas de famille ou dîner entre amis, quelqu'un lance le sujet. Du plus évité chez toi au moins évité.",
     o: ["💰 L'argent", "🗳️ La politique", "❤️ La vie intime"] },

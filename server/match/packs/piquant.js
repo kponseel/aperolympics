@@ -1,16 +1,16 @@
 // Are We A Match? — les scènes sur LES PETITS VICES, L'ARGENT et CE QUI AGACE.
 //
-// Le fichier s'appelle encore piquant.js et son pack garde l'id « piquant » :
+// Le fichier s'appelle encore piquant.js et son pack garde l'id « piquant » :
 // cet id est la clé sous laquelle les réponses sont rangées dans les profils,
 // il ne bouge pas. Le contenu, lui, a changé de nature.
 //
-// « Piquant » ne veut plus dire osé. Un vice, ici, ce n'est pas du sexe : c'est
+// « Piquant » ne veut plus dire osé. Un vice, ici, ce n'est pas du sexe : c'est
 // la procrastination, les achats compulsifs, juger quelqu'un sur ses
 // chaussures, garder une rancune sept ans, annuler à la dernière minute. Et
 // c'est braqué sur TOI, jamais sur les défauts des autres — c'est drôle
 // justement parce que l'autre voit ta réponse. Tout ce qui relevait de la
-// drague ou de la confidence intime (« Flirter, pour toi c'est », « Un crush
-// sur un ami du groupe », « Les applis de rencontre ») est parti : ces scènes
+// drague ou de la confidence intime (« Flirter, pour toi c'est », « Un crush
+// sur un ami du groupe », « Les applis de rencontre ») est parti : ces scènes
 // ne passaient pas le test des trois relations, puisqu'une partie se joue
 // aussi bien avec sa mère qu'avec son meilleur pote.
 //
@@ -34,7 +34,7 @@ module.exports = [
     o: ["🧊 Poli et distant, à vie", "🤷 J'ai oublié depuis longtemps", "🗣️ Je remets le sujet sur la table"] },
   { id: "vi-mensonge", axis: "vices", q: "Quel petit mensonge tu fais le plus souvent ?",
     ctx: "Pas un gros : celui qui sort tout seul, sans y penser. Du plus fréquent chez toi au plus rare.",
-    o: ["😴 « J'arrive dans cinq minutes »", "📖 « Oui, j'ai lu le contrat »", "😀 « Non non, ça va très bien »"] },
+    o: ["😴 « J'arrive dans cinq minutes »", "📖 « Oui, j'ai lu le contrat »", "😀 « Non non, ça va très bien »"] },
   { id: "vi-annuler", axis: "vices", q: "Annuler un plan à la dernière minute, tu le vis comment ?",
     ctx: "Tu avais dit oui, tu n'as plus envie, et tu n'as aucune excuse valable. Du plus vrai pour toi au moins vrai.",
     o: ["📵 Je le fais sans culpabiliser", "😅 Je culpabilise, mais je le fais", "🚫 Je ne le fais jamais, j'y vais"] },
@@ -129,4 +129,96 @@ module.exports = [
   { id: "ag-attente", axis: "agace", q: "On te fait attendre. Tu craques au bout de combien ?",
     ctx: "Quelqu'un que tu aimes bien, qui n'a pas prévenu, et qui ne répond pas. Du plus proche de toi au plus éloigné.",
     o: ["⏱️ Dix minutes et j'écris déjà", "🕐 Une demi-heure, ça passe", "🧘 Je m'en fiche, j'attends"] },
+
+  // ---------------------------------------------- lot du 12/09/2026
+  // `heat` (1 à 3) note à quel point la scène demande un aveu. Le champ ne
+  // sort pas du serveur : pubQuestion ne recopie que id, q, o, ctx et pack.
+  // Il est là pour pouvoir, un jour, filtrer les scènes les plus gênantes
+  // dans les parties familiales — la banque est commune à toutes les parties.
+
+  // --- ce qui t'agace (l'axe le plus pauvre : 7 scènes pour 3 ou 4 tirées
+  //     à chaque partie, donc toujours les mêmes)
+  { id: "ag-vocal-quatre", axis: "agace", heat: 2, q: "Un vocal de quatre minutes vient d'arriver",
+    ctx: "Quelqu'un que tu aimes bien t'envoie un vocal de quatre minutes, sans résumé. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🎧 Je l'écoute en vitesse x2 en faisant autre chose", "🙈 Je l'ouvre dans deux jours, peut-être", "📝 Je réponds « tu peux écrire ? »"] },
+  { id: "ag-petit-bruit", axis: "agace", heat: 1, q: "Quel petit bruit te rend dingue ?",
+    ctx: "Tu es à côté de quelqu'un dans un endroit calme, et ça commence. Du plus insupportable au moins insupportable.",
+    o: ["🥣 La cuillère qui racle le fond du bol", "💻 Le clavier qu'on tape comme pour le punir", "🍬 Le chewing-gum qui claque sans pause"] },
+  { id: "ag-coupe-parole", axis: "agace", heat: 2, q: "On te coupe la parole en plein milieu",
+    ctx: "Tu racontes quelque chose, et quelqu'un enchaîne sur autre chose avant ta fin. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🔁 Je reprends mot pour mot là où j'en étais", "🤐 Je laisse tomber, tant pis pour eux", "📢 Je continue, juste un peu plus fort"] },
+  { id: "ag-histoire-fausse", axis: "agace", heat: 3, q: "On raconte mal une histoire que tu connais",
+    ctx: "Quelqu'un raconte une anecdote que tu connais, avec la moitié des détails faux. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["📢 Je corrige les détails un par un", "🎭 Je souris et je me venge dans ma tête", "🙃 J'ajoute des détails encore plus faux"] },
+  { id: "ag-trottoir-lent", axis: "agace", heat: 1, q: "Sur le trottoir, quelqu'un marche lentement devant toi",
+    ctx: "La personne devant toi avance à deux à l'heure, et tu n'as pas toute la journée. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🏃 Je double en trottinant, avec un « pardon »", "😤 Je reste derrière et je souffle très fort", "📱 Je sors mon téléphone, ça ira comme ça"] },
+  { id: "ag-faut-se-voir", axis: "agace", heat: 2, q: "« Faut qu'on se voie ! » pour la cinquième fois",
+    ctx: "Quelqu'un te redit « faut vraiment qu'on se voie » sans jamais proposer de date. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["📅 Je propose une date tout de suite, pour voir", "😌 Je dis oui, on sait tous les deux que non", "🪞 Je le dis autant qu'on me le dit"] },
+  { id: "ag-reponse-ciel", axis: "agace", heat: 1, q: "Quelle réponse te fait lever les yeux au ciel ?",
+    ctx: "Tu as écrit un vrai message, avec une vraie question, et voilà ce qui revient. Du plus insupportable au moins insupportable.",
+    o: ["👍 Le pouce bleu, et rien d'autre", "😂 Un « mdr » à une question sérieuse", "👀 Le « vu » qui reste vu pendant trois jours"] },
+  { id: "ag-groupe-emballe", axis: "agace", heat: 3, q: "Un groupe de discussion s'emballe : 80 messages",
+    ctx: "Un groupe part en vrille pendant une heure sur un sujet qui ne te concerne pas. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🔕 Je mets en sourdine pour un an, minimum", "👀 Je lis tout, je ne réponds jamais rien", "🚪 Je quitte le groupe sans prévenir"] },
+  { id: "ag-point-interro", axis: "agace", heat: 2, q: "Tu n'as pas répondu. On t'envoie un « ? »",
+    ctx: "Un message attendait depuis hier, et voilà qu'un point d'interrogation débarque. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["😬 Je réponds dans la seconde, la honte", "🙄 Je laisse mariner encore, par principe", "📞 J'appelle direct pour couper court"] },
+  { id: "ag-explique-connu", axis: "agace", heat: 2, q: "On t'explique un truc que tu connais par cœur",
+    ctx: "Quelqu'un t'explique avec passion une chose que tu maîtrises bien mieux que lui. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["😐 J'écoute jusqu'au bout, en hochant la tête", "🤚 Je coupe : « oui, je sais »", "🎓 Je laisse finir, puis je corrige un détail"] },
+  { id: "ag-reve-raconte", axis: "agace", heat: 1, q: "On te raconte un rêve, en détail",
+    ctx: "On te raconte un rêve avec des couloirs, des portes et une prof de CM2. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["😴 Je décroche dès la deuxième phrase", "🤔 J'écoute et je cherche ce que ça veut dire", "📢 J'enchaîne avec le mien, plus long"] },
+  { id: "ag-ok-sec", axis: "agace", heat: 3, q: "On répond « ok » à ton long message",
+    ctx: "Tu avais écrit dix lignes avec du cœur, et la réponse tient en deux lettres. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["😑 Je relis mon message, c'était peut-être trop", "🙃 Je réponds « ok » aussi, et on verra", "🤷 Je m'en fiche, c'était juste une info"] },
+  { id: "ag-mot-repris", axis: "agace", heat: 2, q: "On te reprend sur la prononciation d'un mot",
+    ctx: "Devant du monde, on te corrige sur un mot que tu dis comme ça depuis toujours. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["😊 Je dis merci et je corrige tout de suite", "😏 Je continue à le dire à ma façon, exprès", "😳 J'y repense encore le soir dans mon lit"] },
+  { id: "ag-ecoute-ca", axis: "agace", heat: 3, q: "« Écoute ça, tu vas adorer » : tu fais quoi ?",
+    ctx: "Quelqu'un lance une chanson, te tend le téléphone et te fixe pendant que tu écoutes. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🎧 J'écoute vingt secondes et je dis « pas mal »", "😊 Je hoche la tête avant même la fin de l'intro", "🙅 Je dis « plus tard », et plus tard n'arrive jamais"] },
+
+  // --- argent
+  { id: "ar-abonnement-fantome", axis: "argent", heat: 2, q: "Un abonnement que tu n'utilises plus se prélève",
+    ctx: "Le prélèvement mensuel d'une appli que tu n'ouvres plus vient de passer. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🧾 Je résilie le jour même, avec fierté", "📆 Je me dis « ce mois-ci » depuis mars", "🤷 Je le garde, au cas où je m'y remette"] },
+  { id: "ar-sept-euros", axis: "argent", heat: 2, q: "On te doit 7 €. Tu réclames ?",
+    ctx: "Quelqu'un a oublié de te rembourser un café et un sandwich, il y a deux semaines. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["💬 Je relance avec un « au fait ! » léger", "🧮 Je ne dis rien mais je n'oublie pas", "🙃 Je laisse tomber, demander me gêne trop"] },
+  { id: "ar-trois-cinquante", axis: "argent", heat: 3, q: "Tu dois 3,50 € à quelqu'un. Tu fais quoi ?",
+    ctx: "On t'a avancé une boisson hier, et personne n'en a reparlé depuis. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["📲 Virement dans la minute, libellé « boisson »", "🍕 Je rembourse à la prochaine sortie, promis", "😇 J'attends de voir si la personne s'en souvient"] },
+  { id: "ar-pourboire", axis: "argent", heat: 2, q: "Le repas était bien. Tu laisses un pourboire ?",
+    ctx: "Service correct, addition réglée par carte, et tu n'as pas de monnaie sur toi. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["💶 Je laisse des pièces sur la table, toujours", "🙈 Je n'ai jamais de liquide, donc jamais", "🎯 Seulement si le serveur a été vraiment bien"] },
+  { id: "ar-etiquette-oubliee", axis: "argent", heat: 2, q: "Qu'est-ce qui traîne encore avec l'étiquette ?",
+    ctx: "Tu fais du tri chez toi et tu retombes sur des achats qui n'ont jamais vraiment servi. Du plus fréquent chez toi au plus rare.",
+    o: ["👟 Des baskets « pour reprendre le sport »", "🍳 Un appareil de cuisine utilisé une seule fois", "🧥 Une veste pour une version plus stylée de moi"] },
+  { id: "ar-cagnotte-cadeau", axis: "argent", heat: 3, q: "Une cagnotte cadeau circule. Tu mets combien ?",
+    ctx: "Une cagnotte arrive avec un montant conseillé, et tout le monde voit qui a mis quoi. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["💸 Le montant conseillé, pas un centime de plus", "🎁 Un peu plus, puisque tout le monde voit", "🤫 Un peu moins, personne ne compare vraiment"] },
+  { id: "ar-ticket-oublie", axis: "argent", heat: 3, q: "Un article manque sur ton ticket de caisse",
+    ctx: "En rangeant tes courses, tu vois qu'un article n'a pas été scanné. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🏪 Je retourne à la caisse, la conscience légère", "🤫 Cadeau de la maison, je ne dis rien", "🎲 Ça dépend du prix de l'article"] },
+  { id: "ar-retour-article", axis: "argent", heat: 3, q: "Un achat te déçoit : tu le ramènes ?",
+    ctx: "Un achat à 19 € s'avère inutile une fois chez toi, et tu as encore le ticket. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🧾 Je ramène tout, même un chargeur à 9 €", "📦 Je garde le ticket et je n'y retourne jamais", "🎁 Ça deviendra un cadeau pour quelqu'un"] },
+  { id: "ar-appli-banque", axis: "argent", heat: 2, q: "Ton compte en banque, tu le regardes quand ?",
+    ctx: "L'appli de ta banque est là, sur l'écran d'accueil, entre deux notifications. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["📲 Dix fois par jour, comme un réseau social", "🙈 Le moins possible : pas vu, pas pris", "📅 Une fois par semaine, calmement"] },
+  { id: "ar-frais-de-port", axis: "argent", heat: 1, q: "12 € d'article, 5 € de frais de port",
+    ctx: "Tu commandes un petit truc en ligne et la livraison coûte presque la moitié du prix. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🛒 J'ajoute un truc inutile pour la livraison offerte", "💸 Je paie les 5 €, la vie est courte", "🚪 J'abandonne le panier, par principe"] },
+  { id: "ar-code-promo", axis: "argent", heat: 1, q: "Avant de payer en ligne, tu fais quoi ?",
+    ctx: "Le panier est prêt, la carte est sortie, et il reste ce petit champ « code promo » qui te regarde. Du plus fréquent chez toi au plus rare.",
+    o: ["🔎 Je cherche un code pendant vingt minutes", "📧 Je laisse le panier, un mail promo arrivera", "💳 Je paie direct, le temps c'est de l'argent"] },
+  { id: "ar-prix-avoue", axis: "argent", heat: 3, q: "« Tu l'as payé combien ? » Tu dis quoi ?",
+    ctx: "On te complimente sur un objet, et la question du prix arrive juste derrière. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["💬 Le vrai prix, au centime près", "📉 Un peu moins que le vrai, par réflexe", "📈 Un peu plus que le vrai, par fierté"] },
+  { id: "ar-sous-marque", axis: "argent", heat: 1, q: "Au supermarché, la marque ou la sous-marque ?",
+    ctx: "Même rayon, même produit, deux prix : l'emballage connu à côté de celui du magasin. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🔖 La sous-marque partout, sans aucune honte", "🧀 La marque pour deux ou trois produits sacrés", "✨ La marque partout, la sous-marque me déprime"] },
 ];
