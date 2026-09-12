@@ -15,6 +15,16 @@ const { spawn } = require("child_process");
 // test/lib/ → la racine du dépôt.
 const RACINE = path.resolve(__dirname, "..", "..");
 
+// Le VRAI HOME, capturé avant qu'on y touche. Chaque suite tourne avec un HOME
+// jetable (voir modules()), mais Playwright cherche ses navigateurs sous
+// $HOME/.cache/ms-playwright : avec le HOME bidon, il ne les trouvait plus et
+// les suites navigateur s'ignoraient — en CI, la sortie restait verte alors
+// que rien n'avait été mesuré à l'écran.
+const HOME_REEL = process.env.HOME;
+// En intégration continue, un navigateur introuvable est une PANNE, pas une
+// raison de passer son tour : la CI installe Chromium exprès.
+const EN_CI = !!process.env.CI;
+
 class Suite {
   constructor(fichier, titre) {
     this.fichier = fichier;
@@ -69,7 +79,10 @@ class Suite {
 
   // ---- serveur éphémère ---------------------------------------------------
   async serveur(env) {
-    const port = 3200 + Math.floor(Math.random() * 700);
+    // Un port tiré au hasard finit par tomber sur un déjà pris, et la suite
+    // échoue pour une raison qui n'a rien à voir avec le code. On demande à
+    // l'OS un port libre.
+    const port = await portLibre();
     const data = this.dossierDonnees();
     const home = this.dossierDonnees();
     const p = spawn("node", ["server/index.js"], {
@@ -95,6 +108,10 @@ class Suite {
     try { ({ chromium } = require("playwright")); }
     catch (e) { this.ignorer("playwright n'est pas installé (npm i -D playwright)"); return null; }
     const exe = trouverChromium();
+    // On rend son vrai HOME à Playwright le temps du lancement, sinon il
+    // cherche ses navigateurs dans le dossier jetable d'une suite précédente.
+    const homeBidon = process.env.HOME;
+    if (HOME_REEL) process.env.HOME = HOME_REEL;
     try {
       const b = await chromium.launch({
         ...(exe ? { executablePath: exe } : {}),
@@ -103,8 +120,12 @@ class Suite {
       this._navigateurs.push(b);
       return b;
     } catch (e) {
-      this.ignorer("aucun Chromium lançable (" + String(e.message).split("\n")[0] + ")");
+      const pourquoi = "aucun Chromium lançable (" + String(e.message).split("\n")[0] + ")";
+      if (EN_CI) { this.fail("Le navigateur devait être disponible en CI", pourquoi); return null; }
+      this.ignorer(pourquoi);
       return null;
+    } finally {
+      process.env.HOME = homeBidon;
     }
   }
 
@@ -115,16 +136,40 @@ class Suite {
   }
 }
 
+// Où sont les navigateurs. On cherche là où Playwright les met lui-même, sans
+// chemin codé en dur pour une machine en particulier : d'abord
+// PLAYWRIGHT_BROWSERS_PATH s'il est posé, puis le cache du VRAI HOME — celui
+// d'avant que les suites le remplacent par un dossier jetable.
 function trouverChromium() {
-  const base = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
-  try {
-    const d = fs.readdirSync(base).filter((x) => x.startsWith("chromium")).sort().reverse();
-    for (const c of d) {
-      const p = path.join(base, c, "chrome-linux", "chrome");
+  const bases = [];
+  if (process.env.PLAYWRIGHT_BROWSERS_PATH) bases.push(process.env.PLAYWRIGHT_BROWSERS_PATH);
+  if (HOME_REEL) bases.push(path.join(HOME_REEL, ".cache", "ms-playwright"));
+  // Les dispositions varient selon les versions de Playwright.
+  const formes = [
+    ["chrome-linux", "chrome"],
+    ["chrome-linux64", "chrome"],
+    ["chrome-headless-shell-linux64", "chrome-headless-shell"],
+  ];
+  for (const base of bases) {
+    let dossiers;
+    try { dossiers = fs.readdirSync(base).filter((x) => x.startsWith("chromium")).sort().reverse(); }
+    catch (e) { continue; }
+    for (const d of dossiers) for (const [sous, bin] of formes) {
+      const p = path.join(base, d, sous, bin);
       if (fs.existsSync(p)) return p;
     }
-  } catch (e) {}
+  }
   return null;                                  // Playwright cherchera tout seul
+}
+
+// Un port que personne n'utilise, de l'avis du système lui-même.
+function portLibre() {
+  return new Promise((resolve, reject) => {
+    const s = require("net").createServer();
+    s.unref();
+    s.on("error", reject);
+    s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => resolve(p)); });
+  });
 }
 
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
