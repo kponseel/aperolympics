@@ -78,8 +78,12 @@ exports.run = async (t) => {
     (await E.textContent("#s-home")).slice(0, 60));
 
   t.section("Ils rejoignent la même partie");
-  await F.click("#amCreate"); await F.waitForSelector("#amLengths", { timeout: 8000 });
-  await F.click('.am-length[data-n="' + N + '"]');
+  await F.click("#amCreate"); await F.waitForSelector("#amLenRange", { timeout: 8000 });
+  await F.evaluate((n) => {
+    const r = document.getElementById("amLenRange");
+    r.value = String(n);
+    r.dispatchEvent(new Event("input", { bubbles: true }));
+  }, N);
   await F.click("#amFormGo");
   await F.waitForFunction(() => document.querySelector(".am-code-big"), null, { timeout: 10000 });
   const code = (await F.textContent(".am-code-big")).trim();

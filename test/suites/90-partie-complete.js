@@ -63,13 +63,25 @@ exports.run = async (t) => {
   await entrer(K, "Kevin", "4827");
   await sur(K, "s-home");
   await balayer(K, "accueil");
-  await K.click("#amCreate"); await K.waitForSelector("#amLengths", { timeout: 8000 });
-  t.check("La feuille de création propose trois longueurs",
-    (await K.$$(".am-length")).length === 3, String((await K.$$(".am-length")).length));
-  t.check("La plus longue est choisie par défaut",
-    await K.evaluate(() => document.querySelector(".am-length.on").getAttribute("data-n") === "20"));
-  await K.click('.am-length[data-n="' + N + '"]');
+  await K.click("#amCreate"); await K.waitForSelector("#amLenRange", { timeout: 8000 });
+  const bornes = await K.evaluate(() => {
+    const r = document.getElementById("amLenRange");
+    return { min: r.min, max: r.max, step: r.step, val: r.value };
+  });
+  t.check("Le curseur va de 5 à 50 scènes", bornes.min === "5" && bornes.max === "50",
+    bornes.min + " → " + bornes.max);
+  t.check("Il avance par crans de 5", bornes.step === "5", bornes.step);
+  t.check("Il démarre sur la longueur par défaut", bornes.val === "20", bornes.val);
+  // On pose la valeur puis on déclenche « input » : c'est l'événement que le
+  // code écoute, et le glissement du pouce ne se simule pas autrement.
+  await K.evaluate((n) => {
+    const r = document.getElementById("amLenRange");
+    r.value = String(n);
+    r.dispatchEvent(new Event("input", { bubbles: true }));
+  }, N);
   await K.waitForTimeout(200);
+  t.check("Le chiffre choisi s'affiche", (await K.textContent("#amLenN")) === String(N), await K.textContent("#amLenN"));
+  t.check("… avec une durée estimée", /min/.test(await K.textContent("#amLenD")), await K.textContent("#amLenD"));
   t.check("Choisir une longueur explique ce qu'elle vaut",
     /impression, pas un verdict/.test(await K.textContent("#amLengthNote")), await K.textContent("#amLengthNote"));
   await K.click("#amFormGo");
