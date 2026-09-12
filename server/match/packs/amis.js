@@ -3,12 +3,12 @@
 //
 // Chaque question :
 //   q   — une vraie question, courte, affichée en gros.
-//   ctx — la scène en une phrase, puis le critère de classement (« du plus
-//         tentant au moins tentant », « du plus « toi » au moins « toi »… »).
-//         C'est lui qui lève l'ambiguïté : « préféré » ne veut rien dire pour
-//         « face à un désaccord », « ce que tu ferais vraiment » si.
+//   ctx — la scène en une phrase, puis le critère de classement (« du plus
+//         tentant au moins tentant », « du plus « toi » au moins « toi »… »).
+//         C'est lui qui lève l'ambiguïté : « préféré » ne veut rien dire pour
+//         « face à un désaccord », « ce que tu ferais vraiment » si.
 //   o   — 3 options à classer, pensées pour être CLIVANTES (pas d'option
-//         « évidemment meilleure ») : c'est ce qui étale les scores de
+//         « évidemment meilleure ») : c'est ce qui étale les scores de
 //         compatibilité et rend les résultats parlants.
 //
 // RÈGLE DE STABILITÉ — les réponses mémorisées dans les comptes sont des
@@ -31,7 +31,7 @@ module.exports = [
     ctx: "Personne ne t'attend, rien ne presse. Du réveil qui te ressemble le plus à celui qui te ressemble le moins.",
     o: ["🌅 Debout à 6h, la journée est à moi", "☕ 8h avec un café, tranquille", "😴 Le plus tard possible"] },
   { id: "am-resto", axis: "gouts", q: "Au resto, tu commandes quoi ?",
-    ctx: "Nouvelle adresse, carte inconnue, le serveur attend. Du réflexe le plus « toi » au moins « toi ».",
+    ctx: "Nouvelle adresse, carte inconnue, le serveur attend. Du réflexe le plus « toi » au moins « toi ».",
     o: ["🍜 Un truc que tu n'as jamais goûté", "🥩 Ta valeur sûre habituelle", "🌱 L'option la plus saine"] },
   { id: "am-musique", axis: "gouts", q: "On te tend l'enceinte : tu mets quoi ?",
     ctx: "Soirée entre amis, la playlist est à toi. De l'ambiance que tu lances en premier à celle que tu évites.",
@@ -40,7 +40,7 @@ module.exports = [
     ctx: "Même prix, même heure d'arrivée. De ta façon de voyager préférée à celle que tu subis.",
     o: ["🚗 Voiture, on s'arrête où on veut", "🚆 Train, je lis / je dors", "✈️ Avion, le plus vite possible"] },
   { id: "am-argent", axis: "argent", q: "Une prime tombe : tu en fais quoi ?",
-    ctx: "Une somme inattendue, sans besoin urgent. Du réflexe le plus « toi » au moins « toi ».",
+    ctx: "Une somme inattendue, sans besoin urgent. Du réflexe le plus « toi » au moins « toi ».",
     o: ["🐿️ J'épargne d'abord", "🎈 Je dépense pour les expériences", "📊 Je calcule et j'optimise tout"] },
   { id: "am-conflit", axis: "autres", q: "Un ami t'a blessé : tu réagis comment ?",
     ctx: "Rien de grave, mais ça t'est resté en travers. De ce que tu ferais vraiment à ce que tu ne ferais jamais.",
@@ -109,7 +109,7 @@ module.exports = [
     ctx: "Un jour normal, ni mariage ni dimanche malade. Du style le plus proche du tien au plus éloigné.",
     o: ["👔 Soigné, ça compte", "👟 Confort avant tout", "🧢 Décontracté mais pensé"] },
   { id: "am-nouveau", axis: "rythme", q: "Une nouveauté débarque : tu réagis comment ?",
-    ctx: "Une appli, un resto, une activité dont tout le monde parle. Du réflexe le plus « toi » au moins « toi ».",
+    ctx: "Une appli, un resto, une activité dont tout le monde parle. Du réflexe le plus « toi » au moins « toi ».",
     o: ["🚀 Je teste tout de suite", "🔍 Je me renseigne d'abord", "⏸️ J'attends que d'autres essaient"] },
   { id: "am-fete-fin", axis: "rythme", q: "Il est 2 h du matin : tu es où ?",
     ctx: "La soirée est bonne mais elle s'étire. Du départ que tu choisis le plus souvent à celui que tu choisis le moins.",
@@ -153,4 +153,50 @@ module.exports = [
   { id: "am-souvenir", axis: "gouts", q: "De retour de voyage, tu ramènes quoi ?",
     ctx: "La valise a de la place, le budget aussi. De ce que tu rapportes toujours à ce que tu ne rapportes jamais.",
     o: ["🧲 Un objet souvenir", "🍫 De la nourriture locale", "📖 Juste des histoires"] },
+
+  // ---------------------------------------------- lot du 12/09/2026
+  // Voir l'en-tête du lot dans piquant.js pour le champ `heat`.
+
+  // --- rythme
+  { id: "ry-reveil-sonne", axis: "rythme", heat: 2, q: "Le réveil sonne. Il se passe quoi ?",
+    ctx: "Un matin ordinaire, il fait nuit, et le téléphone sonne sur la table de chevet. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["⏰ Debout à la première sonnerie, sans discuter", "😴 Trois snoozes, c'est prévu dans le calcul", "📱 Vingt minutes de scroll dans le noir"] },
+  { id: "ry-date-butoir", axis: "rythme", heat: 3, q: "Une démarche à faire avant une date limite",
+    ctx: "Un formulaire à renvoyer, avec une date butoir dans un mois. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["📬 Le jour même, pour ne plus y penser", "⏳ La veille de la date limite, vers minuit", "📆 Deux jours après, avec la pénalité"] },
+  { id: "ry-trente-minutes", axis: "rythme", heat: 2, q: "Tu dois partir dans trente minutes",
+    ctx: "Sortie prévue, il te reste trente minutes pour être présentable et dehors. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🚪 Déjà sur le pas de la porte, à attendre", "⚡ Huit minutes chrono, largement de quoi traîner", "💨 Je pars en retard, avec une chaussette humide"] },
+  { id: "ry-vingt-avance", axis: "rythme", heat: 3, q: "Tu arrives vingt minutes en avance. Tu fais quoi ?",
+    ctx: "Rendez-vous devant un café, et pour une fois tu es là avec vingt minutes à tuer. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🚶 Trois tours du pâté de maisons, l'air occupé", "☕ Je m'installe et je commande sans attendre", "📱 J'envoie « je suis là ! » pour mettre la pression"] },
+  { id: "ry-nouvelle-passion", axis: "rythme", heat: 2, q: "Une nouvelle passion, ça dure combien chez toi ?",
+    ctx: "Poterie, course à pied, guitare, échecs : tu viens de te découvrir une passion. Du plus fréquent chez toi au plus rare.",
+    o: ["🔥 Trois semaines à fond, puis plus jamais", "🐢 Des années, à toute petite dose", "🛒 Le temps d'acheter tout le matériel"] },
+  { id: "ry-choses-a-faire", axis: "rythme", heat: 1, q: "Tes choses à faire, tu les gères comment ?",
+    ctx: "Courses, appel à passer, colis à renvoyer : la semaine s'accumule quelque part. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["📝 Une liste, et je coche avec plaisir", "🧠 Tout dans ma tête, j'oublie la moitié", "📱 Trois applis et un post-it sur le frigo"] },
+  { id: "ry-vitesse-repas", axis: "rythme", heat: 1, q: "Tu manges à quelle vitesse, en général ?",
+    ctx: "Un repas à plusieurs, tout le monde est servi en même temps, et ça commence. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🍴 J'ai fini quand les autres commencent", "🐌 Toujours en dernier, l'assiette tiède", "👀 Je cale mon rythme sur celui de la table"] },
+
+  // --- goûts
+  { id: "go-gout-defendu", axis: "gouts", heat: 1, q: "Quel goût tu défends contre tout le monde ?",
+    ctx: "Quelqu'un fait la grimace devant ce que tu manges, et tu ne changeras pas. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🍍 L'ananas sur la pizza, sans discussion", "🥤 Le ketchup sur les pâtes, depuis toujours", "🍫 Le chocolat blanc, c'est du vrai chocolat"] },
+  { id: "go-emission-zap", axis: "gouts", heat: 2, q: "Devant quelle émission tu ne zappes jamais ?",
+    ctx: "Tu tombes dessus par hasard, un soir, et tu poses la télécommande sans réfléchir. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🌴 La télé-réalité avec villa et jacuzzi", "🍰 Le concours de pâtisserie où tout le monde pleure", "🔪 Le documentaire sur un tueur en série"] },
+  { id: "go-tard-telephone", axis: "gouts", heat: 2, q: "Tard le soir, tu regardes quoi sur ton téléphone ?",
+    ctx: "Il est tard, tu devrais dormir, et l'algorithme sait exactement quoi te proposer. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🧹 Des gens qui nettoient des tapis très sales", "🎤 Des interviews de gens que je ne connais pas", "🏠 Des visites d'appartements hors de prix"] },
+  { id: "go-repas-honte", axis: "gouts", heat: 3, q: "Quel repas tu n'avoues à personne ?",
+    ctx: "Personne ne regarde, la cuisine est à toi, et le repas n'a rien d'une photo à publier. Du plus fréquent chez toi au plus rare.",
+    o: ["🍝 Des pâtes au beurre, debout devant l'évier", "🥣 Des céréales à 23 h, dans le bol du matin", "🧀 Du fromage à même le papier, au couteau"] },
+  { id: "go-mots-par-coeur", axis: "gouts", heat: 3, q: "Tu connais tous les mots de quoi, par cœur ?",
+    ctx: "Ça démarre quelque part, et sans le vouloir tu récites tout, du début à la fin. De la réponse la plus vraie pour toi à la moins vraie.",
+    o: ["🎵 Le générique d'un dessin animé", "📺 Une pub qui ne passe plus depuis dix ans", "🎤 Une chanson que je déteste officiellement"] },
+  { id: "go-collection-secrete", axis: "gouts", heat: 3, q: "Qu'est-ce que tu collectionnes sans l'avouer ?",
+    ctx: "Un tiroir, une boîte à chaussures, un coin de placard : ça s'accumule sans que personne le sache. Du plus fréquent chez toi au plus rare.",
+    o: ["🧴 Les petits savons et shampoings d'hôtel", "🎫 Les tickets de concert, de musée, de cinéma", "👜 Les sacs en papier des belles boutiques"] },
 ];
