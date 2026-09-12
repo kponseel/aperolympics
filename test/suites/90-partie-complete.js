@@ -34,6 +34,13 @@ exports.run = async (t) => {
   };
   const entrer = async (p, nom, pin) => { await p.fill("#amName", nom); await p.fill("#amPin", pin); await p.click("#amContinue"); };
   const sur = (p, id) => p.waitForFunction((i) => document.getElementById(i).classList.contains("on"), id, { timeout: 10000 });
+  // openResults() affiche l'écran AVEC « Calcul… » puis demande les résultats
+  // au serveur : interroger la page dès que l'écran est là, c'est lire le
+  // message d'attente. Sur une machine rapide, le test échouait pour ça.
+  const resultatsPrets = (p) => p.waitForFunction(() => {
+    const b = document.getElementById("amResultsBody");
+    return !!b && b.textContent.trim().length > 20 && !/Calcul…/.test(b.textContent);
+  }, null, { timeout: 15000 });
   const scene = (p) => p.evaluate(() => { const m = /Scène (\d+) \//.exec(document.body.textContent || ""); return m ? parseInt(m[1], 10) : -1; });
 
   async function repondre(p, choix) {
@@ -111,6 +118,7 @@ exports.run = async (t) => {
     await repondre(K, [s % 3, (s + 1) % 3, (s + 2) % 3]);
   }
   await sur(K, "s-results");
+  await resultatsPrets(K);
   await balayer(K, "résultats (seul fini)");
   t.check("Kevin atteint l'écran final", !!(await K.$("#amResultsBody")));
   t.check("… qui dit clairement qu'il attend les autres",
@@ -121,7 +129,7 @@ exports.run = async (t) => {
     await repondre(M, [(s + 1) % 3, s % 3, (s + 2) % 3]);
   }
   await sur(M, "s-results");
-  await M.waitForTimeout(600);
+  await resultatsPrets(M);
   await balayer(M, "résultats complets");
   t.check("Marie voit un score de compatibilité", /%/.test(await M.textContent("#amResultsBody")));
 
@@ -133,7 +141,9 @@ exports.run = async (t) => {
   for (let i = 0; i < 3; i++) await repondre(T, [2, 1, 0]);
   await balayer(T, "Tom en cours");
 
-  await K.reload(); await K.waitForTimeout(1500);
+  await K.reload();
+  await sur(K, "s-results");
+  await resultatsPrets(K);
   await balayer(K, "résultats avec Tom en cours");
   const final = await K.textContent("#amResultsBody");
   t.check("L'écran final montre l'avancée de celui qui n'a pas fini", /Tom/.test(final), final.slice(0, 200));
