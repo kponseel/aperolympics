@@ -155,7 +155,7 @@ module.exports = [
           o: ["🤣 « Tu me fais trop rire »", "🧠 « T'es vraiment intelligent »", "🫶 « On peut compter sur toi »"] },
     en: { q: "Which compliment lands best?",
           ctx: "Said sincerely, by someone whose opinion counts. From the one that pleases you most to the least.",
-          o: ["🤣 « You always make me laugh »", "🧠 « You're seriously clever »", "🫶 « We can always count on you »"] } },
+          o: ["🤣 “You always make me laugh”", "🧠 “You're seriously clever”", "🫶 “We can always count on you”"] } },
   { id: "au-tabou", axis: "autres",
     fr: { q: "Quel sujet tu évites le plus à table ?",
           ctx: "Repas de famille ou dîner entre amis, quelqu'un lance le sujet. Du plus évité chez toi au moins évité.",

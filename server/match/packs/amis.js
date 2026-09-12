@@ -365,7 +365,7 @@ module.exports = [
           o: ["🚶 Trois tours du pâté de maisons, l'air occupé", "☕ Je m'installe et je commande sans attendre", "📱 J'envoie « je suis là ! » pour mettre la pression"] },
     en: { q: "You arrive twenty minutes early. What now?",
           ctx: "Meeting outside a café, and for once you're there with twenty minutes to kill. From the truest answer for you to the least true.",
-          o: ["🚶 Three laps of the block, looking busy", "☕ I sit down and order without waiting", "📱 I send « I'm here! » to apply pressure"] } },
+          o: ["🚶 Three laps of the block, looking busy", "☕ I sit down and order without waiting", "📱 I send “I'm here!” to apply pressure"] } },
   { id: "ry-nouvelle-passion", axis: "rythme", heat: 2,
     fr: { q: "Une nouvelle passion, ça dure combien chez toi ?",
           ctx: "Poterie, course à pied, guitare, échecs : tu viens de te découvrir une passion. Du plus fréquent chez toi au plus rare.",

@@ -107,7 +107,7 @@
   }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function setStatus(t) { var el = $("amStatus"); if (el) el.textContent = t || ""; }
-  function medal(i) { return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#T(" + (i + 1); }
+  function medal(i) { return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#" + (i + 1); }
   // Accord par paires entre deux classements de la même scène (même calcul
   // que le moteur côté serveur) : sur 3 options, 3 comparaisons.
   function pairAgree(a, b) {
@@ -122,28 +122,37 @@
     var m = /^(\S+)\s/.exec(label || ")");
     return (m && /^[^\w\d]/.test(m[1])) ? m[1] : String(idx + 1);
   }
+  // Les dates et les durées ne se traduisent pas mot à mot : l'ordre des
+  // éléments change (« 3 janv. 2026 » / « 3 Jan 2026 »), et le pluriel n'est
+  // pas au même endroit. Chaque forme est donc une phrase entière à trou.
+  var MOIS = {
+    fr: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
+    en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  };
   function fmtDay(iso) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
     if (!m) return iso || "";
-    var mois = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+    var mois = (MOIS[lang] || MOIS.fr)[parseInt(m[2], 10) - 1];
     var d = parseInt(m[3], 10);
-    return (d === 1 ? "1er" : d) + " " + mois[parseInt(m[2], 10) - 1] + " " + m[1];
+    return T("%1 %2 %3", lang === "fr" && d === 1 ? "1er" : d, mois, m[1]);
   }
   function fmtAgo(ts) {
     if (!ts) return "";
     var s = Math.max(0, (Date.now() - ts) / 1000);
-    if (s < 60) return "à lT('instant";
-    if (s < 3600) return "il y a " + Math.round(s / 60) + " min";
-    if (s < 86400) return "il y a " + Math.round(s / 3600) + " h";
-    return "il y a " + Math.round(s / 86400) + " j";
+    if (s < 60) return T("à l'instant");
+    if (s < 3600) return T("il y a %1 min", Math.round(s / 60));
+    if (s < 86400) return T("il y a %1 h", Math.round(s / 3600));
+    return T("il y a %1 j", Math.round(s / 86400));
   }
   function fmtDelay(min) {
-    if (min < 60) return min + " minutes";
-    if (min < 1440) return Math.round(min / 60) + " heure" + (min >= 120 ? "s" : "");
-    return Math.round(min / 1440) + " jour" + (min >= 2880 ? "s" : "");
+    if (min < 60) return T("%1 minutes", min);
+    var h = Math.round(min / 60);
+    if (min < 1440) return h > 1 ? T("%1 heures", h) : T("1 heure");
+    var j = Math.round(min / 1440);
+    return j > 1 ? T("%1 jours", j) : T("1 jour");
   }
   function gameUrl(code) { return location.origin + "/AreWeAMatch/g/" + code; }
-  // Le lien qui ramène droit à l')écran final (la progression de tout le monde,
+  // Le lien qui ramène droit à l'écran final (la progression de tout le monde,
   // les résultats dès qu'on a fini). Même page : on ajoute juste ?r=1, que le
   // serveur ignore et que le client lit au démarrage.
   function resultsUrl(code) { return gameUrl(code) + "?r=1"; }
@@ -221,7 +230,7 @@
       myProtected = !!(m && m.protected);
       if (m && m.name) setPseudo(m.name);
       $("amLocked").style.display = "none";
-      $("amContinue").textContent = "C'est parti →";
+      $("amContinue").textContent = T("C'est parti →");
       updateMe();
       // Compte d'avant la v2, sans PIN : on en impose un avant d'aller plus loin.
       if (m && m.needs_pin) { protectName(true); return; }
@@ -245,7 +254,7 @@
     socket.on("name_taken", function (m) {
       show("s-pseudo");
       $("amPseudoError").className = "am-error center";
-      $("amPseudoError").textContent = T("Le pseudo « ") + (m && m.name) + T(" » est déjà pris. Choisis-en un autre.");
+      $("amPseudoError").textContent = T("Le pseudo « %1 » est déjà pris. Choisis-en un autre.", m && m.name);
       var nm = $("amName"); if (nm) nm.focus();
     });
     socket.on("pin_required", function (m) { enterPinMode(m && m.name, T("🔒 Ce pseudo est déjà à quelqu\u2019un. Entre son code de reprise.")); });
@@ -259,7 +268,7 @@
       $("amLocked").style.display = "block";
       var d = $("amLockedWhen");
       var mn = (m && m.ms) ? Math.max(1, Math.round(m.ms / 60000)) : 0;
-      if (d) d.textContent = mn ? T("Réessaie dans %1.", fmtDelay(mn)) + ((m.strikes || 0) > 1 ? " Chaque série d'essais ratés allonge l'attente." : "") : "";
+      if (d) d.textContent = mn ? T("Réessaie dans %1.", fmtDelay(mn)) + ((m.strikes || 0) > 1 ? T(" Chaque série d'essais ratés allonge l'attente.") : "") : "";
     });
     socket.on("pin_set", function () { myProtected = true; updateMe(); closeSheet(); toast(T("🔒 Code de reprise enregistré.")); if (!booted) afterIdentity(); });
 
@@ -406,7 +415,7 @@
     });
     socket.on("game_gone", function (m) {
       if (!m || m.code !== currentCode) return;
-      warn(m.reason === "removed" ? "Tu as été retiré de cette partie." : T("Cette partie n'existe plus."));
+      warn(m.reason === "removed" ? T("Tu as été retiré de cette partie.") : T("Cette partie n'existe plus."));
       goHome();
     });
     socket.on("profile", function (m) {
@@ -646,10 +655,10 @@
   // Choisir (ou changer) son code de reprise. `mandatory` : compte d'avant la
   // v2 sans code, la feuille ne se ferme pas tant qu'il n'en a pas un.
   function protectName(mandatory) {
-    openSheet("🔒 " + (mandatory ? "Choisis ton code de reprise" : T("Ton code de reprise")),
-      '<p>' + (mandatory ? "Chaque pseudo a un code de reprise. Tu ne le tapes jamais sur ce téléphone : il ne sert que le jour où tu ouvres ton pseudo ailleurs — et c'est lui qui empêche quelqu'un d'autre de le prendre." : T("Choisis un nouveau code de reprise à 4 chiffres.")) + '</p>' +
+    openSheet("🔒 " + (mandatory ? T("Choisis ton code de reprise") : T("Ton code de reprise")),
+      '<p>' + (mandatory ? T("Chaque pseudo a un code de reprise. Tu ne le tapes jamais sur ce téléphone : il ne sert que le jour où tu ouvres ton pseudo ailleurs — et c'est lui qui empêche quelqu'un d'autre de le prendre.") : T("Choisis un nouveau code de reprise à 4 chiffres.")) + '</p>' +
       '<input id="amFormPin" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" pattern="[0-9]*" />' +
-      '<button type="button" class="am-primary" id="amFormGo">🔒 ' + (mandatory ? "C'est mon code" : "Changer") + '</button>' +
+      '<button type="button" class="am-primary" id="amFormGo">🔒 ' + (mandatory ? T("C'est mon code") : T("Changer")) + '</button>' +
       T('<p class="am-hint center"><button type="button" class="am-linkish" id="amFormSuggest">Propose-m\'en un au hasard</button></p>') +
       '<div class="am-error center" id="amFormErr"></div>',
       function (body) {
@@ -693,21 +702,21 @@
     }
     wrap.innerHTML = list.map(function (g) {
       var pct = g.sceneCount ? Math.round((g.progress / g.sceneCount) * 100) : 0;
-      var state = g.finished ? "✓ terminé" : (g.progress ? g.progress + "/" + g.sceneCount : T("pas commencé"));
+      var state = g.finished ? T("✓ terminé") : (g.progress ? g.progress + "/" + g.sceneCount : T("pas commencé"));
       var meta = [
         "👥 " + g.playerCount + " joueur" + (g.playerCount > 1 ? "s" : ""),
         g.finishedCount ? "✓ " + g.finishedCount + " fini" + (g.finishedCount > 1 ? "s" : "") : "",
         "toi : " + state,
-        g.closed ? "🔒 inscriptions fermées" : "",
+        g.closed ? T("🔒 inscriptions fermées") : "",
         g.test ? "🧪 test" : "",
         fmtAgo(g.updatedAt),
       ].filter(Boolean);
       return '<button type="button" class="am-game-card' + (g.hasNew ? " new" : "") + '" data-code="' + esc(g.code) + '">' +
         '<div class="top"><span class="title">' + esc(gameTitle(g)) + '</span>' +
-          (g.hasNew ? '<span class="badge-new">Nouveaux résultats</span>' : '') +
+          (g.hasNew ? T('<span class="badge-new">Nouveaux résultats</span>') : '') +
           '<span class="code">' + esc(g.code) + '</span></div>' +
         '<div class="meta">' + meta.map(function (x) { return "<span>" + esc(x) + "</span>"; }).join("") + '</div>' +
-        (g.teaser ? '<div class="meta"><span>💘 ' + esc(g.teaser.name) + ' : ' + g.teaser.pct + T(' % sur vos ') + g.teaser.shared + ' scènes en commun · termine pour voir tout</span></div>' : '') +
+        (g.teaser ? T('<div class="meta"><span>💘 %1 : %2 % sur vos %3 scènes en commun · termine pour voir tout</span></div>', esc(g.teaser.name), g.teaser.pct, g.teaser.shared) : '') +
         '<div class="am-progress' + (g.finished ? " done" : "") + '"><i style="width:' + pct + '%"></i></div>' +
         '</button>';
     }).join("");
@@ -732,7 +741,7 @@
         '<span class="n">' + n + '</span><span class="lbl">' + d.nom + '</span><span class="dur">' + d.duree + '</span></button>';
     }).join("") + '</div><p class="am-hint" id="amLengthNote"></p>';
 
-    openSheet("➕ Nouvelle partie",
+    openSheet(T("➕ Nouvelle partie"),
       T('<p>Des scènes tirées au sort, <b>les mêmes pour tout le monde et dans le même ordre</b>. Tu seras l\'hôte : tu partages le QR, chacun répond quand il veut, tu vois le groupe avancer.</p>') +
       T('<label class="am-label">Longueur de la partie</label>') + choix +
       T('<input id="amFormTitle" maxlength="40" placeholder="Un titre (facultatif) : Soirée du 12, Les colocs…" autocomplete="off" />') +
@@ -819,7 +828,7 @@
   // contexte, et personne ne sera là pour lui expliquer.
   function shareGame(g) {
     var n = g.sceneCount || 20;
-    shareLink((g.hostName === getPseudo() ? "Fais mon test « Are We A Match ? »" : T("Rejoins la partie « Are We A Match ? » de %1", g.hostName))
+    shareLink((g.hostName === getPseudo() ? T("Fais mon test « Are We A Match ? »") : T("Rejoins la partie « Are We A Match ? » de %1", g.hostName))
       + T(" : %1 scènes, 3 réponses à classer à chaque fois. Tu réponds quand tu veux (2 min, ou demain), et on voit à quel point on fait pareil. Rien à installer → ", n) + gameUrl(g.code));
   }
   function copyText(t) {
@@ -917,7 +926,7 @@
     var hb = $("amHide"); if (hb) hb.onclick = function () { if (window.confirm(T("Masquer cette partie de ta liste ?\n\nElle continue d'exister pour les autres, et tu la retrouveras avec son code."))) socket.emit("hide_game", { code: g.code }); };
     var db = $("amDelete"); if (db) db.onclick = function () { deleteGameSheet(g); };
     Array.prototype.forEach.call($("amGameBody").querySelectorAll("[data-kick]"), function (b) {
-      b.onclick = function () { var n = b.getAttribute("data-kick"); if (window.confirm("Retirer " + n + T(" de la partie ?"))) socket.emit("remove_player", { code: g.code, name: n }); };
+      b.onclick = function () { var n = b.getAttribute("data-kick"); if (window.confirm(T("Retirer %1 de la partie ?", n))) socket.emit("remove_player", { code: g.code, name: n }); };
     });
   }
   // Supprimer une partie détruit AUSSI les réponses des autres. L'alerte dit
@@ -930,12 +939,19 @@
     var finished = others.filter(function (p) { return p.finished; }).length;
     var needCode = answers > 0;
 
-    var what = "<p>La partie <b>" + esc(gameTitle(g)) + "</b> (" + esc(g.code) + T(") disparaît <b>pour tout le monde</b>, définitivement.</p>");
+    var what = T("<p>La partie <b>%1</b> (%2) disparaît <b>pour tout le monde</b>, définitivement.</p>", esc(gameTitle(g)), esc(g.code));
     if (others.length) {
-      what += T("<p class='am-danger-box'>Tu effaces aussi le travail de <b>") + others.length + " autre" + (others.length > 1 ? "s" : "") + " joueur" + (others.length > 1 ? "s" : "") + "</b> : " +
-        (answers ? "<b>" + answers + T(" réponse") + (answers > 1 ? "s" : "") + "</b> déjà données" : T("aucune réponse pour l'instant")) +
-        (finished ? ", dont " + finished + " partie" + (finished > 1 ? "s" : "") + T(" terminée") + (finished > 1 ? "s" : "") : "") +
-        T(", et les résultats. Personne ne pourra les récupérer.</p>");
+      // Une phrase entière par cas, jamais des morceaux recollés : le pluriel
+      // ne tombe pas au même endroit d'une langue à l'autre, et le nombre de
+      // réponses change encore la forme de la phrase.
+      var qui = others.length > 1 ? T("<b>%1 autres joueurs</b>", others.length) : T("<b>1 autre joueur</b>");
+      var quoi = answers
+        ? (answers > 1 ? T("<b>%1 réponses</b> déjà données", answers) : T("<b>1 réponse</b> déjà donnée"))
+        : T("aucune réponse pour l'instant");
+      var aussi = finished
+        ? (finished > 1 ? T(", dont %1 parties terminées", finished) : T(", dont 1 partie terminée"))
+        : "";
+      what += T("<p class='am-danger-box'>Tu effaces aussi le travail de %1 : %2%3, et les résultats. Personne ne pourra les récupérer.</p>", qui, quoi, aussi);
     } else {
       what += T("<p class='am-hint'>Personne d'autre n'a rejoint : tu es seul à y perdre quelque chose.</p>");
     }
@@ -944,8 +960,8 @@
       what += T('<label class="am-label" for="amDelCode">Recopie le code pour confirmer</label>') +
         '<input id="amDelCode" class="am-codein" maxlength="8" placeholder="' + esc(g.code) + '" autocomplete="off" autocapitalize="characters" />';
     }
-    what += '<button type="button" class="am-primary am-danger-btn" id="amDelGo"' + (needCode ? " disabled" : "") + T('>🗑️ Supprimer définitivement</button>') +
-      '<button type="button" class="am-ghost" id="amDelNo">Annuler</button>' +
+    what += '<button type="button" class="am-primary am-danger-btn" id="amDelGo"' + (needCode ? " disabled" : "") + '>' + T("🗑️ Supprimer définitivement") + '</button>' +
+      '<button type="button" class="am-ghost" id="amDelNo">' + T("Annuler") + '</button>' +
       '<div class="am-error center" id="amDelErr"></div>';
 
     openSheet(T("🗑️ Supprimer la partie"), what, function (body) {
@@ -1000,7 +1016,7 @@
   }
   function updatePlayMeta() {
     var el = $("amPlayOthers");
-    if (el && game) { var n = othersAnswered(play.index); el.textContent = n ? n + " ont déjà répondu" : T("personne n'a encore répondu"); }
+    if (el && game) { var n = othersAnswered(play.index); el.textContent = n ? (n > 1 ? T("%1 ont déjà répondu", n) : T("1 a déjà répondu")) : T("personne n'a encore répondu"); }
   }
   function renderScene() {
     if (!game || !game.scenes) return;
@@ -1037,7 +1053,7 @@
       // même phrase deux fois sur le même écran. Le décompte, lui, reste.
       var note = play.myRank.length === 0
         ? (astuce ? "" : T("Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1."))
-        : (play.myRank.length < n ? T("Encore ") + (n - play.myRank.length) + " à classer… (touche une réponse classée pour l'enlever)" : "Classement complet !");
+        : (play.myRank.length < n ? T("Encore %1 à classer… (touche une réponse classée pour l'enlever)", n - play.myRank.length) : T("Classement complet !"));
       if (note) body += '<p class="am-ranknote">' + note + '</p>';
       body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>✅ Valider</button>';
       body += T('<p class="am-hint center">En validant, tu découvres les réponses des autres — et ta réponse se fige. Tant que personne d\'autre n\'a répondu à une scène, tu peux encore y revenir.</p>');
@@ -1109,7 +1125,7 @@
     body += '<div class="am-q" style="margin-top:14px">' + esc(rv.question.q) + '</div>';
     body += T('<div class="am-card"><h3>👀 Les réponses</h3>') + revealHtml(rv, play.myRank, false) +
       T('<p class="am-hint">Le badge à droite, c\'est <b>ton accord avec cette personne sur cette scène</b> : sur 3 comparaisons possibles, combien tombent pareil. <b>3/3</b> = exactement le même classement.</p></div>');
-    body += '<button class="am-primary" id="amNext">' + (play.finished ? "🏁 Voir les résultats" : T("Scène suivante →")) + '</button>';
+    body += '<button class="am-primary" id="amNext">' + (play.finished ? T("🏁 Voir les résultats") : T("Scène suivante →")) + '</button>';
     $("amPlayBody").innerHTML = body;
     $("amNext").onclick = function () {
       if (play.finished) { openResults(); return; }
@@ -1192,7 +1208,7 @@
     if (f.top) {
       var tb = bandFor(f.top.pct);
       body += T('<div class="am-top-duo"><div class="lbl">🏆 Le duo le plus compatible</div><div class="names">') + esc(f.top.a) + " 💞 " + esc(f.top.b) + '</div><div class="pct">' + f.top.pct + '%</div><div class="band">' + tb.emoji + " " + bandLabel(tb) + '</div>' +
-        (f.top.sameTop ? '<div class="lbl">' + f.top.sameTop + ' coup' + (f.top.sameTop > 1 ? "s" : "") + ' de cœur en commun</div>' : "") + '</div>';
+        (f.top.sameTop ? '<div class="lbl">' + (f.top.sameTop > 1 ? T("%1 coups de cœur en commun", f.top.sameTop) : T("1 coup de cœur en commun")) + '</div>' : "") + '</div>';
     }
     var perso = r.personal;
     if (perso && perso.best) {
@@ -1381,7 +1397,7 @@
     var st = installState();
     if (st === "done" || st === "none") return "";
     return '<button type="button" class="am-ghost am-install" data-install="' + st + '">📲 ' +
-      (st === "ios" ? "Ajouter à l'écran d'accueil" : "Installer l'app") + '</button>';
+      (st === "ios" ? T("Ajouter à l'écran d'accueil") : T("Installer l'app")) + '</button>';
   }
   function wireInstall(root) {
     var b = (root || document).querySelector("[data-install]");
@@ -1453,8 +1469,8 @@
     var s = ONB[onbIndex];
     $("amOnbSlide").innerHTML = '<div class="e">' + s.e + '</div><h2>' + s.t + '</h2><p>' + s.p + '</p>';
     $("amOnbDots").innerHTML = ONB.map(function (_, i) { return '<span class="dot' + (i === onbIndex ? " on" : "") + '"></span>'; }).join("");
-    $("amOnbNext").textContent = onbIndex === ONB.length - 1 ? "C'est parti 🎉" : "Suivant →";
-    $("amOnbSkip").textContent = onbIndex === ONB.length - 1 ? "Le détail du calcul" : "Passer";
+    $("amOnbNext").textContent = onbIndex === ONB.length - 1 ? T("C'est parti 🎉") : T("Suivant →");
+    $("amOnbSkip").textContent = onbIndex === ONB.length - 1 ? T("Le détail du calcul") : T("Passer");
   }
   function hideOnbRaw() { markOnbSeen(); $("amOnb").style.display = "none"; $("amOnb").setAttribute("data-am-pushed", ""); }
   function openOnboarding() { onbIndex = 0; $("amOnb").style.display = "flex"; renderOnb(); modalShown($("amOnb")); }

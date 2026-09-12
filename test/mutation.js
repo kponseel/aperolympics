@@ -95,6 +95,32 @@ const MUTATIONS = [
     "? Math.max(1, Math.min(BANK.length, Math.floor(demande)))",
     "35-longueur",
     "une partie peut retomber à une seule scène (le score ne repose plus sur rien)"],
+
+  // ---- les deux langues ----
+
+  ["server/match/packs/piquant.js",
+    "\u201cok\u201d to your long message",
+    "\u00ab\u00a0ok\u00a0\u00bb to your long message",
+    "15-langues",
+    "une scène anglaise se remet à citer avec des guillemets français"],
+
+  ["server/match/packs/amis.js",
+    "\ud83e\udd50 Brunch, then a museum",
+    "\ud83c\udfd4\ufe0f Brunch, then a museum",
+    "15-langues",
+    "une option anglaise glisse d\'un cran (les deux joueurs d\'accord sont compt\u00e9s en d\u00e9saccord)"],
+
+  ["public/AreWeAMatch/app.js",
+    'T("\ud83c\udfc1 Voir les r\u00e9sultats")',
+    '"\ud83c\udfc1 Voir les r\u00e9sultats"',
+    "15-langues",
+    "une phrase fran\u00e7aise ressort sans T() (l\'anglophone la lit en fran\u00e7ais)"],
+
+  ["public/AreWeAMatch/i18n.js",
+    '"Annuler": "Cancel",',
+    "",
+    "15-langues",
+    "une traduction dispara\u00eet du dictionnaire"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");

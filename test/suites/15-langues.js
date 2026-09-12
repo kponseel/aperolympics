@@ -83,10 +83,172 @@ exports.run = async (t) => {
   }
 
   t.section("La typographie des guillemets");
-  // Espace insécable en français ; l'anglais garde la même convention pour ne
-  // pas casser une ligne au mauvais endroit.
-  const mauvais = toutes.filter((q) => LANGUES.some((l) => /« | »/.test(q[l].q + q[l].ctx + q[l].o.join(""))));
-  t.check("Les guillemets ont partout une espace insécable", mauvais.length === 0, mauvais.map((q) => q.id).join(" "));
+  // Chaque langue cite avec SES signes. Un anglophone qui lit « ok » voit de la
+  // typographie française au milieu de sa phrase : la traduction n'est pas
+  // finie tant que les guillemets ne le sont pas. Vingt-cinq chaînes étaient
+  // dans ce cas.
+  const txt = (q, l) => q[l].q + " " + q[l].ctx + " " + q[l].o.join(" ");
+  const frDansEn = toutes.filter((q) => /[«»]/.test(txt(q, "en")));
+  t.check("Aucun guillemet français dans l'anglais", frDansEn.length === 0, frDansEn.map((q) => q.id).join(" "));
+  const enDansFr = toutes.filter((q) => /[“”]/.test(txt(q, "fr")));
+  t.check("… ni de guillemet anglais dans le français", enDansFr.length === 0, enDansFr.map((q) => q.id).join(" "));
+  // Espace insécable en français : sans elle la ligne casse entre « et le mot.
+  const mauvais = toutes.filter((q) => /« | »/.test(txt(q, "fr")));
+  t.check("Les guillemets français ont partout une espace insécable", mauvais.length === 0, mauvais.map((q) => q.id).join(" "));
+  // Et ils vont par paires : un ouvrant orphelin passe inaperçu à la lecture.
+  const depareilles = [];
+  for (const q of toutes) {
+    const f = txt(q, "fr"), e = txt(q, "en");
+    if ((f.match(/«/g) || []).length !== (f.match(/»/g) || []).length) depareilles.push(q.id + " [fr]");
+    if ((e.match(/“/g) || []).length !== (e.match(/”/g) || []).length) depareilles.push(q.id + " [en]");
+  }
+  t.check("Chaque guillemet ouvrant a son fermant", depareilles.length === 0, depareilles.join(" "));
+
+  // ---- Le dictionnaire de l'interface ----
+  //
+  // T() retombe sur le français quand la clé manque. C'est le bon repli en
+  // production — mais ça veut dire qu'une chaîne oubliée ne casse RIEN : elle
+  // s'affiche en français à un anglophone, et personne ne le voit passer.
+  // D'où ce contrôle statique.
+  const fs = require("fs"), path = require("path");
+  const racine = path.join(__dirname, "..", "..", "public", "AreWeAMatch");
+  const lire = (f) => fs.readFileSync(path.join(racine, f), "utf8");
+  const fenetre = {};
+  new Function("window", lire("i18n.js"))(fenetre);
+  const dico = fenetre.AM_I18N.en;
+  // Les commentaires sont retirés AVANT toute analyse : celui qui documente
+  // T() contient « T("…") » en exemple, et serait lu comme un vrai appel.
+  const sansCommentaires = (src) => src.split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n");
+  const appjs = sansCommentaires(lire("app.js"));
+  const html = lire("index.html");
+
+  // Le littéral est récupéré BRUT puis évalué : sinon « \' » et « \\ » sont
+  // relus de travers et la clé cherchée n'est pas celle du code.
+  const litteral = /(?<![A-Za-z0-9_$])T\(\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
+  const dures = new Set();
+  let m2;
+  while ((m2 = litteral.exec(appjs))) dures.add(new Function("return " + m2[1])());
+  // Les paliers passent par T(PALIERS[…]) : leur texte n'est pas un littéral
+  // de T(), il faut aller le chercher dans l'objet.
+  const mp = /var PALIERS = \{([\s\S]*?)\};/.exec(appjs);
+  const paliers = mp ? (mp[1].match(/"((?:[^"\\]|\\.)*)"/g) || []).map((s) => JSON.parse(s)) : [];
+  for (const p of paliers) dures.add(p);
+
+  t.section("Le dictionnaire de l'interface");
+  t.check("Des chaînes traduisibles ont bien été trouvées dans app.js", dures.size > 100, String(dures.size));
+  const manquantes = [...dures].filter((s) => s && s !== "—" && dico[s] == null);
+  t.check("Chaque T(\"…\") d'app.js a sa traduction anglaise", manquantes.length === 0,
+    manquantes.slice(0, 4).map((s) => JSON.stringify(s.slice(0, 45))).join(" | "));
+  t.check("Les paliers de compatibilité sont traduits", paliers.filter((p) => p !== "—" && dico[p] == null).length === 0);
+
+  // Une clé que plus personne n'utilise est le symptôme d'une phrase reformulée
+  // d'un seul côté : le français a bougé, l'anglais est resté sur l'ancienne
+  // version, et le joueur anglophone lit du français.
+  const plat = (s) => s.replace(/\s+/g, " ").trim();
+  const htmlPlat = plat(html);
+  const orphelines = Object.keys(dico).filter((k) => !dures.has(k) && htmlPlat.indexOf(plat(k)) < 0);
+  t.check("Aucune clé ne traîne sans personne pour l'utiliser", orphelines.length === 0,
+    orphelines.slice(0, 4).map((s) => JSON.stringify(s.slice(0, 45))).join(" | "));
+
+  // Un trou perdu à la traduction fait disparaître une variable de la phrase :
+  // « Join 's game » au lieu de « Join Marie's game ».
+  const trous = (s) => (s.match(/%\d/g) || []).sort().join("");
+  const casses = Object.keys(dico).filter((k) => trous(k) !== trous(dico[k]));
+  t.check("Les trous (%1, %2…) sont les mêmes des deux côtés", casses.length === 0,
+    casses.slice(0, 3).map((k) => JSON.stringify(k.slice(0, 40)) + " : " + trous(k) + " ≠ " + trous(dico[k])).join(" | "));
+
+  // Même règle que pour les scènes : une phrase anglaise ne cite pas à la
+  // française.
+  const guilUi = Object.entries(dico).filter(([, v]) => /[«»]/.test(v));
+  t.check("Aucun guillemet français dans l'interface anglaise", guilUi.length === 0,
+    guilUi.slice(0, 3).map(([, v]) => JSON.stringify(v.slice(0, 45))).join(" | "));
+
+  // Le piège le plus vicieux : une phrase française que PERSONNE n'a pensé à
+  // envelopper dans T(). Le dictionnaire est complet, tous les contrôles
+  // ci-dessus passent, et l'anglophone lit quand même « 3 autres joueurs » au
+  // milieu de sa phrase. Rien ne la signale, sauf ceci.
+  //
+  // Une regexp ne suffit pas ici : les apostrophes des commentaires et les
+  // littéraux régexp (/[&<>"']/g) ouvrent de fausses chaînes et noient le
+  // résultat. On relit donc le fichier caractère par caractère.
+  const chaines = lireChaines(fs.readFileSync(path.join(racine, "app.js"), "utf8"));
+  const FRANCAIS = /[éèêàçôûîï]|\b(les?|la|une?|des|du|de|et|tu|on|dans|pour|avec|sans|que|qui|est|sont|pas|ne|se|sa|son|ses|ce|cette|autres?|joueurs?|parties?|réponses?|dont|déjà|tout|tous|rien|très|encore|aussi|mais|donc|alors|quand|comme|ton|ta|tes)\b/i;
+  // Ce qui n'est pas de la prose : sélecteurs, classes, attributs, urls.
+  const TECHNIQUE = /^[#.\/?&=_a-zA-Z0-9:@%+\- ]*$|am-|^data-|^https?:/;
+  // Les noms de mois et de langues restent dans leur langue, par définition.
+  const mm = /var MOIS = \{([\s\S]*?)\};/.exec(appjs);
+  const permis = new Set(["Français", "English"]);
+  for (const s of (mm ? mm[1].match(/"((?:[^"\\]|\\.)*)"/g) || [] : [])) permis.add(JSON.parse(s));
+
+  const nues = [];
+  for (const c of chaines) {
+    if (dures.has(c.val) || permis.has(c.val) || c.val.length < 4) continue;
+    if (TECHNIQUE.test(c.val)) continue;
+    // Le texte visible d'un bloc HTML compte, ses balises non.
+    const visible = c.val.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (visible.length < 4 || !FRANCAIS.test(visible)) continue;
+    nues.push("l." + c.ligne + " " + JSON.stringify(c.val.slice(0, 40)));
+  }
+  t.check("Aucune phrase française n'échappe à T()", nues.length === 0,
+    nues.length + " restante(s) : " + nues.slice(0, 5).join(" | "));
+
+  // Les blocs HTML traduits gardent leurs id : c'est le code qui s'y accroche.
+  const idsCasses = [];
+  for (const [k, v] of Object.entries(dico)) {
+    const ids = (s) => (s.match(/id="[^"]+"/g) || []).sort().join(" ");
+    if (ids(k) !== ids(v)) idsCasses.push(k.slice(0, 40));
+  }
+  t.check("Les id des blocs HTML survivent à la traduction", idsCasses.length === 0, idsCasses.slice(0, 3).join(" | "));
 
   games._reset();
 };
+
+// Toutes les chaînes littérales d'un fichier JavaScript, avec leur ligne.
+// Assez d'analyse pour ne pas se faire piéger : commentaires de ligne et de
+// bloc, littéraux régexp (celui de esc() contient des guillemets), gabarits.
+function lireChaines(src) {
+  const out = [];
+  const avantRegexp = /[(,=:[!&|?{};+\-*/%~^<>]/;
+  let i = 0, ligne = 1, precedent = "";
+  while (i < src.length) {
+    const c = src[i];
+    if (c === "\n") { ligne++; i++; continue; }
+    if (c === "/" && src[i + 1] === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
+    if (c === "/" && src[i + 1] === "*") {
+      i += 2;
+      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) { if (src[i] === "\n") ligne++; i++; }
+      i += 2; continue;
+    }
+    // Une barre oblique après un opérateur ouvre une régexp, pas une division.
+    if (c === "/" && avantRegexp.test(precedent)) {
+      i++;
+      while (i < src.length && src[i] !== "/") { if (src[i] === "\\") i++; i++; }
+      i++;
+      while (/[gimsuy]/.test(src[i] || "")) i++;
+      precedent = "/"; continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      const q = c, l0 = ligne;
+      let val = ""; i++;
+      while (i < src.length && src[i] !== q) {
+        if (src[i] === "\\") {
+          // \uXXXX doit être rendu : sinon « quelqu’un » ne ressemble plus
+          // à la chaîne que T() reçoit, et la clé paraît absente du code.
+          const suite = src[i + 1];
+          if (suite === "u") { val += String.fromCharCode(parseInt(src.substr(i + 2, 4), 16)); i += 6; continue; }
+          if (suite === "x") { val += String.fromCharCode(parseInt(src.substr(i + 2, 2), 16)); i += 4; continue; }
+          val += { n: "\n", t: "\t", r: "\r" }[suite] || suite;
+          i += 2; continue;
+        }
+        if (src[i] === "\n") ligne++;
+        val += src[i]; i++;
+      }
+      i++;
+      out.push({ val, ligne: l0 });
+      precedent = q; continue;
+    }
+    if (!/\s/.test(c)) precedent = c;
+    i++;
+  }
+  return out;
+}
