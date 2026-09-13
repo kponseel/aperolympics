@@ -150,6 +150,15 @@ const MUTATIONS = [
     "15-langues",
     "du fran\u00e7ais sans accent ressort sans T() (\u00ab Partager \u00bb)"],
 
+  // La feuille d'aide \u00e9tait construite au chargement du fichier, donc fig\u00e9e en
+  // fran\u00e7ais \u2014 personne ne l'avait jamais regard\u00e9e en anglais. 96 la traverse
+  // d\u00e9sormais : d\u00e9shabiller son titre doit la faire crier.
+  ["public/AreWeAMatch/app.js",
+    'main: { title: T("Comment \u00e7a marche")',
+    'main: { title: "Comment \u00e7a marche"',
+    "96-tout-en-anglais",
+    "le titre de l'aide reste en fran\u00e7ais"],
+
   ["public/AreWeAMatch/app.js",
     "    lang = langInitiale();",
     '    lang = "fr";',

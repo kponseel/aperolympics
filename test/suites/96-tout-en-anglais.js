@@ -86,6 +86,14 @@ exports.run = async (t) => {
     await p.waitForTimeout(250);
   }
   await lire("pseudo");
+  // Le choix de la langue doit être là AVANT de s'identifier : c'est le
+  // premier réglage dont on a besoin quand l'app s'ouvre dans la mauvaise
+  // langue, et il était enterré dans le profil, donc inaccessible ici.
+  t.check("Le sélecteur de langue est déjà là sur l'écran du pseudo",
+    await p.evaluate(() => {
+      const b = document.getElementById("amLang");
+      return !!b && b.offsetWidth > 0 && /EN/.test(b.textContent);
+    }));
 
   t.section("Créer une partie");
   await p.fill("#amName", "Sam"); await p.fill("#amPin", "7391");
@@ -148,8 +156,16 @@ exports.run = async (t) => {
   await lire("résultats (seul, en attente)");
 
   t.section("Les feuilles qu'on ouvre rarement");
-  await clic("#amHelp"); await p.waitForTimeout(400);
-  await lire("aide");
+  // « ? » ouvre l'onboarding ; la VRAIE feuille d'aide est derrière son
+  // dernier écran. Elle était construite au chargement du fichier, donc
+  // figée en français : personne ne l'avait jamais regardée en anglais.
+  await clic("#amHelp"); await p.waitForTimeout(350);
+  for (let i = 0; i < 6; i++) {
+    if (!(await p.evaluate(() => getComputedStyle(document.getElementById("amOnb")).display !== "none"))) break;
+    await clic("#amOnbNext"); await p.waitForTimeout(150);
+  }
+  await clic("#amOnbSkip"); await p.waitForTimeout(450);
+  await lire("aide (le détail du calcul)");
   await clic("#amSheetClose"); await p.waitForTimeout(250);
 
   await clic("#amWho"); await p.waitForTimeout(400);

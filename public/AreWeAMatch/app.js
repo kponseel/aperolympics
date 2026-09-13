@@ -591,7 +591,23 @@
     el.textContent = p ? (myProtected ? "🔒 " : "👋 ") + p : "";
     el.style.display = p ? "" : "none";
     el.onclick = function () { if (p && socket) socket.emit("get_profile", { name: p }); };
-    var me = $("amMe"); if (me) me.style.display = p ? "" : "none";
+    // La barre du haut ne disparaît plus quand personne n'est identifié : le
+    // choix de la langue y vit, et il doit être là dès le premier écran.
+    var me = $("amMe"); if (me) me.style.display = "";
+    renderLang();
+  }
+  // Le sélecteur de langue. Avec deux langues, un appui bascule ; avec une
+  // troisième il tournerait dans la liste. Le libellé montre la langue
+  // ACTIVE (celle qu'on lit), pas celle qu'on obtiendrait en appuyant : c'est
+  // la convention, et c'est ce qu'on cherche des yeux quand on veut vérifier
+  // dans quelle langue on est.
+  function renderLang() {
+    var b = $("amLang"); if (!b) return;
+    b.textContent = "🌍 " + lang.toUpperCase();
+    b.setAttribute("aria-label", T("Langue : %1. Changer.", NOM_LANGUE[lang]));
+    b.onclick = function () {
+      setLang(LANGUES[(LANGUES.indexOf(lang) + 1) % LANGUES.length]);
+    };
   }
 
   // ---------- fenêtres par-dessus le jeu ----------
@@ -1306,19 +1322,9 @@
       (p.answered > 1 ? T("%1 réponses enregistrées", p.answered) : T("1 réponse enregistrée")) + '</p></div>' +
       T('<button type="button" class="am-ghost" id="amChangePin">🔒 Changer mon code de reprise</button>') +
       T('<button type="button" class="am-ghost" id="amLogout">🚪 Me déconnecter de ce téléphone</button>');
-    html = '<div class="am-card"><h3>🌍 ' + T("Langue") + '</h3><div class="am-lengths" id="amLangs">' +
-      LANGUES.map(function (l) {
-        return '<button type="button" class="am-length' + (l === lang ? " on" : "") + '" data-lang="' + l + '">' +
-          '<span class="lbl">' + NOM_LANGUE[l] + '</span></button>';
-      }).join("") + '</div><p class="am-hint">' +
-      T("Les scènes et l'interface suivent ta langue. Tu peux jouer la même partie que quelqu'un qui a choisi l'autre.") +
-      '</p></div>' + html;
     openSheet("👤 " + T("Profil"), html, function (body) {
       body.querySelector("#amChangePin").onclick = function () { protectName(false); };
       body.querySelector("#amLogout").onclick = logout;
-      Array.prototype.forEach.call(body.querySelectorAll("[data-lang]"), function (b) {
-        b.onclick = function () { setLang(b.getAttribute("data-lang")); closeSheet(); };
-      });
     });
   }
 
@@ -1363,7 +1369,7 @@
         function (body) { body.querySelector("#amDevOff").onclick = function () { devOn = false; devInfo = null; setDevToken(""); renderDevCard(); closeSheet(); toast(T("Mode dev désactivé")); }; });
       return;
     }
-    openSheet("🧪 Mode dev",
+    openSheet(T("🧪 Mode dev"),
       T('<p>Une <b>partie de test</b> : des bots qui ont déjà répondu à tout, pour relire les scènes et voir la page de résultats pleine. <b>Rien n\'est enregistré</b> dans les profils. Réservé à l\'admin.</p>') +
       T('<input id="amDevPw" type="password" placeholder="Mot de passe admin" autocomplete="current-password" />') +
       T('<button type="button" class="am-primary" id="amDevGo">Déverrouiller</button><div class="am-error center" id="amDevErr"></div>'),
@@ -1510,21 +1516,29 @@
   function closeOnboarding() { markOnbSeen(); $("amOnb").style.display = "none"; modalHidden($("amOnb")); }
 
   // ---------- aide ----------
-  var HELP = {
+  // Construit À CHAQUE OUVERTURE, jamais une fois pour toutes. C'est la même
+  // erreur que l'onboarding avait : évalué au chargement du fichier, ce bloc
+  // fige ses T() alors que `lang` vaut encore « fr » — langInitiale() ne tourne
+  // qu'au DOMContentLoaded. L'aide s'affichait donc en français, toujours,
+  // quelle que soit la langue choisie.
+  function HELP() {
+    return {
     main: { title: T("Comment ça marche"), body:
       T("<p><b>Une partie va de 5 à 50 scènes</b> selon ce que l'hôte a choisi en la créant — les mêmes pour tout le monde et dans le même ordre. Quelqu'un la crée et partage son QR ; chacun répond <b>quand il veut</b>.</p>") +
       T("<p><b>Chaque scène propose 3 réponses.</b> Tu les classes de 1 à 3. Le sens du classement est écrit sous la question — le plus souvent <b>1</b> = ta préférée, parfois la plus fréquente chez toi ou celle qui t'agace le plus. Une fois validée, ta réponse ne change plus, et tu découvres celles des autres.</p>") +
       T("<p><b>Le calcul :</b> pour chaque scène on fait les 3 comparaisons possibles (A/B, A/C, B/C) ; 1 point par accord. Ta compatibilité avec quelqu'un = points obtenus / points possibles. Deux personnes au hasard tournent autour de 50 %.</p>") +
       T("<p><b>Les résultats</b> se calculent sur ceux qui ont fini, et se mettent à jour à chaque nouvelle arrivée. En attendant, une compatibilité provisoire s'affiche dès 5 scènes en commun.</p>") +
       T("<p><b>Fermer les inscriptions</b> (l'hôte seulement) empêche de <i>nouveaux</i> joueurs de rejoindre. Ceux qui sont déjà là gardent tout leur temps pour finir.</p>") +
+      T("<p>🌍 <b>La langue</b> se change à tout moment, en haut à droite. Les scènes et l'interface suivent ta langue. Tu peux jouer la même partie que quelqu'un qui a choisi l'autre.</p>") +
       T("<p>🔒 <b>Ton code de reprise</b> te réserve ton pseudo, et te permet de le rouvrir sur un autre téléphone. Tu ne le tapes jamais sur celui-ci.</p>") },
     pin: { title: T("Le code de reprise 🔒"), body:
       T("<p><b>Tu ne le taperas jamais sur ce téléphone</b> : il te reconnaît tout seul. Le code sert le jour où tu ouvres ton pseudo <b>ailleurs</b> — nouveau téléphone, téléphone d'un ami.</p>") +
       T("<p>Il <b>réserve aussi ton pseudo</b> : personne d'autre ne peut le prendre.</p>") +
       T("<p>Évite les codes évidents (1234, 0000, ton année de naissance) : ce sont les premiers que quelqu'un essaierait, et il connaît déjà ton pseudo puisqu'il joue avec toi. L'app les refuse, et peut t'en proposer un au hasard.</p>") +
       T("<p>Il est obligatoire. Si tu l'oublies, tu peux en choisir un nouveau depuis le téléphone où tu as créé le pseudo (bouton profil).</p>") },
-  };
-  function openHelp(k) { var h = HELP[k] || HELP.main; openSheet(h.title, h.body); }
+    };
+  }
+  function openHelp(k) { var t = HELP(); var h = t[k] || t.main; openSheet(h.title, h.body); }
 
   // ---------- bootstrap ----------
   document.addEventListener("DOMContentLoaded", function () {
@@ -1543,7 +1557,7 @@
     $("amNewName").onclick = function () {
       $("amLocked").style.display = "none"; pinMode = false;
       $("amName").value = ""; $("amPin").value = "";
-      $("amContinue").textContent = "C'est parti →";
+      $("amContinue").textContent = T("C'est parti →");
       $("amName").focus();
     };
     $("amBack").onclick = function () {
