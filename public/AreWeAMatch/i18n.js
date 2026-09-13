@@ -40,11 +40,9 @@ window.AM_I18N = { en: {
   "Fermer": "Close",
 
   // ---- mots et fragments courts ----
-  "Langue": "Language",
   "Âmes sœurs": "Soulmates",
   "Bonne entente": "Getting on well",
   "Profil": "Profile",
-  "Les scènes et l'interface suivent ta langue. Tu peux jouer la même partie que quelqu'un qui a choisi l'autre.": "The scenes and the interface follow your language. You can play the same game as someone who picked the other one.",
   "Opposés": "Opposites",
   " scènes": " scenes",
   "Copié !": "Copied!",
@@ -334,4 +332,6 @@ window.AM_I18N = { en: {
   "(toi)": "(you)",
   "Calcul…": "Working…",
   "🔒 Choisir mon code": "🔒 Choose my code",
+  "Langue : %1. Changer.": "Language: %1. Change.",
+  "<p>🌍 <b>La langue</b> se change à tout moment, en haut à droite. Les scènes et l'interface suivent ta langue. Tu peux jouer la même partie que quelqu'un qui a choisi l'autre.</p>": "<p>🌍 <b>The language</b> can be changed at any time, top right. The scenes and the interface follow your language. You can play the same game as someone who picked the other one.</p>",
 } };

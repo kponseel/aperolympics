@@ -11,9 +11,9 @@
   <!-- Servi par Node (voir server/match/index.js) : l'hébergeur rendait le
        .webmanifest en text/plain et son CDN le gardait en cache. -->
   <link rel="manifest" href="/AreWeAMatch/app.webmanifest" />
-  <link rel="icon" href="/icons/am-icon.svg?v=3.4" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/am-192.png?v=3.4" />
-  <link rel="apple-touch-icon" href="/icons/am-180.png?v=3.4" />
+  <link rel="icon" href="/icons/am-icon.svg?v=3.5" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/am-192.png?v=3.5" />
+  <link rel="apple-touch-icon" href="/icons/am-180.png?v=3.5" />
   <!-- ?v=… : OBLIGATOIRE, et à faire suivre VERSION dans server/match/version.js
        (le test verify_cachebust échoue sinon).
 
@@ -26,7 +26,7 @@
        l'URL à chaque version : le CDN ne l'a jamais vue, il va la chercher.
        index.html, lui, n'est pas mis en cache (x-hcdn-cache-status: DYNAMIC),
        c'est ce qui rend l'astuce fiable. -->
-  <link rel="stylesheet" href="/AreWeAMatch/style.css?v=3.4" />
+  <link rel="stylesheet" href="/AreWeAMatch/style.css?v=3.5" />
 </head>
 <body>
   <header class="am-topbar">
@@ -34,6 +34,12 @@
     <div class="am-brand">💘 <span>Are We A Match ?</span></div>
     <button type="button" class="am-help" id="amHelp" aria-label="Aide et règles" data-t-attr="aria-label">?</button>
     <div class="am-me" id="amMe">
+      <!-- Le choix de la langue vit ici, à gauche du pseudo, et reste
+           accessible à tout moment — y compris avant de s'être identifié :
+           c'est le premier réglage dont on a besoin quand l'app s'ouvre dans
+           la mauvaise langue. Son libellé et son aria-label sont posés par
+           app.js (renderLang), d'où l'absence de data-t ici. -->
+      <button type="button" class="am-lang" id="amLang"></button>
       <button type="button" class="am-who" id="amWho" aria-label="Mon profil" data-t-attr="aria-label"></button>
     </div>
   </header>
@@ -148,11 +154,11 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/AreWeAMatch/vendor/qrcode.min.js?v=3.4"></script>
-  <script src="/AreWeAMatch/i18n.js?v=3.4"></script>
-  <script src="/AreWeAMatch/app.js?v=3.4"></script>
+  <script src="/AreWeAMatch/vendor/qrcode.min.js?v=3.5"></script>
+  <script src="/AreWeAMatch/i18n.js?v=3.5"></script>
+  <script src="/AreWeAMatch/app.js?v=3.5"></script>
   <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js?v=3.4", { scope: "/AreWeAMatch/" });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/AreWeAMatch/sw.js?v=3.5", { scope: "/AreWeAMatch/" });
   </script>
 </body>
 </html>

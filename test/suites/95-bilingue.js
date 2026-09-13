@@ -142,8 +142,13 @@ exports.run = async (t) => {
     !/Âmes sœurs|Bonne entente|Ça dépend des jours/.test(await E.textContent("#amResultsBody")));
 
   t.section("Changer de langue en cours de route");
-  await E.click("#amWho"); await E.waitForSelector("[data-lang]", { timeout: 6000 });
-  await E.click('[data-lang="fr"]'); await E.waitForTimeout(600);
+  // Le sélecteur est dans la barre du haut, à gauche du pseudo : un appui
+  // suffit, depuis n'importe quel écran.
+  t.check("Le bouton de langue annonce la langue active", (await E.textContent("#amLang")).indexOf("EN") >= 0,
+    await E.textContent("#amLang"));
+  await E.click("#amLang"); await E.waitForTimeout(600);
+  t.check("… et affiche la nouvelle après l'appui", (await E.textContent("#amLang")).indexOf("FR") >= 0,
+    await E.textContent("#amLang"));
   t.check("Sam passe en français sans recharger la page",
     /Résultats|compatib/i.test(await E.textContent("#amResultsBody")), (await E.textContent("#amResultsBody")).slice(0, 80));
   t.check("… et son score n'a pas bougé", (await pct(E)) === 100, String(await pct(E)));

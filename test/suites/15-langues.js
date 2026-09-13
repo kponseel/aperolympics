@@ -193,12 +193,22 @@ exports.run = async (t) => {
   const TECHNIQUE = /^[#.\/?&=_a-zA-Z0-9:@%+\- ]*$|am-|^data-|^https?:/;
   // Les noms de mois et de langues restent dans leur langue, par définition.
   const mm = /var MOIS = \{([\s\S]*?)\};/.exec(appjs);
-  const permis = new Set(["Français", "English"]);
+  // Les paliers vivent en clair dans l'objet PALIERS et passent par
+  // T(PALIERS[…]) au moment de l'affichage : leur littéral n'est pas un
+  // argument de T(), et c'est normal.
+  const permis = new Set(["Français", "English"].concat(paliers));
   for (const s of (mm ? mm[1].match(/"((?:[^"\\]|\\.)*)"/g) || [] : [])) permis.add(JSON.parse(s));
+
+  // Ce qui compte est que CETTE occurrence-ci passe par T(), pas que la même
+  // phrase y passe ailleurs : « C'est parti → » était traduit à deux endroits
+  // et posé en dur à un troisième, et se lisait donc en français sur l'écran
+  // qui l'affichait en dernier.
+  const brut = fs.readFileSync(path.join(racine, "app.js"), "utf8");
+  const argDeT = (c) => /(?:^|[^A-Za-z0-9_$])T\(\s*$/.test(brut.slice(Math.max(0, c.debut - 24), c.debut));
 
   const nues = [];
   for (const c of chaines) {
-    if (dures.has(c.val) || permis.has(c.val) || c.val.length < 4) continue;
+    if (argDeT(c) || permis.has(c.val) || c.val.length < 4) continue;
     // Le texte visible d'un bloc HTML compte, ses balises non — et c'est LUI
     // qu'on filtre. Tester la chaîne brute écartait tout littéral contenant
     // une classe « am-… », donc la quasi-totalité du HTML de l'app : « (toi) »
@@ -275,7 +285,7 @@ function lireChaines(src) {
       precedent = "/"; continue;
     }
     if (c === '"' || c === "'" || c === "`") {
-      const q = c, l0 = ligne;
+      const q = c, l0 = ligne, debut = i;
       let val = ""; i++;
       while (i < src.length && src[i] !== q) {
         if (src[i] === "\\") {
@@ -291,7 +301,7 @@ function lireChaines(src) {
         val += src[i]; i++;
       }
       i++;
-      out.push({ val, ligne: l0 });
+      out.push({ val, ligne: l0, debut });
       precedent = q; continue;
     }
     if (!/\s/.test(c)) precedent = c;

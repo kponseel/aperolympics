@@ -44,6 +44,17 @@ html.am-modal body { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .am-me { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
 .am-who { background: transparent; color: var(--soft); font-size: 0.95rem; font-weight: 700; border: none; padding: 6px 8px; border-radius: 10px; cursor: pointer; min-height: 44px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .am-who:hover, .am-who:active { background: #2a2148; color: #fff; }
+/* Le choix de la langue, à gauche du pseudo. Il porte le code de la langue
+   ACTIVE, pas un drapeau : un drapeau désigne un pays, pas une langue, et
+   « EN » se lit sans ambiguïté. La barre du haut ne peut pas s'élargir, donc
+   c'est le titre qui se tronque (voir .am-brand). */
+.am-lang {
+  flex: none; min-width: 44px; height: 44px; padding: 0 10px;
+  background: #2a2148; color: #fff; border: 2px solid var(--border);
+  border-radius: 999px; font-size: 0.85rem; font-weight: 800;
+  cursor: pointer; white-space: nowrap;
+}
+.am-lang:hover, .am-lang:active { border-color: var(--accent); }
 .am-icon { background: #2a2148; color: #fff; border: 1px solid var(--border); border-radius: 10px; width: 44px; height: 44px; font-size: 1rem; cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .am-sub { padding: 8px 16px; color: var(--soft); font-size: 0.92rem; min-height: 1.2em; }
 
