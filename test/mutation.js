@@ -174,6 +174,29 @@ const MUTATIONS = [
     "95-bilingue",
     "le bouton montre le drapeau de l'autre langue"],
 
+  // L'URL repart sous la barre de r\u00e9ponse d'Instagram : elle existe, mais
+  // personne ne la lit.
+  ["public/AreWeAMatch/app.js",
+    'ctx.fillText(gameUrl(g.code).replace(/^https?:\\/\\//, ""), mi, 1640);',
+    'ctx.fillText(gameUrl(g.code).replace(/^https?:\\/\\//, ""), mi, 1865);',
+    "97-image-story",
+    "du contenu de l'image retombe sous l'interface d'Instagram"],
+
+  // Le QR perd sa carte blanche : beaucoup de lecteurs \u00e9chouent alors.
+  ["public/AreWeAMatch/app.js",
+    'ctx.fillStyle = "#fff"; coinsArrondis(ctx, cx, cy, cl, cl, 48); ctx.fill();',
+    "",
+    "97-image-story",
+    "le QR perd sa marge blanche"],
+
+  // On revient \u00e0 l'ancienne base de calcul : le curseur et l'image ne
+  // diraient plus la m\u00eame dur\u00e9e pour la m\u00eame partie.
+  ["public/AreWeAMatch/app.js",
+    "function dureeMin(n) { return Math.max(1, Math.round(n / 5)); }",
+    "function dureeMin(n) { return Math.max(2, Math.floor(n / 2)); }",
+    "97-image-story",
+    "la dur\u00e9e estim\u00e9e change de base de calcul"],
+
   ["public/AreWeAMatch/app.js",
     "    lang = langInitiale();",
     '    lang = "fr";',
