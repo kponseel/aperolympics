@@ -44,15 +44,20 @@ html.am-modal body { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .am-me { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
 .am-who { background: transparent; color: var(--soft); font-size: 0.95rem; font-weight: 700; border: none; padding: 6px 8px; border-radius: 10px; cursor: pointer; min-height: 44px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .am-who:hover, .am-who:active { background: #2a2148; color: #fff; }
-/* Le choix de la langue, à gauche du pseudo. Il porte le code de la langue
-   ACTIVE, pas un drapeau : un drapeau désigne un pays, pas une langue, et
-   « EN » se lit sans ambiguïté. La barre du haut ne peut pas s'élargir, donc
-   c'est le titre qui se tronque (voir .am-brand). */
+/* Le choix de la langue, à gauche du pseudo. Il porte le DRAPEAU de la langue
+   active : c'est ce qui se repère le plus vite du coin de l'œil, et pour deux
+   langues aussi identifiées l'ambiguïté drapeau/pays ne se pose pas.
+   La barre du haut ne peut pas s'élargir, donc c'est le titre qui se tronque
+   (voir .am-brand). */
 .am-lang {
-  flex: none; min-width: 44px; height: 44px; padding: 0 10px;
-  background: #2a2148; color: #fff; border: 2px solid var(--border);
-  border-radius: 999px; font-size: 0.85rem; font-weight: 800;
+  flex: none; width: 44px; height: 44px; padding: 0;
+  background: #2a2148; border: 2px solid var(--border);
+  border-radius: 999px; font-size: 1.25rem; line-height: 1;
   cursor: pointer; white-space: nowrap;
+  /* Sans dessin de drapeau, ce sont les lettres « FR »/« GB » qui s'affichent :
+     blanches et resserrées, elles tiennent dans la pastille. */
+  color: #fff; font-weight: 800; letter-spacing: -0.04em;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .am-lang:hover, .am-lang:active { border-color: var(--accent); }
 .am-icon { background: #2a2148; color: #fff; border: 1px solid var(--border); border-radius: 10px; width: 44px; height: 44px; font-size: 1rem; cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center; }

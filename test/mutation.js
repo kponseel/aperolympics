@@ -159,6 +159,21 @@ const MUTATIONS = [
     "96-tout-en-anglais",
     "le titre de l'aide reste en fran\u00e7ais"],
 
+  // On revient \u00e0 ne lire que la PREMI\u00c8RE langue annonc\u00e9e par l'appareil : un
+  // t\u00e9l\u00e9phone [es, fr, en] ne trouve alors plus le fran\u00e7ais.
+  ["public/AreWeAMatch/app.js",
+    "if (navigator.languages && navigator.languages.length) liste = [].slice.call(navigator.languages);",
+    "if (false) liste = [];",
+    "95-bilingue",
+    "seule la premi\u00e8re langue du t\u00e9l\u00e9phone est regard\u00e9e"],
+
+  // Les deux drapeaux \u00e9chang\u00e9s : le bouton montrerait la mauvaise langue.
+  ["public/AreWeAMatch/app.js",
+    'var DRAPEAU = { fr: "\ud83c\uddeb\ud83c\uddf7", en: "\ud83c\uddec\ud83c\udde7" };',
+    'var DRAPEAU = { fr: "\ud83c\uddec\ud83c\udde7", en: "\ud83c\uddeb\ud83c\uddf7" };',
+    "95-bilingue",
+    "le bouton montre le drapeau de l'autre langue"],
+
   ["public/AreWeAMatch/app.js",
     "    lang = langInitiale();",
     '    lang = "fr";',
