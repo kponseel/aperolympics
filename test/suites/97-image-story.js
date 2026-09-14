@@ -28,7 +28,7 @@ exports.run = async (t) => {
     const p = await ctx.newPage();
     const erreurs = [];
     p.on("pageerror", (e) => erreurs.push(e.message));
-    await p.goto(srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+    await p.goto(srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
     await p.waitForTimeout(350);
     await p.evaluate(() => { const e = document.getElementById("amOnbSkip"); if (e) e.click(); });
     await p.waitForTimeout(180);
@@ -97,7 +97,7 @@ exports.run = async (t) => {
   const fr = await imageDeStory("fr-FR", "Soirée du 12", 10);
   t.check("Toucher le bouton produit bien un fichier", fr.octets > 20000, fr.octets + " octets");
   t.check("Il porte le code de la partie dans son nom",
-    fr.nom === "are-we-a-match-" + fr.code + ".png", fr.nom);
+    fr.nom === "alter-ego-" + fr.code + ".png", fr.nom);
   t.check("Format story : 1080 × 1920", fr.l === 1080 && fr.h === 1920, fr.l + "×" + fr.h);
   t.check("Aucune erreur JavaScript pendant la fabrication", fr.erreurs.length === 0, fr.erreurs.slice(0, 2).join(" | "));
 

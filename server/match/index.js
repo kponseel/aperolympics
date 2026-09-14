@@ -1,6 +1,7 @@
-// Are We A Match? — sous-app branchée sur le serveur Aperolympics.
-//   - Express statique sur /AreWeAMatch/* (fallback SPA vers index.html), plus
-//     /AreWeAMatch/g/CODE : la page d'une partie, avec son aperçu de lien
+// Alter Ego — sous-app branchée sur le serveur Aperolympics.
+//   - Express statique sur /AlterEgo/* (fallback SPA vers index.html), plus
+//     /AlterEgo/g/CODE : la page d'une partie, avec son aperçu de lien
+//     (l'ancien chemin /AreWeAMatch/* reste servi à l'identique, voir plus bas)
 //   - Namespace Socket.IO /match
 //   - Comptes persistants (pseudo + PIN obligatoire + réponses) dans players.json
 //   - Parties en différé (games.js) dans games.json
@@ -158,13 +159,36 @@ const PACKS_META = Object.fromEntries(
 
 function escHtml(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
+// Le jeu s'appelait « Are We A Match ? » et vivait sous /AreWeAMatch. Il
+// s'appelle « Alter Ego » et vit sous /AlterEgo — le cœur percé d'une flèche et
+// la formule de Tinder le faisaient passer pour une appli de rencontre, alors
+// qu'on y joue à dix.
+//
+// L'ANCIEN CHEMIN RESTE SERVI, à l'identique et sans redirection. Des QR codes
+// sont déjà imprimés, partagés en story, envoyés dans des conversations : ils
+// doivent tomber sur une partie qui s'ouvre, pas sur une erreur, et pour
+// toujours. Une redirection aurait semblé plus propre ; elle casse deux choses
+// en silence. Le service worker déjà installé sur les téléphones répond aux
+// navigations par respondWith(), et une réponse redirigée y est refusée par le
+// navigateur : l'appli installée aurait affiché une page d'erreur. Et le
+// manifeste d'une PWA installée est revalidé à son ancienne adresse : servi
+// avec une portée /AlterEgo/, il devenait invalide pour elle.
+//
+// Ce qui change, c'est ce que l'app FABRIQUE : liens partagés, QR, image de
+// story, barre d'adresse. Tout part sous /AlterEgo. L'ancien chemin ne fait
+// qu'accueillir ceux qui arrivent avec un vieux lien — le client réécrit
+// ensuite l'adresse tout seul, sans recharger.
+const BASE = "/AlterEgo";
+const LEGACY = "/AreWeAMatch";
+const CHEMINS = [BASE, LEGACY];
+
 function mount({ app, io }) {
   // --- Express : statique + page de partie + fallback SPA --------------------
-  const PUBLIC_MATCH = path.join(__dirname, "..", "..", "public", "AreWeAMatch");
-  app.use("/AreWeAMatch", express.static(PUBLIC_MATCH));
-  app.get(/^\/(arewamatch|areweamatch|match)(\/.*)?$/i, (req, res, next) => {
-    if (req.path.startsWith("/AreWeAMatch")) return next();
-    res.redirect(302, "/AreWeAMatch/");
+  const PUBLIC_MATCH = path.join(__dirname, "..", "..", "public", "AlterEgo");
+  CHEMINS.forEach((c) => app.use(c, express.static(PUBLIC_MATCH)));
+  app.get(/^\/(alterego|alter-ego|arewamatch|areweamatch|match)(\/.*)?$/i, (req, res, next) => {
+    if (CHEMINS.some((c) => req.path.startsWith(c))) return next();
+    res.redirect(302, BASE + "/");
   });
 
   // La page d'une partie : le même index.html, avec le titre et l'aperçu de
@@ -175,9 +199,11 @@ function mount({ app, io }) {
     if (!g) return INDEX_HTML;
     const host = escHtml(g.hostName);
     const n = Object.keys(g.players).length;
-    const title = `${host} t'invite · Are We A Match ?`;
+    const title = `${host} t'invite · Alter Ego`;
     const desc = `${g.sceneIds.length} scènes, 3 réponses à classer à chaque fois. Réponds quand tu veux — personne ne t'attend. ${n} joueur${n > 1 ? "s ont" : " a"} déjà rejoint. À la fin : à quel point vous faites pareil.`;
-    const url = `${req.protocol}://${req.get("host")}/AreWeAMatch/g/${g.code}`;
+    // L'aperçu annonce toujours l'adresse canonique, même si la visite arrive
+    // par l'ancien chemin : c'est elle qui sera repartagée.
+    const url = `${req.protocol}://${req.get("host")}${BASE}/g/${g.code}`;
     const meta =
       `<meta property="og:title" content="${title}">` +
       `<meta property="og:description" content="${escHtml(desc)}">` +
@@ -186,7 +212,7 @@ function mount({ app, io }) {
       `<meta name="twitter:card" content="summary">`;
     return INDEX_HTML.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`).replace("</head>", meta + "</head>");
   }
-  app.get(/^\/AreWeAMatch\/g\/([A-Za-z0-9-]{3,12})\/?$/, (req, res) => {
+  app.get(/^\/(?:AlterEgo|AreWeAMatch)\/g\/([A-Za-z0-9-]{3,12})\/?$/, (req, res) => {
     res.set("Cache-Control", "no-store");
     const g = games.getGame(req.params[0]);
     // Même quota que par socket : sans lui, cette route répondait
@@ -209,7 +235,11 @@ function mount({ app, io }) {
   // Les icônes, elles, SONT sur le disque : le CDN les garde. On leur pose donc
   // le même suffixe de version qu'au reste, mais ici plutôt que dans le fichier
   // — comme ça il n'y a rien à tenir à jour à deux endroits.
-  const MANIFEST = (() => {
+  // Un manifeste PAR chemin. Un navigateur refuse un manifeste dont la portée
+  // ne contient pas la page qui le déclare : servir la portée /AlterEgo/ à une
+  // PWA installée sous /AreWeAMatch/ l'aurait invalidée, et elle se serait
+  // rouverte dans un onglet ordinaire au lieu de son cadre plein écran.
+  const manifestePour = (base) => {
     const raw = fs.readFileSync(path.join(PUBLIC_MATCH, "manifest.webmanifest"), "utf8");
     const m = JSON.parse(raw);   // au démarrage, plutôt qu'à la première installation ratée
     const v = require("./version").version;
@@ -217,22 +247,31 @@ function mount({ app, io }) {
     if (Array.isArray(m.icons)) m.icons.forEach((i) => { i.src = stamp(i.src); });
     if (Array.isArray(m.shortcuts)) m.shortcuts.forEach((s) => {
       if (Array.isArray(s.icons)) s.icons.forEach((i) => { i.src = stamp(i.src); });
+      if (typeof s.url === "string") s.url = s.url.replace(BASE, base);
+    });
+    ["id", "start_url", "scope"].forEach((k) => {
+      if (typeof m[k] === "string") m[k] = m[k].replace(BASE, base);
     });
     return JSON.stringify(m, null, 2);
-  })();
-  app.get("/AreWeAMatch/app.webmanifest", (_req, res) => {
-    res.set("Cache-Control", "no-store");
-    res.type("application/manifest+json").send(MANIFEST);
+  };
+  CHEMINS.forEach((base) => {
+    const corps = manifestePour(base);
+    app.get(base + "/app.webmanifest", (_req, res) => {
+      res.set("Cache-Control", "no-store");
+      res.type("application/manifest+json").send(corps);
+    });
   });
 
   // La version qui tourne, lisible sans ouvrir de session : le témoin de
   // déploiement (le fichier n'existe pas sur le disque, c'est bien Node qui
   // répond, pas le serveur frontal de l'hébergeur).
-  app.get("/AreWeAMatch/version.json", (_req, res) => {
-    res.set("Cache-Control", "no-store");
-    res.json(Object.assign({}, require("./version"), { scenes: games.BANK_SIZE, scenes_per_game: games.SCENES_PER_GAME }));
+  CHEMINS.forEach((base) => {
+    app.get(base + "/version.json", (_req, res) => {
+      res.set("Cache-Control", "no-store");
+      res.json(Object.assign({}, require("./version"), { scenes: games.BANK_SIZE, scenes_per_game: games.SCENES_PER_GAME }));
+    });
   });
-  app.get(/^\/AreWeAMatch(\/.*)?$/, (_req, res) => res.sendFile(path.join(PUBLIC_MATCH, "index.html")));
+  app.get(/^\/(?:AlterEgo|AreWeAMatch)(\/.*)?$/, (_req, res) => res.sendFile(path.join(PUBLIC_MATCH, "index.html")));
 
   // --- Socket.IO -----------------------------------------------------------
   const ns = io.of("/match");
@@ -570,7 +609,7 @@ function mount({ app, io }) {
   }, 10 * 60 * 1000);
   if (purge.unref) purge.unref();
 
-  console.log(`[AreWeAMatch] mounted: /AreWeAMatch + ns /match (v${APP_VERSION.version}, ${games.BANK_SIZE} scènes, ${games.SCENES_PER_GAME} par partie${DEV_ENABLED ? ", mode dev disponible" : ""})`);
+  console.log(`[AlterEgo] mounted: ${BASE} (+ ${LEGACY}) + ns /match (v${APP_VERSION.version}, ${games.BANK_SIZE} scènes, ${games.SCENES_PER_GAME} par partie${DEV_ENABLED ? ", mode dev disponible" : ""})`);
 }
 
 module.exports = mount;

@@ -1,4 +1,4 @@
-# Les tests d'Are We A Match ?
+# Les tests d'Alter Ego
 
 ```
 npm test              tout : les modules, puis le navigateur

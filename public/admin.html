@@ -119,9 +119,9 @@
       <div id="playersMsg"></div>
     </section>
 
-    <!-- ===== Are We A Match?: parties (v2, en différé) ===== -->
+    <!-- ===== Alter Ego: parties (v2, en différé) ===== -->
     <section>
-      <h2>🎲 Are We A Match ? — Parties</h2>
+      <h2>🎲 Alter Ego — Parties</h2>
       <p class="desc">Les parties en différé (<code>games.json</code>, hors du dossier déployé). Une partie reste ouverte tant que son hôte ne la ferme pas. Supprimer une partie efface les réponses données dedans (les profils des joueurs gardent leurs dernières réponses par scène).</p>
       <div class="toolbar">
         <button class="refresh" id="reloadGames">⟳ Recharger</button>
@@ -132,10 +132,10 @@
       <div id="gamesMsg"></div>
     </section>
 
-    <!-- ===== Are We A Match?: players ===== -->
+    <!-- ===== Alter Ego: players ===== -->
     <section>
-      <h2>💘 Are We A Match ? — Comptes joueurs</h2>
-      <p class="desc">Comptes de la sous-app <code>/AreWeAMatch</code> (<code>server/match/players.json</code>). Supprimer un compte efface aussi ses réponses mémorisées : il ne sera plus proposé dans les « matchs d'un autre soir ».</p>
+      <h2>👤 Alter Ego — Comptes joueurs</h2>
+      <p class="desc">Comptes de la sous-app <code>/AlterEgo</code> (<code>server/match/players.json</code>). Supprimer un compte efface aussi ses réponses mémorisées : il ne sera plus proposé dans les « parties d’un autre soir ».</p>
       <div class="toolbar">
         <button class="refresh" id="reloadMatch">⟳ Recharger</button>
         <input type="search" id="filterMatch" placeholder="Filtrer par pseudo…" />
@@ -145,9 +145,9 @@
       <div id="matchMsg"></div>
     </section>
 
-    <!-- ===== Are We A Match?: banques de questions ===== -->
+    <!-- ===== Alter Ego: banques de questions ===== -->
     <section>
-      <h2>❓ Are We A Match ? — Questions par pack</h2>
+      <h2>❓ Alter Ego — Questions par pack</h2>
       <p class="desc">Toutes les questions de chaque pack, telles qu'elles seront posées en jeu. Lecture seule. L'ordre affiché est celui du fichier ; en partie les questions sont tirées au hasard, sans remise.</p>
       <div class="toolbar" id="packTabs"></div>
       <div class="toolbar">
@@ -359,7 +359,7 @@
         });
       }
 
-      // --- Players (Are We A Match?) ----------------------------------------
+      // --- Players (Alter Ego) ----------------------------------------
       function renderMatch() {
         var host = $("matchHost");
         var filter = ($("filterMatch").value || "").trim().toLowerCase();
@@ -403,7 +403,7 @@
         });
       }
 
-      // --- Parties (Are We A Match?, v2) ------------------------------------
+      // --- Parties (Alter Ego, v2) ------------------------------------
       var gamesCache = [];
       function renderGames() {
         var host = $("gamesHost");
@@ -443,7 +443,7 @@
         });
       }
 
-      // --- Question banks (Are We A Match?) ---------------------------------
+      // --- Question banks (Alter Ego) ---------------------------------
       var packsCache = [], questionsCache = [], currentPack = null;
 
       function renderPackTabs() {
@@ -528,19 +528,19 @@
         },
         "am-reset-pin": {
           arg: "name", msg: "matchMsg", reload: function () { return loadMatch(); },
-          confirm: function (v) { return "Réinitialiser le PIN de « " + v + " » (Are We A Match ?) ?\nSes réponses sont conservées ; il pourra remettre un nouveau PIN depuis n'importe quel appareil."; },
+          confirm: function (v) { return "Réinitialiser le PIN de « " + v + " » (Alter Ego) ?\nSes réponses sont conservées ; il pourra remettre un nouveau PIN depuis n'importe quel appareil."; },
           url: "/match/reset-pin", body: function (v) { return { name: v }; },
           done: function (v) { return "PIN de « " + v + " » réinitialisé."; },
         },
         "am-delete-player": {
           arg: "name", msg: "matchMsg", reload: function () { return loadMatch(); },
-          confirm: function (v) { return "Supprimer définitivement le compte « " + v + " » (Are We A Match ?) ?\nSes réponses mémorisées seront perdues : plus de match historique avec lui."; },
+          confirm: function (v) { return "Supprimer définitivement le compte « " + v + " » (Alter Ego) ?\nSes réponses mémorisées seront perdues : plus de match historique avec lui."; },
           url: "/match/delete", body: function (v) { return { name: v }; },
           done: function (v) { return "Compte « " + v + " » supprimé."; },
         },
         "am-delete-game": {
           arg: "code", msg: "gamesMsg", reload: function () { return loadGames(); },
-          confirm: function (v) { return "Supprimer la partie " + v + " (Are We A Match ?) ?\nLes réponses données dans cette partie seront perdues ; les joueurs qui l'ont ouverte seront renvoyés à l'accueil."; },
+          confirm: function (v) { return "Supprimer la partie " + v + " (Alter Ego) ?\nLes réponses données dans cette partie seront perdues ; les joueurs qui l'ont ouverte seront renvoyés à l'accueil."; },
           url: "/match/games/delete", body: function (v) { return { code: v }; },
           done: function (v) { return "Partie " + v + " supprimée."; },
         },

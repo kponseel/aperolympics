@@ -1,4 +1,4 @@
-// Are We A Match? service worker — scopé à /AreWeAMatch/, indépendant des SW
+// Alter Ego service worker — scopé à /AlterEgo/, indépendant des SW
 // d'Aperolympics et de QuizzMaster.
 //
 // RÉSEAU D'ABORD, cache en repli. L'ancienne version servait app.js et
@@ -9,18 +9,23 @@
 // rafraîchit le cache ; le cache ne sert qu'hors ligne, ou si le serveur ne
 // répond pas. Le nom de cache change tout de même (am-v2) : à l'activation,
 // les anciens caches sont purgés.
+//
+// Le SW de l'ancien chemin (/AreWeAMatch/, installé avant le changement de nom)
+// reste enregistré sur les téléphones qui l'avaient : il travaille en réseau
+// d'abord, le serveur sert toujours ce chemin, donc l'app installée continue
+// de fonctionner et finit par arriver ici.
 
 // V doit suivre VERSION dans server/match/version.js, comme les ?v=… de
 // index.html (le test verify_cachebust échoue sinon). Le CDN de l'hébergeur
 // sert les fichiers du disque depuis son propre cache en ignorant
 // Cache-Control : changer l'URL est le seul moyen sûr d'obtenir la dernière
 // version. Voir le commentaire détaillé dans index.html.
-const V = "3.8";
-const CACHE = "am-v21";
+const V = "3.9";
+const CACHE = "am-v22";
 const SHELL = [
-  "/AreWeAMatch/", "/AreWeAMatch/index.html",
-  "/AreWeAMatch/app.js?v=" + V, "/AreWeAMatch/i18n.js?v=" + V, "/AreWeAMatch/style.css?v=" + V,
-  "/AreWeAMatch/vendor/qrcode.min.js?v=" + V,
+  "/AlterEgo/", "/AlterEgo/index.html",
+  "/AlterEgo/app.js?v=" + V, "/AlterEgo/i18n.js?v=" + V, "/AlterEgo/style.css?v=" + V,
+  "/AlterEgo/vendor/qrcode.min.js?v=" + V,
   // Le manifeste vient de Node (no-store) : on ne le met pas en cache.
   "/icons/am-192.png?v=" + V, "/icons/am-512.png?v=" + V, "/icons/am-180.png?v=" + V,
 ];
@@ -63,6 +68,6 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   if (url.pathname.startsWith("/socket.io/")) return;
   // Ne gère que notre propre coquille (et ses icônes).
-  if (!url.pathname.startsWith("/AreWeAMatch") && !url.pathname.startsWith("/icons/")) return;
-  e.respondWith(networkFirst(e, e.request.mode === "navigate" ? "/AreWeAMatch/index.html" : null));
+  if (!url.pathname.startsWith("/AlterEgo") && !url.pathname.startsWith("/icons/")) return;
+  e.respondWith(networkFirst(e, e.request.mode === "navigate" ? "/AlterEgo/index.html" : null));
 });

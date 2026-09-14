@@ -1,4 +1,4 @@
-/* Are We A Match? — mobile-first, thème rose/violet (distinct de QuizzMaster). */
+/* Alter Ego — mobile-first, thème rose/violet (distinct de QuizzMaster). */
 
 :root {
   --bg: #120f1e;
@@ -37,8 +37,14 @@ html.am-modal body { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 }
 /* La barre doit tenir sur un écran étroit : le titre est le seul élément
    autorisé à rétrécir/tronquer, tout le reste garde sa taille. */
-.am-brand { font-weight: 800; font-size: 1.05rem; white-space: nowrap; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.am-brand { font-weight: 800; font-size: 1.05rem; white-space: nowrap; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
 .am-brand span { display: inline; }
+/* La marque est un DESSIN, plus un emoji : trois cercles qui se recouvrent,
+   exactement l'icône de l'écran d'accueil. Un emoji dépend de la police du
+   téléphone — celui d'avant, un cœur percé d'une flèche, annonçait de toute
+   façon une appli de rencontre. Ici le rendu est le même partout. */
+.am-mark { flex: none; width: 24px; height: 24px; display: block; }
+.am-hero-emoji .am-mark { width: 84px; height: 84px; margin: 0 auto; }
 .am-back { flex: none; background: #2a2148; color: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 0.9rem; font-weight: 700; cursor: pointer; min-height: 44px; }
 .am-help { width: 44px; height: 44px; border-radius: 999px; background: #2a2148; color: #fff; border: 2px solid var(--border); font-size: 1.1rem; font-weight: 800; cursor: pointer; flex: none; }
 .am-me { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
@@ -379,7 +385,7 @@ table.am-matrix td.self { background: #201a36; color: #9186c0; }
 @media (min-width: 620px) { .am-overlay { align-items: center; } .am-sheet { border-radius: 18px; } }
 
 /* Sous ~500 px, le titre complet ne rentre plus une fois le pseudo et les
-   boutons affichés : on ne garde que le 💘 de la marque. */
+   boutons affichés : on ne garde que le dessin de la marque. */
 @media (max-width: 500px) {
   .am-brand span { display: none; }
 }

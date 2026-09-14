@@ -1,4 +1,4 @@
-// Are We A Match? — les scènes sur LES PETITS VICES, L'ARGENT et CE QUI AGACE.
+// Alter Ego — les scènes sur LES PETITS VICES, L'ARGENT et CE QUI AGACE.
 //
 // Le fichier s'appelle encore piquant.js et son pack garde l'id « piquant » :
 // cet id est la clé sous laquelle les réponses sont rangées dans les profils,

@@ -1,12 +1,12 @@
 {
-  "id": "/AreWeAMatch/",
-  "name": "Are We A Match ?",
-  "short_name": "Are We A Match",
-  "description": "Vingt scènes, trois réponses à classer. Découvre qui te ressemble vraiment — entre amis, en famille, en couple.",
+  "id": "/AlterEgo/",
+  "name": "Alter Ego",
+  "short_name": "Alter Ego",
+  "description": "De 5 à 50 scènes, trois réponses à classer. Découvre qui te ressemble vraiment — entre amis, en famille, en soirée.",
   "lang": "fr",
   "dir": "ltr",
-  "start_url": "/AreWeAMatch/",
-  "scope": "/AreWeAMatch/",
+  "start_url": "/AlterEgo/",
+  "scope": "/AlterEgo/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
@@ -23,7 +23,7 @@
     {
       "name": "Créer une partie",
       "short_name": "Créer",
-      "url": "/AreWeAMatch/?new=1",
+      "url": "/AlterEgo/?new=1",
       "icons": [{ "src": "/icons/am-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]

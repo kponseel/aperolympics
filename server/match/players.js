@@ -1,4 +1,4 @@
-// Are We A Match? — comptes persistants (pseudo + PIN optionnel + réponses).
+// Alter Ego — comptes persistants (pseudo + PIN optionnel + réponses).
 //
 // Un fichier JSON sur disque (players.json), clé = pseudo en minuscules :
 //   {

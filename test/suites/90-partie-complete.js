@@ -24,7 +24,7 @@ exports.run = async (t) => {
     p.on("pageerror", (e) => soucis.push(nom + " — erreur JS : " + e.message));
     p.on("console", (m) => { if (m.type() === "error") soucis.push(nom + " — console : " + m.text()); });
     p.on("dialog", (d) => d.accept());
-    await p.goto(url || srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+    await p.goto(url || srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
     await p.waitForTimeout(250);
     if (await p.evaluate(() => getComputedStyle(document.getElementById("amOnb")).display !== "none")) {
       await p.click("#amOnbSkip"); await p.waitForTimeout(200);
@@ -107,7 +107,7 @@ exports.run = async (t) => {
   await balayer(K, "scène 2 (premier)");
 
   t.section("Marie arrive par le lien d'invitation");
-  const M = await ouvrir("Marie", srv.base + "/AreWeAMatch/g/" + code);
+  const M = await ouvrir("Marie", srv.base + "/AlterEgo/g/" + code);
   await balayer(M, "invitation");
   await entrer(M, "Marie", "3947");
   await M.waitForSelector("#amJoinGame", { timeout: 10000 });
@@ -146,7 +146,7 @@ exports.run = async (t) => {
   t.check("Marie voit un score de compatibilité", /%/.test(await M.textContent("#amResultsBody")));
 
   t.section("Tom rejoint tard et s'arrête au milieu");
-  const T = await ouvrir("Tom", srv.base + "/AreWeAMatch/g/" + code);
+  const T = await ouvrir("Tom", srv.base + "/AlterEgo/g/" + code);
   await entrer(T, "Tom", "5261");
   await T.waitForSelector("#amJoinGame", { timeout: 10000 }); await T.click("#amJoinGame");
   await T.waitForSelector("#amPlay", { timeout: 8000 }); await T.click("#amPlay"); await sur(T, "s-play");

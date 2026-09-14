@@ -23,7 +23,7 @@ exports.run = async (t) => {
     p.on("pageerror", (e) => erreurs.push(nom + " : " + e.message));
     p.on("console", (m) => { if (m.type() === "error") erreurs.push(nom + " : " + m.text()); });
     p.on("dialog", (d) => d.accept());
-    await p.goto(url || srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+    await p.goto(url || srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
     await p.waitForTimeout(300);
     if (await p.evaluate(() => getComputedStyle(document.getElementById("amOnb")).display !== "none")) {
       await p.click("#amOnbSkip"); await p.waitForTimeout(200);
@@ -71,7 +71,7 @@ exports.run = async (t) => {
       Object.defineProperty(navigator, "languages", { get: () => l });
     }, liste);
     const pg = await ctx.newPage();
-    await pg.goto(srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+    await pg.goto(srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
     if (stocke) {
       // localStorage appartient à l'origine : il faut avoir chargé la page
       // avant de l'écrire, puis recharger.
@@ -125,7 +125,7 @@ exports.run = async (t) => {
   await F.waitForFunction(() => document.querySelector(".am-code-big"), null, { timeout: 10000 });
   const code = (await F.textContent(".am-code-big")).trim();
 
-  await E.goto(srv.base + "/AreWeAMatch/g/" + code, { waitUntil: "domcontentloaded" });
+  await E.goto(srv.base + "/AlterEgo/g/" + code, { waitUntil: "domcontentloaded" });
   await E.waitForSelector("#amJoinGame", { timeout: 10000 });
   t.check("L'anglophone voit le bouton pour rejoindre, en anglais",
     /Join the game/.test(await E.textContent("#amJoinGame")), await E.textContent("#amJoinGame"));

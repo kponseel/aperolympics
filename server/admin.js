@@ -118,7 +118,7 @@ function mount({ app, io, rooms }) {
     res.json({ ok: true });
   });
 
-  // -- Are We A Match? banques de questions ---------------------------------
+  // -- Alter Ego banques de questions ---------------------------------
   // Lecture seule : voir l'intégralité d'un pack, tel qu'il sera posé en jeu.
   api.get("/match/packs", (_req, res) => {
     const packs = require("./match/packs");
@@ -142,7 +142,7 @@ function mount({ app, io, rooms }) {
     });
   });
 
-  // -- Are We A Match? parties (v2, en différé) --------------------------
+  // -- Alter Ego parties (v2, en différé) --------------------------
   api.get("/match/games", (_req, res) => {
     const games = require("./match/games");
     res.json({ games: games.adminList() });
@@ -157,7 +157,7 @@ function mount({ app, io, rooms }) {
     res.json({ ok: true });
   });
 
-  // -- Are We A Match? players --------------------------------------------
+  // -- Alter Ego players --------------------------------------------
   api.get("/match/players", (_req, res) => {
     res.json({ players: amPlayers.adminList() });
   });
@@ -182,6 +182,6 @@ function mount({ app, io, rooms }) {
 }
 
 module.exports = mount;
-// Partagée avec le mode dev d'Are We A Match (même mot de passe, même
+// Partagée avec le mode dev d'Alter Ego (même mot de passe, même
 // comparaison en temps constant).
 module.exports.constantTimeEquals = constantTimeEquals;

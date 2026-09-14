@@ -1,4 +1,4 @@
-// Are We A Match? — registre des packs.
+// Alter Ego — registre des packs.
 //
 // Depuis la v2 il n'y a plus qu'UNE banque : une partie tire ses 20 scènes
 // dans l'ensemble fusionné, et le joueur ne voit jamais de « pack ». Ces trois

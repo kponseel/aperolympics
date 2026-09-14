@@ -1,4 +1,4 @@
-// Are We A Match? — pack 🎬 Pop culture.
+// Alter Ego — pack 🎬 Pop culture.
 // Films, séries, musique, jeux, internet. Très clivant par nature (donc
 // excellent pour étaler les scores de compatibilité) et consensuel à jouer :
 // personne ne se sent attaqué en classant des genres de films.
