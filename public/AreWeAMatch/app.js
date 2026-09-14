@@ -787,8 +787,12 @@
       : n <= 15 ? T("Le bon compromis quand le groupe est déjà lancé.")
       : n <= 25 ? T("La version qui dit vraiment quelque chose de vous. Recommandé.")
       : T("Longue. Personne n'est obligé de tout faire d'un coup : les réponses sont gardées, on revient quand on veut.");
-    return { nom: nom, duree: T("~%1 min", Math.max(2, Math.floor(n / 2))), note: note };
+    return { nom: nom, duree: T("~%1 min", dureeMin(n)), note: note };
   }
+  // La durée estimée, UNE seule fois dans l'app : le curseur de création et
+  // l'image de partage doivent annoncer le même chiffre pour la même partie.
+  // Base retenue : 10 scènes = 2 minutes.
+  function dureeMin(n) { return Math.max(1, Math.round(n / 5)); }
   function createGameSheet() {
     sceneChoice = borneLongueur(sceneChoice);
     // Un curseur plutôt que des boutons : la fourchette va de 5 à 50, ça ne
@@ -877,6 +881,119 @@
       return true;
     } catch (e) { return false; }
   }
+
+  // ---------- l'image de partage, au format story ----------
+  //
+  // 1080×1920, dessinée ICI, dans le navigateur. Rien n'est envoyé nulle part,
+  // ça marche hors ligne, et l'image ne dépend d'aucun service qui pourrait
+  // disparaître. Sur mobile elle part directement dans la feuille de partage
+  // (story Instagram, Messages…) ; ailleurs elle se télécharge.
+  var STORY_L = 1080, STORY_H = 1920;
+  function policeStory(taille, gras) {
+    return (gras ? "800 " : "600 ") + taille + 'px -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  }
+  // Coupe un texte en lignes qui tiennent dans `large`, au plus `maxLignes`.
+  function lignesStory(ctx, texte, large, maxLignes) {
+    var mots = String(texte).split(/\s+/), lignes = [], ligne = "";
+    for (var i = 0; i < mots.length; i++) {
+      var essai = ligne ? ligne + " " + mots[i] : mots[i];
+      if (ctx.measureText(essai).width <= large || !ligne) { ligne = essai; continue; }
+      lignes.push(ligne); ligne = mots[i];
+      if (lignes.length === maxLignes) break;
+    }
+    if (lignes.length < maxLignes && ligne) lignes.push(ligne);
+    // Ce qui ne tient pas se termine par une ellipse, jamais coupé net.
+    if (lignes.length === maxLignes && lignes.join(" ").length < mots.join(" ").length)
+      lignes[maxLignes - 1] = lignes[maxLignes - 1].replace(/\s*\S*$/, "") + "…";
+    return lignes;
+  }
+  function coinsArrondis(ctx, x, y, l, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + l - r, y); ctx.quadraticCurveTo(x + l, y, x + l, y + r);
+    ctx.lineTo(x + l, y + h - r); ctx.quadraticCurveTo(x + l, y + h, x + l - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+  function dessinerStory(g) {
+    if (!g || !g.code) return null;
+    var c = document.createElement("canvas");
+    c.width = STORY_L; c.height = STORY_H;
+    var ctx = c.getContext && c.getContext("2d");
+    if (!ctx) return null;
+    var mi = STORY_L / 2;
+
+    var fond = ctx.createLinearGradient(0, 0, 0, STORY_H);
+    fond.addColorStop(0, "#241d3d"); fond.addColorStop(0.55, "#1a1430"); fond.addColorStop(1, "#120f1e");
+    ctx.fillStyle = fond; ctx.fillRect(0, 0, STORY_L, STORY_H);
+    // La lueur rose du dégradé des boutons, pour que l'image soit reconnaissable.
+    var lueur = ctx.createRadialGradient(mi, 380, 40, mi, 380, 640);
+    lueur.addColorStop(0, "rgba(255,93,143,0.32)"); lueur.addColorStop(1, "rgba(255,93,143,0)");
+    ctx.fillStyle = lueur; ctx.fillRect(0, 0, STORY_L, 1000);
+
+    // TOUT tient entre y=260 et y=1650 : Instagram recouvre environ 250 px en
+    // haut (profil) et 250 px en bas (barre de réponse). Hors de cette bande,
+    // le texte existe mais personne ne le lit.
+    ctx.textAlign = "center";
+    ctx.font = policeStory(110, true); ctx.fillStyle = "#fff";
+    ctx.fillText("💘", mi, 355);
+    ctx.font = policeStory(56, true);
+    ctx.fillText("Are We A Match ?", mi, 440);
+
+    // Le titre de la partie, au plus deux lignes, centré dans sa bande.
+    ctx.font = policeStory(72, true);
+    var titre = lignesStory(ctx, gameTitle(g), STORY_L - 160, 2);
+    var yT = titre.length > 1 ? 540 : 575;
+    for (var i = 0; i < titre.length; i++) { ctx.fillText(titre[i], mi, yT); yT += 86; }
+
+    var n = g.sceneCount || sceneCountHint;
+    ctx.fillStyle = "#ffb3cd"; ctx.font = policeStory(44, true);
+    ctx.fillText(T("%1 scènes · ~%2 min", n, dureeMin(n)), mi, 700);
+
+    // Le QR sur une carte blanche : sans fond blanc, beaucoup de lecteurs
+    // échouent sur un QR posé à même une couleur sombre.
+    var qr = document.createElement("canvas"); qr.width = 560; qr.height = 560;
+    if (!drawQR(qr, gameUrl(g.code))) return null;
+    var cl = 520, cx = mi - cl / 2, cy = 750;
+    ctx.fillStyle = "#fff"; coinsArrondis(ctx, cx, cy, cl, cl, 48); ctx.fill();
+    ctx.drawImage(qr, cx + 32, cy + 32, cl - 64, cl - 64);
+
+    ctx.fillStyle = "#c3b9e0"; ctx.font = policeStory(32, false);
+    ctx.fillText(T("Scanne, ou tape ce code"), mi, 1340);
+    ctx.fillStyle = "#fff"; ctx.font = policeStory(88, true);
+    ctx.fillText(String(g.code), mi, 1445);
+
+    ctx.fillStyle = "#c3b9e0"; ctx.font = policeStory(36, false);
+    var appel = lignesStory(ctx, T("Réponds quand tu veux. On voit ensuite à quel point vous vous ressemblez."), STORY_L - 180, 2);
+    for (var j = 0; j < appel.length; j++) ctx.fillText(appel[j], mi, 1530 + j * 48);
+
+    ctx.fillStyle = "#8d80b5"; ctx.font = policeStory(30, false);
+    ctx.fillText(gameUrl(g.code).replace(/^https?:\/\//, ""), mi, 1640);
+    return c;
+  }
+  function partagerStory(g) {
+    var c = dessinerStory(g);
+    if (!c || !c.toBlob) { warn(T("Impossible de créer l'image sur cet appareil.")); return; }
+    c.toBlob(function (blob) {
+      if (!blob) { warn(T("Impossible de créer l'image sur cet appareil.")); return; }
+      var nom = "are-we-a-match-" + g.code + ".png";
+      // La feuille de partage d'abord : c'est elle qui mène à la story.
+      try {
+        if (typeof File === "function" && navigator.canShare) {
+          var f = new File([blob], nom, { type: "image/png" });
+          if (navigator.canShare({ files: [f] })) {
+            navigator.share({ files: [f] }).catch(function () {});
+            return;
+          }
+        }
+      } catch (e) {}
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = nom;
+      document.body.appendChild(a); a.click(); a.parentNode.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      toast(T("Image enregistrée."));
+    }, "image/png");
+  }
   // Un partage, un seul lien. Le lien vit DANS le texte, et on ne passe pas
   // « url » à navigator.share : les applications de messagerie collent l'url
   // à la suite du texte, donc un texte qui finit déjà par le lien le faisait
@@ -947,7 +1064,8 @@
       '<div class="am-qr"><canvas id="amQR" width="400" height="400"></canvas></div>' +
       '<div class="am-code-big">' + esc(g.code) + '</div>' +
       '<p class="am-hint">' + T("Scanne, ou tape ce code dans « Rejoindre avec un code ».") + '</p>' +
-      '<div class="am-share-row"><button class="am-primary" id="amShare">' + T("Partager") + '</button><button class="am-ghost" id="amCopy">' + T("Copier") + '</button></div></div>';
+      '<div class="am-share-row"><button class="am-primary" id="amShare">' + T("Partager") + '</button><button class="am-ghost" id="amCopy">' + T("Copier") + '</button></div>' +
+      '<button type="button" class="am-ghost" id="amStory">' + T("🖼️ Image pour une story") + '</button></div>';
 
     body += countsBar(g);
     // Seul dans sa partie et rien de commencé : inviter d'abord, c'est le geste
@@ -981,6 +1099,7 @@
     var rb = $("amResults"); if (rb) rb.onclick = openResults;
     var sb = $("amShare"); if (sb) sb.onclick = function () { shareGame(g); };
     var cb = $("amCopy"); if (cb) cb.onclick = function () { copyText(gameUrl(g.code)); };
+    var stb = $("amStory"); if (stb) stb.onclick = function () { partagerStory(g); };
     var hw2 = $("amHowto"); if (hw2) hw2.onclick = function () { openOnboarding(true); };
     var xb = $("amClose"); if (xb) xb.onclick = function () {
       if (g.test) { if (window.confirm(T("Supprimer la partie de test ?"))) socket.emit("close_game", { code: g.code }); return; }

@@ -334,4 +334,11 @@ window.AM_I18N = { en: {
   "🔒 Choisir mon code": "🔒 Choose my code",
   "Langue : %1. Changer.": "Language: %1. Change.",
   "<p>🌍 <b>La langue</b> se change à tout moment, en haut à droite. Les scènes et l'interface suivent ta langue. Tu peux jouer la même partie que quelqu'un qui a choisi l'autre.</p>": "<p>🌍 <b>The language</b> can be changed at any time, top right. The scenes and the interface follow your language. You can play the same game as someone who picked the other one.</p>",
+  // ---- l'image de partage au format story ----
+  "%1 scènes · ~%2 min": "%1 scenes · ~%2 min",
+  "Scanne, ou tape ce code": "Scan it, or type this code",
+  "Réponds quand tu veux. On voit ensuite à quel point vous vous ressemblez.": "Answer whenever you like. Then you see how alike you really are.",
+  "Impossible de créer l'image sur cet appareil.": "Can't create the image on this device.",
+  "Image enregistrée.": "Image saved.",
+  "🖼️ Image pour une story": "🖼️ Image for a story",
 } };
