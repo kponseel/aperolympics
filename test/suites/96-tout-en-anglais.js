@@ -92,7 +92,7 @@ exports.run = async (t) => {
   t.check("Le sélecteur de langue est déjà là sur l'écran du pseudo",
     await p.evaluate(() => {
       const b = document.getElementById("amLang");
-      return !!b && b.offsetWidth > 0 && /EN/.test(b.textContent);
+      return !!b && b.offsetWidth > 0 && b.textContent === "🇬🇧";
     }));
 
   t.section("Créer une partie");

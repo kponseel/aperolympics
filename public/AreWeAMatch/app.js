@@ -46,14 +46,38 @@
   }
   var LANGUES = ["fr", "en"];
   var NOM_LANGUE = { fr: "Français", en: "English" };
+  // Un drapeau par langue : c'est ce qui se repère le plus vite dans la barre.
+  // Là où les drapeaux ne sont pas dessinés (Windows, certains Linux), le
+  // couple d'indicateurs régionaux s'affiche en toutes lettres — « FR »,
+  // « GB » — ce qui reste lisible. C'est pour ça qu'il n'y a pas de code à
+  // côté : il ferait « FRFR » sur ces machines.
+  var DRAPEAU = { fr: "🇫🇷", en: "🇬🇧" };
   function normLang(l) { l = String(l || "").slice(0, 2).toLowerCase(); return LANGUES.indexOf(l) >= 0 ? l : "fr"; }
-  // La langue au premier chargement : ce que le joueur a choisi ici, sinon
-  // celle du téléphone. Le serveur la confirmera depuis le compte, pour qu'elle
-  // suive d'un appareil à l'autre.
+  // La langue de l'APPAREIL, dans l'ordre où il l'annonce.
+  //
+  // navigator.language seul ne suffit pas : il ne donne que la première. Un
+  // téléphone réglé sur [de, en, fr] annonçait « de », qu'on ne sait pas
+  // parler, et on retombait sur le français — alors que l'anglais était juste
+  // derrière dans SES préférences. On parcourt donc toute la liste.
+  function langueDeLAppareil() {
+    var liste = [];
+    if (navigator.languages && navigator.languages.length) liste = [].slice.call(navigator.languages);
+    else if (navigator.language) liste = [navigator.language];
+    for (var i = 0; i < liste.length; i++) {
+      var l = String(liste[i] || "").slice(0, 2).toLowerCase();
+      if (LANGUES.indexOf(l) >= 0) return l;
+    }
+    // Ni français ni anglais sur l'appareil : l'anglais est le repli le plus
+    // utile pour quelqu'un qui ne lit ni l'un ni l'autre.
+    return "en";
+  }
+  // Au premier chargement : un choix déjà fait ICI l'emporte — c'est une
+  // décision explicite du joueur —, sinon l'appareil tranche.
   function langInitiale() {
-    var l = null;
-    try { l = localStorage.getItem("am.lang"); } catch (e) {}
-    return normLang(l || (navigator.language || "fr"));
+    var stocke = null;
+    try { stocke = localStorage.getItem("am.lang"); } catch (e) {}
+    stocke = String(stocke || "").slice(0, 2).toLowerCase();
+    return LANGUES.indexOf(stocke) >= 0 ? stocke : langueDeLAppareil();
   }
   function setLang(l, prevenirServeur) {
     l = normLang(l);
@@ -603,8 +627,10 @@
   // dans quelle langue on est.
   function renderLang() {
     var b = $("amLang"); if (!b) return;
-    b.textContent = "🌍 " + lang.toUpperCase();
-    b.setAttribute("aria-label", T("Langue : %1. Changer.", NOM_LANGUE[lang]));
+    var quoi = T("Langue : %1. Changer.", NOM_LANGUE[lang]);
+    b.textContent = DRAPEAU[lang] || lang.toUpperCase();
+    b.setAttribute("aria-label", quoi);
+    b.setAttribute("title", quoi);
     b.onclick = function () {
       setLang(LANGUES[(LANGUES.indexOf(lang) + 1) % LANGUES.length]);
     };

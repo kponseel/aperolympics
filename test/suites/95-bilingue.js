@@ -61,6 +61,43 @@ exports.run = async (t) => {
     [...document.querySelectorAll("#amOpts button .am-opttext")].map((x) => x.textContent.trim().split(" ")[0]));
   const question = (p) => p.evaluate(() => (document.querySelector(".am-q") || {}).textContent || "");
 
+  // La langue par défaut vient de l'APPAREIL : on simule des téléphones réglés
+  // différemment et on regarde dans quelle langue l'app démarre.
+  async function langueAuDemarrage(locale, liste, stocke) {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, locale });
+    // Playwright ne pose que [locale] dans navigator.languages : pour un
+    // téléphone multilingue il faut poser la liste soi-même.
+    if (liste) await ctx.addInitScript((l) => {
+      Object.defineProperty(navigator, "languages", { get: () => l });
+    }, liste);
+    const pg = await ctx.newPage();
+    await pg.goto(srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+    if (stocke) {
+      // localStorage appartient à l'origine : il faut avoir chargé la page
+      // avant de l'écrire, puis recharger.
+      await pg.evaluate((v) => { try { localStorage.setItem("am.lang", v); } catch (e) {} }, stocke);
+      await pg.reload({ waitUntil: "domcontentloaded" });
+    }
+    await pg.waitForTimeout(350);
+    const l = await pg.evaluate(() => document.documentElement.lang);
+    await ctx.close();
+    return l;
+  }
+
+  t.section("La langue par défaut vient du téléphone");
+  t.check("Téléphone en français → français", (await langueAuDemarrage("fr-FR")) === "fr");
+  t.check("Téléphone en anglais → anglais", (await langueAuDemarrage("en-GB")) === "en");
+  t.check("Une variante régionale compte (fr-CA → français)", (await langueAuDemarrage("fr-CA")) === "fr");
+  // Le cas qui était faux : on ne lisait que la PREMIÈRE langue annoncée.
+  t.check("Téléphone [de, en, fr] → anglais, pas français",
+    (await langueAuDemarrage("de-DE", ["de-DE", "en-GB", "fr-FR"])) === "en");
+  t.check("Téléphone [es, fr, en] → français, la première qu'on sait parler",
+    (await langueAuDemarrage("es-ES", ["es-ES", "fr-FR", "en-GB"])) === "fr");
+  t.check("Téléphone dans une langue qu'on ne parle pas → anglais",
+    (await langueAuDemarrage("de-DE", ["de-DE"])) === "en");
+  t.check("Un choix déjà fait l'emporte sur l'appareil",
+    (await langueAuDemarrage("en-GB", null, "fr")) === "fr");
+
   t.section("Chacun voit l'interface dans SA langue");
   const F = await ouvrir("Chloé", "fr-FR");
   const E = await ouvrir("Sam", "en-GB");
@@ -144,11 +181,13 @@ exports.run = async (t) => {
   t.section("Changer de langue en cours de route");
   // Le sélecteur est dans la barre du haut, à gauche du pseudo : un appui
   // suffit, depuis n'importe quel écran.
-  t.check("Le bouton de langue annonce la langue active", (await E.textContent("#amLang")).indexOf("EN") >= 0,
-    await E.textContent("#amLang"));
+  t.check("Le bouton de langue montre le drapeau de la langue active",
+    (await E.textContent("#amLang")) === "🇬🇧", await E.textContent("#amLang"));
+  t.check("… et dit en toutes lettres ce qu'il fera, pour qui ne voit pas le drapeau",
+    /English/.test(await E.getAttribute("#amLang", "aria-label")), await E.getAttribute("#amLang", "aria-label"));
   await E.click("#amLang"); await E.waitForTimeout(600);
-  t.check("… et affiche la nouvelle après l'appui", (await E.textContent("#amLang")).indexOf("FR") >= 0,
-    await E.textContent("#amLang"));
+  t.check("… et bascule sur l'autre drapeau après l'appui",
+    (await E.textContent("#amLang")) === "🇫🇷", await E.textContent("#amLang"));
   t.check("Sam passe en français sans recharger la page",
     /Résultats|compatib/i.test(await E.textContent("#amResultsBody")), (await E.textContent("#amResultsBody")).slice(0, 80));
   t.check("… et son score n'a pas bougé", (await pct(E)) === 100, String(await pct(E)));
