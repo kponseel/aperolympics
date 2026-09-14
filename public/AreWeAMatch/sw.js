@@ -15,8 +15,8 @@
 // sert les fichiers du disque depuis son propre cache en ignorant
 // Cache-Control : changer l'URL est le seul moyen sûr d'obtenir la dernière
 // version. Voir le commentaire détaillé dans index.html.
-const V = "3.7";
-const CACHE = "am-v20";
+const V = "3.8";
+const CACHE = "am-v21";
 const SHELL = [
   "/AreWeAMatch/", "/AreWeAMatch/index.html",
   "/AreWeAMatch/app.js?v=" + V, "/AreWeAMatch/i18n.js?v=" + V, "/AreWeAMatch/style.css?v=" + V,

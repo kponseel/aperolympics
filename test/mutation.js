@@ -197,6 +197,29 @@ const MUTATIONS = [
     "97-image-story",
     "la dur\u00e9e estim\u00e9e change de base de calcul"],
 
+  // Le bug exact que Kevin a vu : l'\u00e9cran de sc\u00e8ne ne se repeint plus quand
+  // le serveur renvoie le texte traduit. L'interface bascule, la sc\u00e8ne reste
+  // dans l'ancienne langue, et la bascule SUIVANTE affiche l'autre \u2014 d'o\u00f9
+  // « il faut cliquer plusieurs fois ».
+  ["public/AreWeAMatch/app.js",
+    "if (avantQ && apresQ && avantQ !== apresQ) {",
+    "if (false) {",
+    "95-bilingue",
+    "l'\u00e9cran de sc\u00e8ne ne suit plus le changement de langue"],
+
+  // La r\u00e9v\u00e9lation garde ses libell\u00e9s d'origine.
+  ["public/AreWeAMatch/app.js",
+    "{ retraduireReveal(m.scenes[play.index]); renderReveal(); }",
+    "{ renderReveal(); }",
+    "95-bilingue",
+    "la r\u00e9v\u00e9lation garde les libell\u00e9s de l'ancienne langue"],
+
+  ["public/AreWeAMatch/app.js",
+    "'>' + T(\"\u2705 Valider\") + '</button>'",
+    "'>\u2705 Valider</button>'",
+    "15-langues",
+    "le bouton de validation repasse en dur, non traduit"],
+
   ["public/AreWeAMatch/app.js",
     "    lang = langInitiale();",
     '    lang = "fr";',

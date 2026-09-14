@@ -86,7 +86,14 @@
     try { localStorage.setItem("am.lang", l); } catch (e) {}
     document.documentElement.lang = l;
     appliquerLangueStatique();
-    if (prevenirServeur !== false && socket && connected) socket.emit("set_lang", { lang: l });
+    if (prevenirServeur !== false && socket && connected) {
+      socket.emit("set_lang", { lang: l });
+      // Le TEXTE des scènes et des résultats vient du serveur : en cache, il
+      // est resté dans l'ancienne langue. Le repeindre tel quel affichait la
+      // scène en français sous une interface déjà anglaise. Le serveur renvoie
+      // game_state tout seul ; les résultats, il faut les redemander.
+      if (screen === "s-results" && currentCode) socket.emit("game_results", { code: currentCode });
+    }
     // Repeindre l'écran courant : sans ça il faudrait recharger la page.
     if (screen === "s-home") renderHome();
     else if (screen === "s-game" && game) renderGame();
@@ -353,6 +360,17 @@
       }
       else if (screen === "s-play") {
         updatePlayMeta();
+        // Le texte des scènes a changé : la langue vient de basculer. Sans ce
+        // repeint, l'écran gardait l'ancienne langue sous une interface déjà
+        // traduite — et comme le cache, lui, était à jour, la bascule suivante
+        // affichait l'autre langue. D'où « il faut cliquer plusieurs fois ».
+        var avantQ = prev && prev.scenes && prev.scenes[play.index] && prev.scenes[play.index].q;
+        var apresQ = m.scenes && m.scenes[play.index] && m.scenes[play.index].q;
+        if (avantQ && apresQ && avantQ !== apresQ) {
+          if (play.reveal) { retraduireReveal(m.scenes[play.index]); renderReveal(); }
+          else renderScene();
+          return;
+        }
         // Le serveur fait autorité sur « où j'en suis ». S'il n'est pas
         // d'accord avec l'écran — même compte ouvert sur un deuxième
         // appareil, ou reprise après un redémarrage du serveur — on se recale
@@ -1197,6 +1215,19 @@
     // ont répondu à cette scène.
     return (game.players || []).filter(function (p) { return !p.me && p.progress > index; }).length;
   }
+  // Une révélation reçue reste dans la langue où elle a été demandée, et elle
+  // n'arrive qu'avec answer_ack : on ne peut pas la redemander seule. Mais ses
+  // données — qui a répondu quoi — sont des INDICES d'options, indépendants de
+  // la langue. Seuls les libellés changent, et on les reprend dans la scène
+  // fraîchement traduite. C'est l'invariant du jeu qui rend ça sûr : même
+  // option au même index dans les deux langues, ce que 15-langues garde.
+  function retraduireReveal(scene) {
+    if (!play.reveal || !scene) return;
+    play.reveal.question = scene;
+    (play.reveal.group || []).forEach(function (g) {
+      if (scene.o && scene.o[g.option] != null) g.label = scene.o[g.option];
+    });
+  }
   function updatePlayMeta() {
     var el = $("amPlayOthers");
     if (el && game) { var n = othersAnswered(play.index); el.textContent = n ? (n > 1 ? T("%1 ont déjà répondu", n) : T("1 a déjà répondu")) : T("personne n'a encore répondu"); }
@@ -1238,7 +1269,7 @@
         ? (astuce ? "" : T("Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1."))
         : (play.myRank.length < n ? T("Encore %1 à classer… (touche une réponse classée pour l'enlever)", n - play.myRank.length) : T("Classement complet !"));
       if (note) body += '<p class="am-ranknote">' + note + '</p>';
-      body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>✅ Valider</button>';
+      body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>' + T("✅ Valider") + '</button>';
       body += T('<p class="am-hint center">En validant, tu découvres les réponses des autres — et ta réponse se fige. Tant que personne d\'autre n\'a répondu à une scène, tu peux encore y revenir.</p>');
       // Valider trop vite arrive. Tant que personne d'autre n'a répondu à la
       // scène d'avant, il n'y avait rien à voir : on peut y retourner.

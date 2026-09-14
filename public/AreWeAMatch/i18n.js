@@ -341,4 +341,5 @@ window.AM_I18N = { en: {
   "Impossible de créer l'image sur cet appareil.": "Can't create the image on this device.",
   "Image enregistrée.": "Image saved.",
   "🖼️ Image pour une story": "🖼️ Image for a story",
+  "✅ Valider": "✅ Confirm",
 } };
