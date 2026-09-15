@@ -158,6 +158,10 @@ const PACKS_META = Object.fromEntries(
 );
 
 function escHtml(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+// Deux pseudos désignent le même joueur s'ils ne diffèrent que par la casse ou
+// les espaces autour — la même règle que players.js et games.js, qui rangent
+// leurs enregistrements sous cette clé.
+function cle(nom) { return String(nom || "").trim().toLowerCase(); }
 
 // Le jeu s'appelait « Are We A Match ? » et vivait sous /AreWeAMatch. Il
 // s'appelle « Alter Ego » et vit sous /AlterEgo — le cœur percé d'une flèche et
@@ -380,6 +384,106 @@ function mount({ app, io }) {
       if (acc && acc.ownerCid && acc.ownerCid !== sess.cid) { socket.emit("error_msg", { msg: "not_owner" }); return; }
       players.setPin(sess.name, pin);
       socket.emit("pin_set", { name: sess.name });
+    });
+
+    // --- Changer de pseudo, effacer son compte ---------------------------
+    //
+    // Les deux partent du pseudo de la SESSION, jamais d'un nom reçu du
+    // client : sinon n'importe qui renommerait ou effacerait n'importe qui en
+    // envoyant un autre nom. Et les deux touchent au compte ET aux parties,
+    // dans cet ordre — le compte d'abord, parce que c'est lui qui arbitre
+    // l'unicité du pseudo ; si les parties échouaient ensuite on aurait un
+    // compte renommé et des parties à l'ancien nom, donc games.renamePlayer()
+    // vérifie tout avant de modifier quoi que ce soit.
+
+    // Un renommage change ce que TOUS les autres voient : les listes de
+    // joueurs, les révélations, les résultats. On rediffuse donc chaque partie
+    // touchée, pas seulement celle qu'on regarde.
+    function rediffuser(codes) { (codes || []).forEach((c) => broadcastGame(c)); }
+
+    socket.on("rename_me", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.cid || !sess.name) { socket.emit("rename_ack", { ok: false, reason: "no_identity" }); return; }
+      const voulu = String((m && m.name) || "").trim().slice(0, 16);
+      if (!voulu || !/\S/.test(voulu)) { socket.emit("rename_ack", { ok: false, reason: "bad_name" }); return; }
+      const acc = players.getAccount(sess.name);
+      if (acc && acc.ownerCid && acc.ownerCid !== sess.cid) { socket.emit("rename_ack", { ok: false, reason: "not_owner" }); return; }
+      // Les parties d'abord, en simulation : elles peuvent refuser un pseudo
+      // que le compte accepterait (un homonyme laissé par un compte supprimé).
+      // On ne veut pas renommer le compte pour devoir le remettre ensuite.
+      const dejaPris = players.getAccount(voulu);
+      if (dejaPris && players.getAccount(sess.name) !== dejaPris) { socket.emit("rename_ack", { ok: false, reason: "name_taken", tried: voulu }); return; }
+      const rj = games.renamePlayer(sess.name, voulu);
+      if (!rj.ok) { socket.emit("rename_ack", { ok: false, reason: rj.reason, tried: voulu }); return; }
+      const rc = players.rename(sess.name, voulu);
+      if (!rc.ok && rc.reason !== "same") {
+        // Le compte a refusé après les parties : on remet les parties comme
+        // elles étaient, sinon elles porteraient un pseudo sans compte.
+        games.renamePlayer(voulu, sess.name);
+        socket.emit("rename_ack", { ok: false, reason: rc.reason, tried: voulu });
+        return;
+      }
+      const ancien = sess.name;
+      const nom = rc.ok ? rc.name : voulu;
+      // Toutes les sessions de CE joueur suivent : le même compte peut être
+      // ouvert sur le téléphone et sur un onglet resté sur un ordinateur.
+      for (const [sid, s] of sessions) {
+        if (s.name && cle(s.name) === cle(ancien)) {
+          s.name = nom;
+          const sk = ns.sockets.get(sid);
+          if (sk && sk.id !== socket.id) sk.emit("renamed", { name: nom });
+        }
+      }
+      sess.name = nom;
+      socket.emit("rename_ack", { ok: true, name: nom });
+      rediffuser(rj.codes);
+    });
+
+    // Ce que la suppression va détruire, demandé AVANT de la déclencher :
+    // l'écran de confirmation doit annoncer des chiffres, pas un « êtes-vous
+    // sûr ? » qui ne renseigne sur rien.
+    socket.on("delete_me_impact", () => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) { socket.emit("error_msg", { msg: "no_identity" }); return; }
+      socket.emit("delete_me_impact", {
+        name: sess.name,
+        impact: games.purgeImpact(sess.name),
+        has_pin: players.isProtected(sess.name),
+      });
+    });
+
+    socket.on("delete_me", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.cid || !sess.name) { socket.emit("delete_me_ack", { ok: false, reason: "no_identity" }); return; }
+      const acc = players.getAccount(sess.name);
+      if (acc && acc.ownerCid && acc.ownerCid !== sess.cid) { socket.emit("delete_me_ack", { ok: false, reason: "not_owner" }); return; }
+      // Irréversible, et destructeur pour les AUTRES : leurs scores changent.
+      // On demande donc une preuve. Le code de reprise quand il existe — c'est
+      // le seul secret du compte, et le moment est exactement celui où il doit
+      // servir. Sinon (compte d'avant la v2, sans code) : retaper son pseudo,
+      // ce que l'app demande déjà pour supprimer une partie.
+      const preuve = players.checkPin(sess.name, m && m.pin);
+      if (!preuve.ok) {
+        if (preuve.reason !== "no_pin") { socket.emit("delete_me_ack", { ok: false, reason: "pin_wrong" }); return; }
+        const tape = String((m && m.confirm) || "").trim().toLowerCase();
+        if (tape !== String(sess.name).trim().toLowerCase()) { socket.emit("delete_me_ack", { ok: false, reason: "confirm_wrong" }); return; }
+      }
+      const nom = sess.name;
+      const r = games.purgePlayer(nom);
+      players.deleteAccount(nom);
+      // La session est vidée AVANT la rediffusion : sinon broadcastGame
+      // repeindrait une partie au nom de quelqu'un qui n'existe plus.
+      for (const [, s] of sessions) if (s.name && cle(s.name) === cle(nom)) { s.name = null; s.cid = null; s.viewing = null; }
+      socket.emit("delete_me_ack", { ok: true });
+      rediffuser(r.codes);
+      // Les sessions des AUTRES joueurs des parties supprimées doivent
+      // l'apprendre : leur écran pointe une partie qui n'existe plus.
+      for (const c of r.supprimees) {
+        for (const [sid, s] of sessions) {
+          const sk = ns.sockets.get(sid);
+          if (sk && s.viewing === c) sk.emit("game_gone", { code: c });
+        }
+      }
     });
 
     // --- Mes parties ---

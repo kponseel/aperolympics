@@ -271,6 +271,72 @@ const MUTATIONS = [
     'label: T("Tr\u00e8s compatibles"), emoji: "\u{1F498}"',
     "25-identite",
     "l'emoji de Cupidon revient dans les r\u00e9sultats"],
+
+  // --- changer de pseudo, effacer son compte --------------------------------
+  // Le renommage ne fait plus que la moiti\u00e9 du travail : le compte change, les
+  // parties gardent l'ancien pseudo. Rien ne plante \u2014 le joueur a simplement
+  // perdu ses r\u00e9ponses dans toutes ses parties.
+  ["server/match/games.js",
+    "      if (from !== to) { g.players[to] = p; delete g.players[from]; }",
+    "",
+    "55-pseudo",
+    "un renommage laisse les r\u00e9ponses \u00e0 l'ancien pseudo dans les parties"],
+
+  // Le renommage oublie l'h\u00f4te : la partie garde l'ancien nom en couronne, et
+  // le joueur renomm\u00e9 n'a plus le droit de la fermer.
+  ["server/match/games.js",
+    "    if (g.hostKey === from) { g.hostKey = to; g.hostName = propre; change = true; }",
+    "",
+    "55-pseudo",
+    "un renommage ne suit pas l'h\u00f4te de la partie"],
+
+  // Un pseudo d\u00e9j\u00e0 pris passe : deux comptes se retrouvent \u00e0 se disputer la
+  // m\u00eame cl\u00e9, et les r\u00e9ponses de l'un \u00e9crasent celles de l'autre.
+  ["server/match/players.js",
+    '  if (data.byName[to]) return { ok: false, reason: "name_taken" };',
+    "",
+    "55-pseudo",
+    "un pseudo d\u00e9j\u00e0 pris peut \u00eatre vol\u00e9"],
+
+  // L'h\u00f4te qui s'efface n'est pas remplac\u00e9 : la partie reste sans h\u00f4te, plus
+  // personne ne peut la fermer ni la supprimer, elle est l\u00e0 pour toujours.
+  ["server/match/games.js",
+    "      g.hostKey = suivant;",
+    "",
+    "55-pseudo",
+    "une partie se retrouve sans h\u00f4te apr\u00e8s la suppression du sien"],
+
+  // Les bots h\u00e9ritent de la partie de test : plus aucun humain ne peut la
+  // fermer, et elle tra\u00eene jusqu'\u00e0 son expiration.
+  ["server/match/games.js",
+    "        .filter((x) => !g.players[x].bot)",
+    "",
+    "55-pseudo",
+    "un bot peut devenir h\u00f4te d'une partie"],
+
+  // La suppression n'efface que le compte : le pseudo est lib\u00e9r\u00e9 pendant que
+  // les parties continuent de l'afficher avec ses r\u00e9ponses.
+  ["server/match/index.js",
+    "      const r = games.purgePlayer(nom);",
+    "      const r = { codes: [], supprimees: [], transferees: [] };",
+    "85-pseudo-ecran",
+    "supprimer son compte laisse ses r\u00e9ponses dans les parties"],
+
+  // N'importe quel code de reprise ouvre la suppression : un t\u00e9l\u00e9phone pr\u00eat\u00e9
+  // deux minutes suffit \u00e0 effacer le compte de son propri\u00e9taire.
+  ["server/match/index.js",
+    "      const preuve = players.checkPin(sess.name, m && m.pin);",
+    "      const preuve = { ok: true };",
+    "85-pseudo-ecran",
+    "la suppression ne v\u00e9rifie plus le code de reprise"],
+
+  // Le renommage n'est pas rediffus\u00e9 : les autres joueurs restent devant un
+  // pseudo qui n'existe plus, jusqu'\u00e0 ce qu'ils rechargent.
+  ["server/match/index.js",
+    "      rediffuser(rj.codes);",
+    "",
+    "85-pseudo-ecran",
+    "un renommage n'est pas rediffus\u00e9 aux autres joueurs"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");
