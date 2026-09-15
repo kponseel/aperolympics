@@ -56,12 +56,17 @@ jobs:
           # --- QuizzMaster (sous-app /quizz, namespace /qm) ---
           check /quizz/
           check /quizz/app.js
-          # --- Are We A Match? (sous-app /AreWeAMatch, namespace /match) ---
+          # --- Alter Ego (sous-app /AlterEgo, namespace /match) ---
+          check /AlterEgo/
+          check /AlterEgo/app.js
+          check /AlterEgo/style.css
+          check /AlterEgo/sw.js
+          check /AlterEgo/manifest.webmanifest
+          # L'ancien chemin doit répondre 200, pas 301 : des QR codés avec lui
+          # circulent, et le service worker déjà installé sur les téléphones
+          # refuse une réponse redirigée sur une navigation.
           check /AreWeAMatch/
           check /AreWeAMatch/app.js
-          check /AreWeAMatch/style.css
-          check /AreWeAMatch/sw.js
-          check /AreWeAMatch/manifest.webmanifest
           # Le raccourci /match doit rediriger vers l'URL canonique, pas servir
           # une page : c'est ce qui évite un alias parasite sur le static racine.
           check_code /match 302

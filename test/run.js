@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Lanceur des tests d'Are We A Match ?
+// Lanceur des tests d'Alter Ego
 //
 // Les suites vivaient dans /tmp : le conteneur a été recyclé pendant une nuit
 // d'inactivité et 791 contrôles ont disparu d'un coup. Elles sont désormais

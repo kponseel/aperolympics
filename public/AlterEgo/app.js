@@ -1,4 +1,4 @@
-// Are We A Match? v2 — SPA. Socket.IO namespace /match.
+// Alter Ego (ex « Alter Ego ») v2 — SPA. Socket.IO namespace /match.
 // Écrans : pseudo + code de reprise / mes parties / une partie / répondre (scène puis
 // reveal) / résultats.
 //
@@ -86,7 +86,14 @@
     try { localStorage.setItem("am.lang", l); } catch (e) {}
     document.documentElement.lang = l;
     appliquerLangueStatique();
-    if (prevenirServeur !== false && socket && connected) socket.emit("set_lang", { lang: l });
+    if (prevenirServeur !== false && socket && connected) {
+      socket.emit("set_lang", { lang: l });
+      // Le TEXTE des scènes et des résultats vient du serveur : en cache, il
+      // est resté dans l'ancienne langue. Le repeindre tel quel affichait la
+      // scène en français sous une interface déjà anglaise. Le serveur renvoie
+      // game_state tout seul ; les résultats, il faut les redemander.
+      if (screen === "s-results" && currentCode) socket.emit("game_results", { code: currentCode });
+    }
     // Repeindre l'écran courant : sans ça il faudrait recharger la page.
     if (screen === "s-home") renderHome();
     else if (screen === "s-game" && game) renderGame();
@@ -175,7 +182,13 @@
     var j = Math.round(min / 1440);
     return j > 1 ? T("%1 jours", j) : T("1 jour");
   }
-  function gameUrl(code) { return location.origin + "/AreWeAMatch/g/" + code; }
+  // Le chemin public du jeu. /AreWeAMatch est l'ancien : des QR codes et des
+  // liens sont partis avec, le serveur les sert toujours. Mais tout ce que
+  // l'app FABRIQUE part sous le nouveau — y compris la barre d'adresse, que
+  // setUrl réécrit sans recharger dès qu'on arrive par un vieux lien.
+  var BASE = "/AlterEgo";
+  var LEGACY = "/AreWeAMatch";
+  function gameUrl(code) { return location.origin + BASE + "/g/" + code; }
   // Le lien qui ramène droit à l'écran final (la progression de tout le monde,
   // les résultats dès qu'on a fini). Même page : on ajoute juste ?r=1, que le
   // serveur ignore et que le client lit au démarrage.
@@ -188,8 +201,8 @@
   function gameTitle(g) { return g.title || (T("Partie de %1", g.hostName)); }
   function bandFor(pct) {
     if (pct == null) return { key: "unknown", label: "—", emoji: "❔" };
-    if (pct >= 90) return { key: "soulmates", label: T("Âmes sœurs"), emoji: "💞" };
-    if (pct >= 75) return { key: "high", label: T("Très compatibles"), emoji: "💘" };
+    if (pct >= 90) return { key: "soulmates", label: T("Clones"), emoji: "🧬" };
+    if (pct >= 75) return { key: "high", label: T("Très compatibles"), emoji: "✨" };
     if (pct >= 60) return { key: "good", label: T("Bonne entente"), emoji: "🙂" };
     if (pct >= 40) return { key: "mixed", label: T("Ça dépend des jours"), emoji: "🤷" };
     return { key: "opposite", label: T("Opposés"), emoji: "⚔️" };
@@ -197,7 +210,7 @@
   // Les paliers calculés par le serveur arrivent avec leur libellé FRANÇAIS et
   // une clé. On traduit depuis la clé : le serveur ne connaît pas la langue de
   // celui qui regarde les résultats d'une partie bilingue.
-  var PALIERS = { unknown: "—", soulmates: "Âmes sœurs", high: "Très compatibles",
+  var PALIERS = { unknown: "—", soulmates: "Clones", high: "Très compatibles",
                   good: "Bonne entente", mixed: "Ça dépend des jours", opposite: "Opposés" };
   function bandLabel(b) { return b ? T(PALIERS[b.key] || b.label) : ""; }
   function bandClass(b) { return "b-" + ((b && b.key) || "mixed"); }
@@ -232,17 +245,32 @@
   function getDevToken() { try { return localStorage.getItem("am.devToken") || ""; } catch (e) { return ""; } }
   function setDevToken(t) { try { if (t) localStorage.setItem("am.devToken", t); else localStorage.removeItem("am.devToken"); } catch (e) {} }
 
-  // Le code d'une partie dans l'adresse : /AreWeAMatch/g/CODE ou ?g=CODE.
+  // Le code d'une partie dans l'adresse : /AlterEgo/g/CODE ou ?g=CODE.
+  // L'ancien chemin est lu lui aussi : un QR imprimé avant le changement de nom
+  // doit ouvrir la partie, pas l'accueil.
   function codeFromUrl() {
-    var m = /\/AreWeAMatch\/g\/([A-Za-z0-9-]+)/.exec(location.pathname);
+    var m = /\/(?:AlterEgo|AreWeAMatch)\/g\/([A-Za-z0-9-]+)/i.exec(location.pathname);
     if (m) return m[1].toUpperCase();
     var q = /[?&](?:g|code)=([A-Za-z0-9-]+)/.exec(location.search);
     return q ? q[1].toUpperCase() : null;
   }
   function wantsResultsFromUrl() { return /[?&]r=1(?:&|$)/.test(location.search); }
   function setUrl(code, results) {
-    var to = code ? "/AreWeAMatch/g/" + code + (results ? "?r=1" : "") : "/AreWeAMatch/";
+    var to = code ? BASE + "/g/" + code + (results ? "?r=1" : "") : BASE + "/";
     try { history.replaceState(null, "", to); } catch (e) {}
+  }
+  // Arrivé par l'ancien chemin : on remet l'adresse canonique dans la barre,
+  // sans recharger. Ce qui sera copié, partagé ou mis en favori portera le
+  // nouveau nom — c'est comme ça que l'ancien finit par disparaître.
+  // Comparé à la constante, jamais à un motif retapé à la main : la première
+  // version écrivait « arewamatch » sans le second « e », ne se déclenchait
+  // donc jamais, et rien ne cassait pour autant — l'app marchait, elle gardait
+  // simplement l'ancien nom dans la barre. C'est le test qui l'a vu.
+  function canoniserUrl() {
+    var ici = location.pathname.toLowerCase();
+    if (ici.indexOf(BASE.toLowerCase()) === 0) return;
+    if (ici.indexOf(LEGACY.toLowerCase()) !== 0) return;
+    setUrl(codeFromUrl(), wantsResultsFromUrl());
   }
 
   // ---------- socket ----------
@@ -353,6 +381,17 @@
       }
       else if (screen === "s-play") {
         updatePlayMeta();
+        // Le texte des scènes a changé : la langue vient de basculer. Sans ce
+        // repeint, l'écran gardait l'ancienne langue sous une interface déjà
+        // traduite — et comme le cache, lui, était à jour, la bascule suivante
+        // affichait l'autre langue. D'où « il faut cliquer plusieurs fois ».
+        var avantQ = prev && prev.scenes && prev.scenes[play.index] && prev.scenes[play.index].q;
+        var apresQ = m.scenes && m.scenes[play.index] && m.scenes[play.index].q;
+        if (avantQ && apresQ && avantQ !== apresQ) {
+          if (play.reveal) { retraduireReveal(m.scenes[play.index]); renderReveal(); }
+          else renderScene();
+          return;
+        }
         // Le serveur fait autorité sur « où j'en suis ». S'il n'est pas
         // d'accord avec l'écran — même compte ouvert sur un deuxième
         // appareil, ou reprise après un redémarrage du serveur — on se recale
@@ -767,7 +806,7 @@
           (g.hasNew ? T('<span class="badge-new">Nouveaux résultats</span>') : '') +
           '<span class="code">' + esc(g.code) + '</span></div>' +
         '<div class="meta">' + meta.map(function (x) { return "<span>" + esc(x) + "</span>"; }).join("") + '</div>' +
-        (g.teaser ? T('<div class="meta"><span>💘 %1 : %2 % sur vos %3 scènes en commun · termine pour voir tout</span></div>', esc(g.teaser.name), g.teaser.pct, g.teaser.shared) : '') +
+        (g.teaser ? T('<div class="meta"><span>✨ %1 : %2 % sur vos %3 scènes en commun · termine pour voir tout</span></div>', esc(g.teaser.name), g.teaser.pct, g.teaser.shared) : '') +
         '<div class="am-progress' + (g.finished ? " done" : "") + '"><i style="width:' + pct + '%"></i></div>' +
         '</button>';
     }).join("");
@@ -914,6 +953,32 @@
     ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
     ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
   }
+  // La marque : trois cercles qui se recouvrent — le même dessin que l'icône de
+  // l'écran d'accueil, aux mêmes proportions (repère d'origine : rayon 116,
+  // centres à (256,184), (186,306), (326,306)).
+  // Tracée, et non écrite : un emoji dépend de la police du téléphone qui
+  // fabrique l'image, et celui d'avant — un cœur percé d'une flèche — annonçait
+  // une appli de rencontre sur la story de tout le monde.
+  // Elle passe par un calque à part parce que « screen » se mélange à ce qui
+  // est DÉJÀ sur le canevas : à même le fond, les cercles en ressortaient
+  // délavés. Sur un calque transparent, ils ne se mélangent qu'entre eux, et la
+  // zone commune s'éclaircit — ce que le jeu mesure, justement.
+  function marqueStory(ctx, cx, cy, r) {
+    var COULEURS = ["#ff6f9c", "#7c5cff", "#ffd23f"];
+    var POSES = [[0, -61], [-70, 61], [70, 61]];
+    var s = r / 116, pad = Math.ceil(r * 2.2);
+    var t = document.createElement("canvas");
+    t.width = pad * 2; t.height = pad * 2;
+    var g = t.getContext && t.getContext("2d");
+    if (!g) return;
+    g.globalCompositeOperation = "screen";
+    for (var i = 0; i < 3; i++) {
+      g.beginPath();
+      g.arc(pad + POSES[i][0] * s, pad + POSES[i][1] * s, r, 0, Math.PI * 2);
+      g.fillStyle = COULEURS[i]; g.fill();
+    }
+    ctx.drawImage(t, cx - pad, cy - pad);
+  }
   function dessinerStory(g) {
     if (!g || !g.code) return null;
     var c = document.createElement("canvas");
@@ -934,10 +999,9 @@
     // haut (profil) et 250 px en bas (barre de réponse). Hors de cette bande,
     // le texte existe mais personne ne le lit.
     ctx.textAlign = "center";
-    ctx.font = policeStory(110, true); ctx.fillStyle = "#fff";
-    ctx.fillText("💘", mi, 355);
-    ctx.font = policeStory(56, true);
-    ctx.fillText("Are We A Match ?", mi, 440);
+    marqueStory(ctx, mi, 325, 44);
+    ctx.font = policeStory(56, true); ctx.fillStyle = "#fff";
+    ctx.fillText("Alter Ego", mi, 455);
 
     // Le titre de la partie, au plus deux lignes, centré dans sa bande.
     ctx.font = policeStory(72, true);
@@ -975,7 +1039,7 @@
     if (!c || !c.toBlob) { warn(T("Impossible de créer l'image sur cet appareil.")); return; }
     c.toBlob(function (blob) {
       if (!blob) { warn(T("Impossible de créer l'image sur cet appareil.")); return; }
-      var nom = "are-we-a-match-" + g.code + ".png";
+      var nom = "alter-ego-" + g.code + ".png";
       // La feuille de partage d'abord : c'est elle qui mène à la story.
       try {
         if (typeof File === "function" && navigator.canShare) {
@@ -1000,14 +1064,14 @@
   // apparaître DEUX FOIS dans le message envoyé. Les aperçus de lien marchent
   // quand même, WhatsApp & co repèrent l'adresse dans le texte.
   function shareLink(text) {
-    if (navigator.share) { navigator.share({ title: "Are We A Match ?", text: text }).catch(function () {}); return; }
+    if (navigator.share) { navigator.share({ title: "Alter Ego", text: text }).catch(function () {}); return; }
     copyText(text);
   }
   // Le texte doit se suffire à lui-même : celui qui le reçoit n'a aucun
   // contexte, et personne ne sera là pour lui expliquer.
   function shareGame(g) {
     var n = g.sceneCount || 20;
-    shareLink((g.hostName === getPseudo() ? T("Fais mon test « Are We A Match ? »") : T("Rejoins la partie « Are We A Match ? » de %1", g.hostName))
+    shareLink((g.hostName === getPseudo() ? T("Fais mon test « Alter Ego »") : T("Rejoins la partie « Alter Ego » de %1", g.hostName))
       + T(" : %1 scènes, 3 réponses à classer à chaque fois. Tu réponds quand tu veux (2 min, ou demain), et on voit à quel point on fait pareil. Rien à installer → ", n) + gameUrl(g.code));
   }
   function copyText(t) {
@@ -1054,7 +1118,7 @@
     // Bouton principal selon où j'en suis. Une partie fermée ne bloque plus
     // celui qui a déjà rejoint : il a tout son temps pour finir.
     var action = "";
-    if (me.finished) action = '<button class="am-primary xl" id="amResults">' + T("💘 Voir les résultats") + '</button>';
+    if (me.finished) action = '<button class="am-primary xl" id="amResults">' + T("✨ Voir les résultats") + '</button>';
     else if (me.progress > 0) action = '<button class="am-primary xl" id="amPlay">' + T("▶️ Continuer (%1/%2)", me.progress, g.sceneCount) + '</button>';
     else action = '<button class="am-primary xl" id="amPlay">' + T("🎬 Répondre aux %1 scènes", g.sceneCount) + '</button>';
 
@@ -1072,7 +1136,7 @@
     // qui donne un sens à la suite. Sinon, l'action d'abord.
     var alone = g.players.length <= 1 && me.progress === 0 && !me.finished && !g.closedAt;
     body += alone ? share + action : action;
-    if (me.teaser) body += '<div class="am-teaser">' + T('💘 <b>%1</b> : <span class="pct">%2 %</span> sur vos %3 scènes en commun. <span class="am-soft">Termine pour voir tout.</span>', esc(me.teaser.name), me.teaser.pct, me.teaser.shared) + '</div>';
+    if (me.teaser) body += '<div class="am-teaser">' + T('✨ <b>%1</b> : <span class="pct">%2 %</span> sur vos %3 scènes en commun. <span class="am-soft">Termine pour voir tout.</span>', esc(me.teaser.name), me.teaser.pct, me.teaser.shared) + '</div>';
     if (me.finished && finishedNames < 2) body += T('<p class="am-hint center">Tu as fini ! Dès qu\'un autre joueur aura fini, vous verrez votre compatibilité — tu recevras la partie en « Nouveaux résultats » dans ta liste.</p>');
     if (!alone && !g.closedAt) body += share;
 
@@ -1197,6 +1261,19 @@
     // ont répondu à cette scène.
     return (game.players || []).filter(function (p) { return !p.me && p.progress > index; }).length;
   }
+  // Une révélation reçue reste dans la langue où elle a été demandée, et elle
+  // n'arrive qu'avec answer_ack : on ne peut pas la redemander seule. Mais ses
+  // données — qui a répondu quoi — sont des INDICES d'options, indépendants de
+  // la langue. Seuls les libellés changent, et on les reprend dans la scène
+  // fraîchement traduite. C'est l'invariant du jeu qui rend ça sûr : même
+  // option au même index dans les deux langues, ce que 15-langues garde.
+  function retraduireReveal(scene) {
+    if (!play.reveal || !scene) return;
+    play.reveal.question = scene;
+    (play.reveal.group || []).forEach(function (g) {
+      if (scene.o && scene.o[g.option] != null) g.label = scene.o[g.option];
+    });
+  }
   function updatePlayMeta() {
     var el = $("amPlayOthers");
     if (el && game) { var n = othersAnswered(play.index); el.textContent = n ? (n > 1 ? T("%1 ont déjà répondu", n) : T("1 a déjà répondu")) : T("personne n'a encore répondu"); }
@@ -1238,7 +1315,7 @@
         ? (astuce ? "" : T("Touche les réponses dans l'ordre demandé au-dessus : la première prend la place n° 1."))
         : (play.myRank.length < n ? T("Encore %1 à classer… (touche une réponse classée pour l'enlever)", n - play.myRank.length) : T("Classement complet !"));
       if (note) body += '<p class="am-ranknote">' + note + '</p>';
-      body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>✅ Valider</button>';
+      body += '<button class="am-primary" id="amValid"' + (play.myRank.length === n ? "" : " disabled") + '>' + T("✅ Valider") + '</button>';
       body += T('<p class="am-hint center">En validant, tu découvres les réponses des autres — et ta réponse se fige. Tant que personne d\'autre n\'a répondu à une scène, tu peux encore y revenir.</p>');
       // Valider trop vite arrive. Tant que personne d'autre n'a répondu à la
       // scène d'avant, il n'y avait rien à voir : on peut y retourner.
@@ -1363,7 +1440,7 @@
     drawQR($("amResQR"), resultsUrl(r.code));
     var sb = $("amShareRes");
     if (sb) sb.onclick = function () {
-      shareLink(T("Où en est « %1 » (Are We A Match ?) : %2/%3 ont fini. Résultats en direct → %4",
+      shareLink(T("Où en est « %1 » (Alter Ego) : %2/%3 ont fini. Résultats en direct → %4",
         gameTitle(r), r.finishedCount, r.playerCount, resultsUrl(r.code)));
     };
     var cb = $("amCopyRes"); if (cb) cb.onclick = function () { copyText(resultsUrl(r.code)); };
@@ -1375,8 +1452,8 @@
 
     if (r.locked) {
       body += countsBar(r);
-      body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">' + T("Termine tes %1 scènes pour voir les résultats.", r.sceneCount) + '</p><p class="am-hint">' + T("Tu en es à %1/%2. Le détail (ton meilleur match, le podium, les titres) s'ouvre à la dernière scène.", r.progress, r.sceneCount) + '</p></div>';
-      if (r.teaser) body += '<div class="am-teaser">' + T('💘 <b>%1</b> : <span class="pct">%2 %</span> sur vos %3 scènes en commun.', esc(r.teaser.name), r.teaser.pct, r.teaser.shared) + '</div>';
+      body += '<div class="am-card am-center-card"><div class="am-big">🔒</div><p class="am-lead">' + T("Termine tes %1 scènes pour voir les résultats.", r.sceneCount) + '</p><p class="am-hint">' + T("Tu en es à %1/%2. Le détail (ton alter ego, le podium, les titres) s'ouvre à la dernière scène.", r.progress, r.sceneCount) + '</p></div>';
+      if (r.teaser) body += '<div class="am-teaser">' + T('✨ <b>%1</b> : <span class="pct">%2 %</span> sur vos %3 scènes en commun.', esc(r.teaser.name), r.teaser.pct, r.teaser.shared) + '</div>';
       body += '<button class="am-primary xl" id="amPlay2">' + T("▶️ Continuer") + '</button>';
       body += pendingCard(r);
       body += backLinkCard(r);
@@ -1393,12 +1470,12 @@
     }
     if (f.top) {
       var tb = bandFor(f.top.pct);
-      body += '<div class="am-top-duo"><div class="lbl">' + T("🏆 Le duo le plus compatible") + '</div><div class="names">' + esc(f.top.a) + " 💞 " + esc(f.top.b) + '</div><div class="pct">' + f.top.pct + '%</div><div class="band">' + tb.emoji + " " + bandLabel(tb) + '</div>' +
+      body += '<div class="am-top-duo"><div class="lbl">' + T("🏆 Le duo le plus compatible") + '</div><div class="names">' + esc(f.top.a) + " 🧬 " + esc(f.top.b) + '</div><div class="pct">' + f.top.pct + '%</div><div class="band">' + tb.emoji + " " + bandLabel(tb) + '</div>' +
         (f.top.sameTop ? '<div class="lbl">' + (f.top.sameTop > 1 ? T("%1 coups de cœur en commun", f.top.sameTop) : T("1 coup de cœur en commun")) + '</div>' : "") + '</div>';
     }
     var perso = r.personal;
     if (perso && perso.best) {
-      body += '<div class="am-personal"><div class="am-pack-tag">' + T("💘 TON meilleur match") + '</div><div class="names" style="font-size:1.3rem;font-weight:900;margin:4px 0">' + esc(perso.best.name) + '</div><div class="pct">' + perso.best.pct + '%</div>' +
+      body += '<div class="am-personal"><div class="am-pack-tag">' + T("🧬 TON ALTER EGO") + '</div><div class="names" style="font-size:1.3rem;font-weight:900;margin:4px 0">' + esc(perso.best.name) + '</div><div class="pct">' + perso.best.pct + '%</div>' +
         '<div><span class="am-badge ' + bandClass(perso.best.band) + '">' + esc(perso.best.band.emoji + " " + bandLabel(perso.best.band)) + '</span></div>' +
         (perso.average != null ? '<p class="am-hint">' + T("Ta compatibilité moyenne avec le groupe : %1 %", perso.average) + '</p>' : "") + '</div>';
     }
@@ -1501,7 +1578,7 @@
           memPseudo = ""; memCid = null;
           // Rechargement sur l'adresse nue : pas de socket qui traîne avec
           // l'ancienne identité, et pas de code de partie dans l'URL.
-          location.href = "/AreWeAMatch/";
+          location.href = BASE + "/";
         };
       });
   }
@@ -1599,7 +1676,7 @@
       '<ol class="am-steps compact">' +
       T('<li><span class="num">1</span> <span class="t">Touche <b>Partager</b> en bas de Safari — le carré avec la flèche vers le haut.</span></li>') +
       T('<li><span class="num">2</span> <span class="t">Fais défiler et choisis <b>« Sur l\'écran d\'accueil »</b>.</span></li>') +
-      T('<li><span class="num">3</span> <span class="t">Touche <b>Ajouter</b>. L\'icône 💘 apparaît avec tes autres apps.</span></li>') +
+      T('<li><span class="num">3</span> <span class="t">Touche <b>Ajouter</b>. L\'icône d\'Alter Ego apparaît avec tes autres apps.</span></li>') +
       "</ol>" +
       T("<p class='am-hint'>Ensuite l'app s'ouvre en plein écran, sans la barre du navigateur, et tes parties sont là — ton pseudo et ton code de reprise suffisent.</p>"));
   }
@@ -1636,14 +1713,14 @@
   // changer de langue n'y changeait rien : les chaînes étaient déjà figées.
   function ONB() {
     return [
-    { e: "💘", t: T("Des scènes, 3 réponses"),
+    { e: "🎬", t: T("Des scènes, 3 réponses"),
       p: T("Pas de bonne réponse : seulement la tienne. À chaque scène, tu ranges les 3 réponses <b>de ta préférée (1) à celle que tu aimes le moins (3)</b> — et quand la scène demande autre chose (la plus fréquente chez toi, la plus agaçante…), elle te le dit juste sous la question.") },
     { e: "⏰", t: T("Quand tu veux"),
       p: T("Rien n'est chronométré et personne ne t'attend. Tu réponds ce soir, ton ami demain dans le métro. <b>Chaque réponse est sauvée tout de suite</b> : tu peux fermer et revenir.") },
     { e: "👀", t: T("Le verdict après chaque scène"),
       p: T("Dès que tu valides, tu découvres <b>ce que les autres ont répondu</b> — et seulement à ce moment-là. Une réponse validée ne change plus : c'est ce qui rend le score honnête.") },
-    { e: "💞", t: T("Qui te ressemble"),
-      p: T("À la fin : ton <b>meilleur match</b>, le podium des duos, les titres de la partie. Les résultats se remplissent <b>au fur et à mesure</b> que les gens finissent — reviens quand tu veux.") },
+    { e: "🧬", t: T("Qui te ressemble"),
+      p: T("À la fin : ton <b>alter ego</b>, le podium des duos, les titres de la partie. Les résultats se remplissent <b>au fur et à mesure</b> que les gens finissent — reviens quand tu veux.") },
     ];
   }
   var onbIndex = 0;
@@ -1692,6 +1769,7 @@
     appliquerLangueStatique();
     pendingCode = codeFromUrl();
     pendingResults = !!(pendingCode && wantsResultsFromUrl());
+    canoniserUrl();
     var input = $("amName");
     if (input) input.value = getPseudo();
     if (pendingCode) { var note = $("amInviteNote"); if (note) { note.style.display = ""; note.innerHTML = T("🎟️ <b>On t'invite à une partie</b> (code %1).<br>Choisis un pseudo et un code de reprise à 4 chiffres — c'est tout, il n'y a rien à installer.", esc(pendingCode)); } }

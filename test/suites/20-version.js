@@ -18,8 +18,8 @@ exports.titre = "Version et casse-cache";
 
 exports.run = async (t) => {
   const { version } = t.modules();
-  const html = lire("public/AreWeAMatch/index.html");
-  const sw = lire("public/AreWeAMatch/sw.js");
+  const html = lire("public/AlterEgo/index.html");
+  const sw = lire("public/AlterEgo/sw.js");
   const vjs = lire("server/match/version.js");
 
   const V = version.version;
@@ -42,7 +42,7 @@ exports.run = async (t) => {
   // Les fichiers qui DOIVENT porter la marque : ce sont ceux que le CDN sert
   // depuis le disque et qu'un téléphone garderait sinon à vie.
   for (const f of ["app.js", "style.css", "sw.js", "vendor/qrcode.min.js"]) {
-    t.check(f + " est appelé avec ?v=" + V, html.includes("/AreWeAMatch/" + f + "?v=" + V));
+    t.check(f + " est appelé avec ?v=" + V, html.includes("/AlterEgo/" + f + "?v=" + V));
   }
   // index.html lui-même n'est PAS mis en cache par le CDN (DYNAMIC) : c'est ce
   // qui rend l'astuce fiable, et pourquoi il ne porte pas de marque.
@@ -70,7 +70,7 @@ exports.run = async (t) => {
   const { execFileSync } = require("child_process");
   let diff = null;
   try {
-    diff = execFileSync("git", ["diff", "--name-only", "origin/main...HEAD", "--", "server/match", "public/AreWeAMatch"],
+    diff = execFileSync("git", ["diff", "--name-only", "origin/main...HEAD", "--", "server/match", "public/AlterEgo"],
       { cwd: require("../lib/harness").RACINE, encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
   } catch (e) { /* pas de remote, pas de git : on ne peut pas juger */ }
   if (diff === null) {

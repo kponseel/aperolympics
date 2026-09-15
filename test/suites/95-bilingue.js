@@ -23,7 +23,7 @@ exports.run = async (t) => {
     p.on("pageerror", (e) => erreurs.push(nom + " : " + e.message));
     p.on("console", (m) => { if (m.type() === "error") erreurs.push(nom + " : " + m.text()); });
     p.on("dialog", (d) => d.accept());
-    await p.goto(url || srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+    await p.goto(url || srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
     await p.waitForTimeout(300);
     if (await p.evaluate(() => getComputedStyle(document.getElementById("amOnb")).display !== "none")) {
       await p.click("#amOnbSkip"); await p.waitForTimeout(200);
@@ -39,7 +39,7 @@ exports.run = async (t) => {
   // Répondre en désignant les options par leur EMOJI, pas par leur position à
   // l'écran : c'est ce qui permet de donner « la même réponse » dans deux
   // langues sans présupposer que l'ordre affiché est le même.
-  async function repondreParEmoji(p, emojis) {
+  async function repondreParEmoji(p, emojis, sansSuite) {
     await p.waitForFunction(() => document.querySelectorAll("#amOpts button").length === 3, null, { timeout: 10000 });
     for (const e of emojis) {
       const ok = await p.evaluate((emo) => {
@@ -55,7 +55,7 @@ exports.run = async (t) => {
     await p.waitForFunction(() => document.getElementById("amNext") ||
       document.querySelectorAll("#amOpts button").length === 3 ||
       document.getElementById("s-results").classList.contains("on"), null, { timeout: 10000 });
-    if (await p.$("#amNext")) await p.click("#amNext");
+    if (!sansSuite && await p.$("#amNext")) await p.click("#amNext");
   }
   const emojisAffiches = (p) => p.evaluate(() =>
     [...document.querySelectorAll("#amOpts button .am-opttext")].map((x) => x.textContent.trim().split(" ")[0]));
@@ -71,7 +71,7 @@ exports.run = async (t) => {
       Object.defineProperty(navigator, "languages", { get: () => l });
     }, liste);
     const pg = await ctx.newPage();
-    await pg.goto(srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+    await pg.goto(srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
     if (stocke) {
       // localStorage appartient à l'origine : il faut avoir chargé la page
       // avant de l'écrire, puis recharger.
@@ -125,7 +125,7 @@ exports.run = async (t) => {
   await F.waitForFunction(() => document.querySelector(".am-code-big"), null, { timeout: 10000 });
   const code = (await F.textContent(".am-code-big")).trim();
 
-  await E.goto(srv.base + "/AreWeAMatch/g/" + code, { waitUntil: "domcontentloaded" });
+  await E.goto(srv.base + "/AlterEgo/g/" + code, { waitUntil: "domcontentloaded" });
   await E.waitForSelector("#amJoinGame", { timeout: 10000 });
   t.check("L'anglophone voit le bouton pour rejoindre, en anglais",
     /Join the game/.test(await E.textContent("#amJoinGame")), await E.textContent("#amJoinGame"));
@@ -143,9 +143,59 @@ exports.run = async (t) => {
   t.check("Les trois options sont dans le MÊME ordre (mêmes emojis, mêmes places)",
     eF.join(" ") === eE.join(" "), eF.join(" ") + "   ≠   " + eE.join(" "));
 
+  t.section("Basculer la langue EN PLEINE SCÈNE");
+  // Le texte d'une scène vient du SERVEUR. L'interface, elle, est traduite
+  // dans la page. Les deux doivent basculer ensemble : une scène restée en
+  // français sous une interface anglaise, c'est ce que Kevin a vu.
+  const optionsAffichees = (p) => p.evaluate(() =>
+    [...document.querySelectorAll("#amOpts button .am-opttext")].map((x) => x.textContent.trim()).join(" | "));
+  const valider = (p) => p.textContent("#amValid");
+
+  const qAvant = await question(F), oAvant = await optionsAffichees(F);
+  await F.click("#amLang"); await F.waitForTimeout(900);
+  const qApres = await question(F), oApres = await optionsAffichees(F);
+  t.check("La QUESTION de la scène passe en anglais", qApres !== qAvant && qApres.length > 5,
+    "avant : " + qAvant + "   apr\u00e8s : " + qApres);
+  t.check("Les OPTIONS aussi", oApres !== oAvant, "apr\u00e8s : " + oApres.slice(0, 90));
+  t.check("… et la question affichée est bien celle que voit l'anglophone", qApres === qE,
+    qApres + "   vs   " + qE);
+  t.check("Le bouton de validation est traduit lui aussi",
+    !/Valider/.test(await valider(F)), await valider(F));
+
+  // Et le retour, du premier coup : il fallait basculer deux fois pour que
+  // l'écran finisse par suivre.
+  await F.click("#amLang"); await F.waitForTimeout(900);
+  t.check("Un seul appui suffit pour revenir au français", (await question(F)) === qAvant,
+    (await question(F)) + "   vs   " + qAvant);
+  t.check("… options comprises", (await optionsAffichees(F)) === oAvant);
+
+  t.section("Basculer la langue SUR LA RÉVÉLATION");
+  // Une révélation n'arrive qu'avec la validation : impossible de la
+  // redemander seule. Ses libellés sont donc réécrits depuis la scène
+  // traduite, en s'appuyant sur l'alignement des options par index.
+  // Sam répond EN PREMIER : sans ça, Chloé est seule sur la scène et l'app
+  // enchaîne sur la suivante au lieu de montrer une révélation — il n'y aurait
+  // rien à traduire, et le contrôle ne prouverait rien.
+  const emojisScene1 = await emojisAffiches(F);
+  await repondreParEmoji(E, emojisScene1);
+  await repondreParEmoji(F, emojisScene1, true);
+  await F.waitForSelector("#amNext", { timeout: 10000 });
+  t.check("Chloé est bien sur une révélation, pas sur la scène suivante",
+    (await F.$("#amValid")) === null, "le bouton de validation ne doit plus être là");
+
+  const revAvant = await F.textContent("#amPlayBody");
+  t.check("La révélation montre la question en français", revAvant.indexOf(qF) >= 0, qF);
+  await F.click("#amLang"); await F.waitForTimeout(900);
+  const revApres = await F.textContent("#amPlayBody");
+  t.check("Elle passe en anglais", revApres.indexOf(qE) >= 0, revApres.replace(/\s+/g, " ").slice(0, 110));
+  t.check("… sans laisser la question française derrière", revApres.indexOf(qF) < 0, qF);
+  await F.click("#amLang"); await F.waitForTimeout(900);
+  t.check("Et revient au français du premier coup", (await F.textContent("#amPlayBody")) === revAvant);
+  await F.click("#amNext");
+
   t.section("Ils répondent pareil, et le score le dit");
   // Les deux donnent le même classement, désigné par les emojis.
-  for (let i = 0; i < N; i++) {
+  for (let i = 1; i < N; i++) {
     const emojis = await emojisAffiches(F);
     await repondreParEmoji(F, emojis);
     await repondreParEmoji(E, emojis);

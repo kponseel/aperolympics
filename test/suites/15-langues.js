@@ -111,7 +111,7 @@ exports.run = async (t) => {
   // s'affiche en français à un anglophone, et personne ne le voit passer.
   // D'où ce contrôle statique.
   const fs = require("fs"), path = require("path");
-  const racine = path.join(__dirname, "..", "..", "public", "AreWeAMatch");
+  const racine = path.join(__dirname, "..", "..", "public", "AlterEgo");
   const lire = (f) => fs.readFileSync(path.join(racine, f), "utf8");
   const fenetre = {};
   new Function("window", lire("i18n.js"))(fenetre);

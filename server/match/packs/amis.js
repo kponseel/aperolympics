@@ -1,4 +1,4 @@
-// Are We A Match? — pack 👯 Amis.
+// Alter Ego — pack 👯 Amis.
 // Goûts et modes de vie généraux : ça marche avec n'importe qui.
 //
 // Chaque question :

@@ -92,7 +92,7 @@ exports.run = async (t) => {
   t.check("create_game n'accepte qu'un entier dans la fourchette",
     /Number\.isInteger\(brut\) && brut >= games\.SCENE_MIN && brut <= games\.SCENE_MAX/.test(src));
 
-  const client = require("fs").readFileSync(require("path").join(require("../lib/harness").RACINE, "public/AreWeAMatch/app.js"), "utf8");
+  const client = require("fs").readFileSync(require("path").join(require("../lib/harness").RACINE, "public/AlterEgo/app.js"), "utf8");
   t.check("Le client envoie sceneCount à la création", /create_game", \{ title: [^}]*sceneCount: sceneChoice/.test(client));
   t.check("Il reprend la fourchette annoncée par le serveur", /m\.scene_min/.test(client) && /m\.scene_max/.test(client));
   t.check("Le curseur couvre toute la fourchette",
@@ -101,8 +101,8 @@ exports.run = async (t) => {
   t.section("Plus rien n'affirme une longueur fixe");
   // Une partie peut en faire 5 : les textes qui disaient 20 mentaient.
   const RACINE2 = require("../lib/harness").RACINE;
-  const html2 = require("fs").readFileSync(require("path").join(RACINE2, "public/AreWeAMatch/index.html"), "utf8");
-  const dico2 = require("fs").readFileSync(require("path").join(RACINE2, "public/AreWeAMatch/i18n.js"), "utf8");
+  const html2 = require("fs").readFileSync(require("path").join(RACINE2, "public/AlterEgo/index.html"), "utf8");
+  const dico2 = require("fs").readFileSync(require("path").join(RACINE2, "public/AlterEgo/i18n.js"), "utf8");
   const html = html2;
   t.check("La page d'accueil ne promet plus 20 scènes", !/20 scènes|Vingt scènes/.test(html),
     (html.match(/.{0,40}(20 scènes|Vingt scènes).{0,40}/) || [])[0]);

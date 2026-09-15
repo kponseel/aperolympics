@@ -68,7 +68,7 @@ exports.run = async (t) => {
   const clic = (sel) => p.evaluate((s) => { const e = document.querySelector(s); if (e) e.click(); }, sel);
   const sur = (id) => p.waitForFunction((i) => document.getElementById(i).classList.contains("on"), id, { timeout: 10000 });
 
-  await p.goto(srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+  await p.goto(srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
   await p.waitForTimeout(400);
 
   t.section("L'accueil et l'explication d'entrée");
@@ -174,7 +174,7 @@ exports.run = async (t) => {
 
   // Retour sur la partie pour atteindre la feuille de suppression, qui porte
   // les phrases les plus recomposées de l'app.
-  await p.goto(srv.base + "/AreWeAMatch/g/" + code, { waitUntil: "domcontentloaded" });
+  await p.goto(srv.base + "/AlterEgo/g/" + code, { waitUntil: "domcontentloaded" });
   await p.waitForTimeout(900);
   await lire("partie (hôte)");
   const supprime = await p.evaluate(() => {

@@ -14,12 +14,12 @@ exports.run = async (t) => {
 
   t.section("Les routes du jeu");
   for (const [chemin, attendu] of [
-    ["/AreWeAMatch/", 200],
-    ["/AreWeAMatch/app.js", 200],
-    ["/AreWeAMatch/style.css", 200],
-    ["/AreWeAMatch/sw.js", 200],
-    ["/AreWeAMatch/vendor/qrcode.min.js", 200],
-    ["/AreWeAMatch/version.json", 200],
+    ["/AlterEgo/", 200],
+    ["/AlterEgo/app.js", 200],
+    ["/AlterEgo/style.css", 200],
+    ["/AlterEgo/sw.js", 200],
+    ["/AlterEgo/vendor/qrcode.min.js", 200],
+    ["/AlterEgo/version.json", 200],
     ["/socket.io/socket.io.js", 200],
   ]) {
     const r = await get(B + chemin);
@@ -27,38 +27,84 @@ exports.run = async (t) => {
   }
 
   t.section("Le reste de la plateforme n'a pas bougé");
-  // Are We A Match ? est une sous-app : on ne doit jamais casser les voisines.
+  // Alter Ego est une sous-app : on ne doit jamais casser les voisines.
   for (const chemin of ["/", "/quizz/", "/quizz/app.js", "/manifest.webmanifest"]) {
     const r = await get(B + chemin);
     t.check(chemin + " répond toujours", r.status === 200, "reçu " + r.status);
   }
 
   t.section("Le lien d'invitation atteint bien Node");
-  // /AreWeAMatch/g/CODE n'existe pas sur le disque : s'il tombait en 404, tous
+  // /AlterEgo/g/CODE n'existe pas sur le disque : s'il tombait en 404, tous
   // les liens partagés seraient morts. Un code inconnu rend la page normale,
   // c'est le client qui explique.
-  const inv = await get(B + "/AreWeAMatch/g/ZZZZZ");
-  t.check("/AreWeAMatch/g/CODE sert la page du jeu", inv.status === 200 && /Are We A Match/.test(inv.text), String(inv.status));
-  const res = await get(B + "/AreWeAMatch/g/ZZZZZ?r=1");
+  const inv = await get(B + "/AlterEgo/g/ZZZZZ");
+  t.check("/AlterEgo/g/CODE sert la page du jeu", inv.status === 200 && /Alter Ego/.test(inv.text), String(inv.status));
+  const res = await get(B + "/AlterEgo/g/ZZZZZ?r=1");
   t.check("… avec le paramètre ?r=1 aussi", res.status === 200);
 
   t.section("Le manifeste vient de Node, pas du disque");
   // L'hébergeur rendait le .webmanifest en text/plain et son CDN le gardait en
   // cache : l'installation sur l'écran d'accueil échouait sans rien dire.
-  const man = await get(B + "/AreWeAMatch/app.webmanifest");
+  const man = await get(B + "/AlterEgo/app.webmanifest");
   t.check("Il répond", man.status === 200);
   t.check("… avec le bon type MIME", /application\/manifest\+json/.test(man.headers["content-type"] || ""),
     man.headers["content-type"]);
   t.check("… et sans mise en cache", /no-store/.test(man.headers["cache-control"] || ""), man.headers["cache-control"]);
-  t.check("… en annonçant bien l'application", man.json && man.json.id === "/AreWeAMatch/", JSON.stringify(man.json && man.json.id));
+  t.check("… en annonçant bien l'application", man.json && man.json.id === "/AlterEgo/", JSON.stringify(man.json && man.json.id));
   // Les icônes portent la marque de version, sinon le CDN sert l'ancienne.
   t.check("Les icônes du manifeste portent ?v=", man.json && man.json.icons.every((i) => /\?v=/.test(i.src)),
     JSON.stringify(man.json && man.json.icons.map((i) => i.src)));
 
+  t.section("L'ancien chemin reste vivant (QR déjà partagés)");
+  // Le jeu s'appelait « Are We A Match ? » et vivait sous /AreWeAMatch. Des QR
+  // codes ont été imprimés, postés en story, envoyés dans des conversations :
+  // ils doivent ouvrir une partie, pour toujours.
+  //
+  // Et en 200, pas en redirection. Deux raisons, invisibles sans ce contrôle :
+  // le service worker installé avant le changement de nom répond aux
+  // navigations par respondWith(), et le navigateur REFUSE une réponse
+  // redirigée à cet endroit — l'appli installée aurait affiché une erreur ;
+  // et le manifeste d'une PWA installée est revalidé à son ancienne adresse.
+  // On regarde CE QUI EST SERVI, pas le code de retour. Le filet qui renvoie
+  // index.html pour toute adresse inconnue du jeu répond 200 à tout : un
+  // app.js qui serait devenu la page HTML passerait le contrôle et casserait
+  // l'appli installée en silence.
+  for (const [chemin, marqueur, quoi] of [
+    ["/AreWeAMatch/", /<title>Alter Ego<\/title>/, "la page du jeu"],
+    ["/AreWeAMatch/app.js", /var BASE = "\/AlterEgo";/, "le vrai script"],
+    ["/AreWeAMatch/style.css", /\.am-topbar\s*\{/, "la vraie feuille de style"],
+    ["/AreWeAMatch/sw.js", /const CACHE = "am-v/, "le vrai service worker"],
+    ["/AreWeAMatch/version.json", /"version"/, "la version"],
+  ]) {
+    const r = await get(B + chemin);
+    t.check("l'ancien " + chemin + " sert bien " + quoi, r.status === 200 && marqueur.test(r.text),
+      r.status + " · " + r.text.slice(0, 60).replace(/\s+/g, " "));
+  }
+  const vieuxLien = await get(B + "/AreWeAMatch/g/ZZZZZ");
+  t.check("Un vieux lien de partie ouvre toujours le jeu",
+    vieuxLien.status === 200 && /Alter Ego/.test(vieuxLien.text), String(vieuxLien.status));
+  // C'est bien la ROUTE d'une partie qui a répondu, pas le filet : elle seule
+  // pose no-store, parce qu'elle fabrique l'aperçu de lien de CETTE partie
+  // (le titre et le nombre de joueurs qu'affichent WhatsApp ou iMessage).
+  // Sans elle, le lien s'ouvrirait quand même — mais sans aperçu, et plus
+  // personne ne saurait qui invite.
+  t.check("… par la route des parties, pas par le filet à tout faire",
+    /no-store/.test(vieuxLien.headers["cache-control"] || ""), vieuxLien.headers["cache-control"]);
+  const vieuxMan = await get(B + "/AreWeAMatch/app.webmanifest");
+  t.check("Le manifeste de l'ancien chemin garde SA portée",
+    vieuxMan.json && vieuxMan.json.scope === "/AreWeAMatch/" && vieuxMan.json.id === "/AreWeAMatch/",
+    JSON.stringify(vieuxMan.json && { id: vieuxMan.json.id, scope: vieuxMan.json.scope }));
+  t.check("… tout en portant le nouveau nom", vieuxMan.json && vieuxMan.json.name === "Alter Ego",
+    JSON.stringify(vieuxMan.json && vieuxMan.json.name));
+  // Le raccourci du manifeste doit rester DANS la portée, sinon il est ignoré.
+  t.check("… et son raccourci reste dans sa portée",
+    vieuxMan.json && (vieuxMan.json.shortcuts || []).every((s) => String(s.url).indexOf("/AreWeAMatch/") === 0),
+    JSON.stringify(vieuxMan.json && (vieuxMan.json.shortcuts || []).map((s) => s.url)));
+
   t.section("La version annoncée est celle qui tourne");
   // /admin.html est servi par l'hébergeur sans passer par Node : version.json
   // est le seul témoin fiable qu'un déploiement a bien pris.
-  const v = await get(B + "/AreWeAMatch/version.json");
+  const v = await get(B + "/AlterEgo/version.json");
   t.check("version.json est du JSON", !!v.json, v.text.slice(0, 60));
   t.check("… avec une version, une date et le nombre de scènes",
     v.json && /^\d+\.\d+$/.test(v.json.version) && /^\d{4}-\d{2}-\d{2}$/.test(v.json.date) && v.json.scenes > 100,

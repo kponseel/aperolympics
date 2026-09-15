@@ -1,4 +1,4 @@
-// Are We A Match? — moteur de compatibilité.
+// Alter Ego — moteur de compatibilité.
 //
 // Mécanique : à chaque question, un joueur CLASSE les 3 options (1er = préféré,
 // 3e = le moins aimé). Un classement est stocké comme un tableau d'indices
@@ -111,8 +111,8 @@ function buildMatrix(answers, names, minShared) {
 // Palier qualitatif — c'est lui qui porte l'émotion, pas le chiffre brut.
 function band(pct) {
   if (pct == null) return { key: "unknown", label: "—", emoji: "❔" };
-  if (pct >= 90) return { key: "soulmates", label: "Âmes sœurs", emoji: "💞" };
-  if (pct >= 75) return { key: "high", label: "Très compatibles", emoji: "💘" };
+  if (pct >= 90) return { key: "soulmates", label: "Clones", emoji: "🧬" };
+  if (pct >= 75) return { key: "high", label: "Très compatibles", emoji: "✨" };
   if (pct >= 60) return { key: "good", label: "Bonne entente", emoji: "🙂" };
   if (pct >= 40) return { key: "mixed", label: "Ça dépend des jours", emoji: "🤷" };
   return { key: "opposite", label: "Opposés", emoji: "⚔️" };

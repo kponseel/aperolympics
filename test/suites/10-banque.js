@@ -104,7 +104,7 @@ exports.run = async (t) => {
   t.section("Le fichier reste relisible par un humain");
   for (const f of ["amis", "date", "piquant"]) {
     const src = lire("server/match/packs/" + f + ".js");
-    t.check(f + ".js s'ouvre sur un commentaire qui explique le fichier", /^\/\/ Are We A Match/.test(src));
+    t.check(f + ".js s'ouvre sur un commentaire qui explique le fichier", /^\/\/ Alter Ego/.test(src));
   }
 
   games._reset();

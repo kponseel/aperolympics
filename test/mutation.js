@@ -54,31 +54,31 @@ const MUTATIONS = [
     "10-banque",
     "un id de scène est recyclé (les réponses archivées deviennent fausses)"],
 
-  ["public/AreWeAMatch/index.html",
+  ["public/AlterEgo/index.html",
     'style.css?v=',
     'style.css?vv=',
     "20-version",
     "une marque de version saute (le CDN resservira l'ancien fichier)"],
 
-  ["public/AreWeAMatch/style.css",
+  ["public/AlterEgo/style.css",
     "--soft: #c3b9e0;",
     "--soft: #8b80ad;",
     "80-ecran",
     "le texte secondaire redevient trop pâle"],
 
-  ["public/AreWeAMatch/style.css",
+  ["public/AlterEgo/style.css",
     "position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;",
     "position: static;",
     "80-ecran",
     "les notices retournent dans le flux et décalent la page"],
 
-  ["public/AreWeAMatch/app.js",
-    'navigator.share({ title: "Are We A Match ?", text: text })',
-    'navigator.share({ title: "Are We A Match ?", text: text, url: text.split(" ").pop() })',
+  ["public/AlterEgo/app.js",
+    'navigator.share({ title: "Alter Ego", text: text })',
+    'navigator.share({ title: "Alter Ego", text: text, url: text.split(" ").pop() })',
     "80-ecran",
     "le lien revient en double dans le partage"],
 
-  ["public/AreWeAMatch/style.css",
+  ["public/AlterEgo/style.css",
     ".am-help { width: 44px; height: 44px;",
     ".am-help { width: 30px; height: 30px;",
     "80-ecran",
@@ -116,13 +116,13 @@ const MUTATIONS = [
     "15-langues",
     "une option anglaise glisse d\'un cran (les deux joueurs d\'accord sont compt\u00e9s en d\u00e9saccord)"],
 
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     'T("\ud83c\udfc1 Voir les r\u00e9sultats")',
     '"\ud83c\udfc1 Voir les r\u00e9sultats"',
     "15-langues",
     "une phrase fran\u00e7aise ressort sans T() (l\'anglophone la lit en fran\u00e7ais)"],
 
-  ["public/AreWeAMatch/i18n.js",
+  ["public/AlterEgo/i18n.js",
     '"Annuler": "Cancel",',
     "",
     "15-langues",
@@ -133,7 +133,7 @@ const MUTATIONS = [
   // elle ne correspond plus \u00e0 ce que le navigateur calcule, et la phrase
   // s'affiche en fran\u00e7ais. C'est exactement ce qui \u00e9tait arriv\u00e9 au libell\u00e9
   // du code de reprise.
-  ["public/AreWeAMatch/i18n.js",
+  ["public/AlterEgo/i18n.js",
     '(4 chiffres)</span>": "\ud83d\udd12 Your recovery code <span class=\\"am-soft\\">(4 digits)</span>',
     '(4 chiffres)": "\ud83d\udd12 Your recovery code <span class=\\"am-soft\\">(4 digits)',
     "15-langues",
@@ -144,7 +144,7 @@ const MUTATIONS = [
   // Le cas qui a \u00e9chapp\u00e9 \u00e0 la premi\u00e8re version du contr\u00f4le : du fran\u00e7ais SANS
   // accent, invisible \u00e0 une liste de mots devin\u00e9e. « Partager » s'affichait tel
   // quel aux anglophones sur l'\u00e9cran de partie.
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     'id="amShare">\' + T("Partager") + \'',
     'id="amShare">Partager',
     "15-langues",
@@ -153,7 +153,7 @@ const MUTATIONS = [
   // La feuille d'aide \u00e9tait construite au chargement du fichier, donc fig\u00e9e en
   // fran\u00e7ais \u2014 personne ne l'avait jamais regard\u00e9e en anglais. 96 la traverse
   // d\u00e9sormais : d\u00e9shabiller son titre doit la faire crier.
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     'main: { title: T("Comment \u00e7a marche")',
     'main: { title: "Comment \u00e7a marche"',
     "96-tout-en-anglais",
@@ -161,14 +161,14 @@ const MUTATIONS = [
 
   // On revient \u00e0 ne lire que la PREMI\u00c8RE langue annonc\u00e9e par l'appareil : un
   // t\u00e9l\u00e9phone [es, fr, en] ne trouve alors plus le fran\u00e7ais.
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     "if (navigator.languages && navigator.languages.length) liste = [].slice.call(navigator.languages);",
     "if (false) liste = [];",
     "95-bilingue",
     "seule la premi\u00e8re langue du t\u00e9l\u00e9phone est regard\u00e9e"],
 
   // Les deux drapeaux \u00e9chang\u00e9s : le bouton montrerait la mauvaise langue.
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     'var DRAPEAU = { fr: "\ud83c\uddeb\ud83c\uddf7", en: "\ud83c\uddec\ud83c\udde7" };',
     'var DRAPEAU = { fr: "\ud83c\uddec\ud83c\udde7", en: "\ud83c\uddeb\ud83c\uddf7" };',
     "95-bilingue",
@@ -176,14 +176,14 @@ const MUTATIONS = [
 
   // L'URL repart sous la barre de r\u00e9ponse d'Instagram : elle existe, mais
   // personne ne la lit.
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     'ctx.fillText(gameUrl(g.code).replace(/^https?:\\/\\//, ""), mi, 1640);',
     'ctx.fillText(gameUrl(g.code).replace(/^https?:\\/\\//, ""), mi, 1865);',
     "97-image-story",
     "du contenu de l'image retombe sous l'interface d'Instagram"],
 
   // Le QR perd sa carte blanche : beaucoup de lecteurs \u00e9chouent alors.
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     'ctx.fillStyle = "#fff"; coinsArrondis(ctx, cx, cy, cl, cl, 48); ctx.fill();',
     "",
     "97-image-story",
@@ -191,17 +191,86 @@ const MUTATIONS = [
 
   // On revient \u00e0 l'ancienne base de calcul : le curseur et l'image ne
   // diraient plus la m\u00eame dur\u00e9e pour la m\u00eame partie.
-  ["public/AreWeAMatch/app.js",
+  ["public/AlterEgo/app.js",
     "function dureeMin(n) { return Math.max(1, Math.round(n / 5)); }",
     "function dureeMin(n) { return Math.max(2, Math.floor(n / 2)); }",
     "97-image-story",
     "la dur\u00e9e estim\u00e9e change de base de calcul"],
 
-  ["public/AreWeAMatch/app.js",
+  // Le bug exact que Kevin a vu : l'\u00e9cran de sc\u00e8ne ne se repeint plus quand
+  // le serveur renvoie le texte traduit. L'interface bascule, la sc\u00e8ne reste
+  // dans l'ancienne langue, et la bascule SUIVANTE affiche l'autre \u2014 d'o\u00f9
+  // « il faut cliquer plusieurs fois ».
+  ["public/AlterEgo/app.js",
+    "if (avantQ && apresQ && avantQ !== apresQ) {",
+    "if (false) {",
+    "95-bilingue",
+    "l'\u00e9cran de sc\u00e8ne ne suit plus le changement de langue"],
+
+  // La r\u00e9v\u00e9lation garde ses libell\u00e9s d'origine.
+  ["public/AlterEgo/app.js",
+    "{ retraduireReveal(m.scenes[play.index]); renderReveal(); }",
+    "{ renderReveal(); }",
+    "95-bilingue",
+    "la r\u00e9v\u00e9lation garde les libell\u00e9s de l'ancienne langue"],
+
+  ["public/AlterEgo/app.js",
+    "'>' + T(\"\u2705 Valider\") + '</button>'",
+    "'>\u2705 Valider</button>'",
+    "15-langues",
+    "le bouton de validation repasse en dur, non traduit"],
+
+  ["public/AlterEgo/app.js",
     "    lang = langInitiale();",
     '    lang = "fr";',
     "96-tout-en-anglais",
     "la langue du t\u00e9l\u00e9phone est ignor\u00e9e au d\u00e9marrage"],
+
+  // --- le changement de nom -------------------------------------------------
+  // L'ancien chemin n'est plus servi : tous les QR d\u00e9j\u00e0 partag\u00e9s meurent, et
+  // rien dans l'app ne le signale \u2014 c'est chez les autres que \u00e7a casse.
+  ["server/match/index.js",
+    'CHEMINS.forEach((c) => app.use(c, express.static(PUBLIC_MATCH)));',
+    'app.use(BASE, express.static(PUBLIC_MATCH));',
+    "70-serveur",
+    "l'ancien chemin cesse d'\u00eatre servi"],
+
+  // La redirection qui para\u00eet plus propre et qui casse les PWA install\u00e9es.
+  ["server/match/index.js",
+    'app.get(/^\\/(?:AlterEgo|AreWeAMatch)\\/g\\/([A-Za-z0-9-]{3,12})\\/?$/, (req, res) => {',
+    'app.get(/^\\/AlterEgo\\/g\\/([A-Za-z0-9-]{3,12})\\/?$/, (req, res) => {',
+    "70-serveur",
+    "un vieux lien de partie ne trouve plus sa partie"],
+
+  // Un seul manifeste pour les deux chemins : la PWA install\u00e9e sous l'ancien
+  // nom perd sa port\u00e9e et se rouvre dans un onglet ordinaire.
+  ["server/match/index.js",
+    '      if (typeof m[k] === "string") m[k] = m[k].replace(BASE, base);',
+    "",
+    "70-serveur",
+    "le manifeste de l'ancien chemin annonce la port\u00e9e du nouveau"],
+
+  // Le client repart sous l'ancien chemin : tout marche, et chaque partage
+  // rediffuse l'ancien nom pendant des mois.
+  ["public/AlterEgo/app.js",
+    'var BASE = "/AlterEgo";',
+    'var BASE = "/AreWeAMatch";',
+    "25-identite",
+    "les liens fabriqu\u00e9s repartent sous l'ancien nom"],
+
+  // L'adresse reste sur l'ancien chemin apr\u00e8s une arriv\u00e9e par un vieux QR.
+  ["public/AlterEgo/app.js",
+    "    canoniserUrl();",
+    "",
+    "80-ecran",
+    "l'adresse garde l'ancien chemin apr\u00e8s un vieux QR"],
+
+  // Cupidon revient dans un libell\u00e9 de r\u00e9sultat \u2014 celui qu'on met en capture.
+  ["public/AlterEgo/app.js",
+    'label: T("Tr\u00e8s compatibles"), emoji: "\u2728"',
+    'label: T("Tr\u00e8s compatibles"), emoji: "\u{1F498}"',
+    "25-identite",
+    "l'emoji de Cupidon revient dans les r\u00e9sultats"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");

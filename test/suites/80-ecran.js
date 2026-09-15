@@ -22,7 +22,7 @@ exports.run = async (t) => {
   p.on("pageerror", (e) => erreurs.push("JS : " + e.message));
   p.on("console", (m) => { if (m.type() === "error") erreurs.push("console : " + m.text()); });
   p.on("dialog", (d) => d.accept());
-  await p.goto(srv.base + "/AreWeAMatch/", { waitUntil: "domcontentloaded" });
+  await p.goto(srv.base + "/AlterEgo/", { waitUntil: "domcontentloaded" });
   await p.waitForTimeout(400);
 
   const visible = (id) => p.evaluate((i) => { const e = document.getElementById(i); return !!e && getComputedStyle(e).display !== "none"; }, id);
@@ -40,7 +40,7 @@ exports.run = async (t) => {
   t.section("Le bouton « retour » du téléphone ferme la fenêtre");
   await p.goBack(); await p.waitForTimeout(400);
   t.check("Le retour ferme l'onboarding", !(await visible("amOnb")));
-  t.check("… sans quitter le jeu", /\/AreWeAMatch\//.test(p.url()), p.url());
+  t.check("… sans quitter le jeu", /\/AlterEgo\//.test(p.url()), p.url());
   t.check("… et rend le défilement", !(await fige()));
 
   await p.fill("#amName", "Kevin"); await p.fill("#amPin", "4827"); await p.click("#amContinue");
@@ -134,9 +134,44 @@ exports.run = async (t) => {
   await p.click("#amShare"); await p.waitForTimeout(300);
   const sh = await p.evaluate(() => window.__partage);
   t.check("Le partage produit un texte", !!(sh && sh.text), JSON.stringify(sh));
-  t.check("… qui contient le lien", sh && /\/AreWeAMatch\/g\/[A-Z0-9]+/.test(sh.text), sh && sh.text);
+  t.check("… qui contient le lien", sh && /\/AlterEgo\/g\/[A-Z0-9]+/.test(sh.text), sh && sh.text);
   t.check("… une seule fois", sh && (sh.text.match(/https?:\/\//g) || []).length === 1, sh && sh.text);
   t.check("… et sans champ url à recoller derrière", sh && sh.url == null, JSON.stringify(sh));
+
+  t.section("Un vieux QR code ouvre encore la partie");
+  // LE contrôle du changement de nom. Des QR codes pointant /AreWeAMatch/g/CODE
+  // circulent : imprimés, postés en story, envoyés dans des conversations. Ils
+  // doivent ouvrir LA partie — pas l'accueil, pas une erreur.
+  // Et l'adresse doit ensuite se remettre au propre toute seule : c'est ce qui
+  // fait que le prochain partage, lui, portera le nouveau nom.
+  const code = await p.evaluate(() => (document.querySelector(".am-code-big") || {}).textContent);
+  // Contexte NEUF, sans pseudo enregistré : c'est la situation réelle de celui
+  // qui reçoit le QR. Dans le contexte de Kevin, l'app rejoint la partie toute
+  // seule et remet l'adresse au propre au passage — le contrôle aurait été
+  // vert avec ou sans le correctif, et n'aurait donc rien prouvé.
+  const ctxNeuf = await b.newContext({ viewport: { width: 390, height: 844 }, locale: "fr-FR" });
+  const vieux = await ctxNeuf.newPage();
+  const erreursVieux = [];
+  vieux.on("pageerror", (e) => erreursVieux.push("JS : " + e.message));
+  await vieux.goto(srv.base + "/AreWeAMatch/g/" + String(code || "").trim(), { waitUntil: "domcontentloaded" });
+  await vieux.waitForTimeout(600);
+  t.check("La page s'ouvre sur l'invitation à cette partie",
+    /On t'invite à une partie/.test(await vieux.textContent("#amInviteNote")),
+    await vieux.textContent("#amInviteNote"));
+  t.check("… et l'adresse est déjà passée au nouveau nom",
+    vieux.url().indexOf("/AlterEgo/g/") > 0 && vieux.url().indexOf("AreWeAMatch") < 0, vieux.url());
+  // Le document a bien été SERVI par l'ancien chemin : seule la barre
+  // d'adresse a changé, sans recharger. Si un jour on remplaçait ça par une
+  // redirection, cette entrée porterait le nouveau chemin — et le service
+  // worker installé sur les téléphones, lui, refuserait la navigation.
+  const charge = await vieux.evaluate(() => {
+    const e = performance.getEntriesByType("navigation");
+    return { n: e.length, url: e.length ? e[0].name : "" };
+  });
+  t.check("… sans recharger : le document vient toujours de l'ancien chemin",
+    charge.n === 1 && charge.url.indexOf("/AreWeAMatch/g/") > 0, JSON.stringify(charge));
+  t.check("… et sans erreur", erreursVieux.length === 0, erreursVieux.join(" | "));
+  await vieux.close(); await ctxNeuf.close();
 
   t.check("Aucune erreur dans la console", erreurs.length === 0, erreurs.join(" | "));
 };

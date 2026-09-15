@@ -1,4 +1,4 @@
-// Are We A Match? — les scènes sur LE RAPPORT AUX AUTRES.
+// Alter Ego — les scènes sur LE RAPPORT AUX AUTRES.
 //
 // Le fichier s'appelle encore date.js et son pack garde l'id « date » : cet id
 // est la clé sous laquelle les réponses sont rangées dans les profils, il ne

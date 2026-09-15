@@ -39,7 +39,7 @@ function emptyThemeStats() { return { games: 0, points: 0, best: 0, correct: 0, 
 // jamais undefined — ça renvoie Object.prototype lui-même (toujours "vrai"),
 // ce qui contourne silencieusement toute la logique de création de compte et
 // finit par écrire des propriétés directement sur le prototype partagé par
-// TOUT le process (donc aussi Aperolympics et Are We A Match). Object.create(null)
+// TOUT le process (donc aussi Aperolympics et Alter Ego). Object.create(null)
 // n'a aucun prototype : la même lecture y renvoie bien undefined.
 function emptyData() { return { byName: Object.create(null), version: 2, updated_at: 0 }; }
 // Ceinture ET bretelles : refuser purement et simplement ces pseudos, qui

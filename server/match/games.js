@@ -1,4 +1,4 @@
-// Are We A Match? — les PARTIES en différé.
+// Alter Ego — les PARTIES en différé.
 //
 // Un joueur crée une partie et devient l'hôte ; il partage un code (QR, lien).
 // Chacun répond aux 20 scènes quand il veut, en classant 3 réponses par

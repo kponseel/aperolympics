@@ -82,7 +82,7 @@ et son namespace Socket.IO) :
 | --- | --- | --- |
 | `/` | `/` | **Aperolympics** — les épreuves de soirée en rooms à code 4 lettres. |
 | `/quizz` | `/qm` | **QuizzMaster** — quiz à thèmes, comptes persistants + classement. |
-| `/AreWeAMatch` | `/match` | **Are We A Match ?** — compatibilité de groupe : 3 choix à classer par question, tout le monde comparé à tout le monde. |
+| `/AlterEgo` | `/match` | **Alter Ego** — compatibilité de groupe : 3 choix à classer par scène, tout le monde comparé à tout le monde. Ancien nom « Are We A Match ? » : `/AreWeAMatch` reste servi à l'identique pour les QR déjà partagés. |
 | `/admin` | — | Panneau d'administration (voir ci-dessous). |
 
 Chaque sous-app se branche depuis `server/index.js` en une ligne
@@ -91,7 +91,7 @@ monte son statique, son fallback SPA et son namespace toute seule.
 
 ### 💾 Où vivent les comptes (`DATA_DIR`)
 
-Les comptes QuizzMaster et Are We A Match ? (pseudo, PIN, stats, réponses) sont
+Les comptes QuizzMaster et Alter Ego (pseudo, PIN, stats, réponses) sont
 des fichiers JSON **gitignorés** : ils ne sont jamais dans le dépôt. S'ils sont
 écrits dans le dossier de l'application, **un déploiement qui remplace ce
 dossier les emporte** — et si le dossier est en lecture seule, les sauvegardes
@@ -111,7 +111,7 @@ recopié automatiquement : rien n'est perdu en passant à cette version.
 ### 🛠️ Panneau `/admin`
 
 Trois sections à la même URL : salles Aperolympics en cours, comptes QuizzMaster,
-comptes Are We A Match ?. On peut fermer une salle, supprimer un compte ou
+comptes Alter Ego. On peut fermer une salle, supprimer un compte ou
 réinitialiser son PIN (le joueur peut alors en remettre un depuis n'importe quel
 appareil).
 
@@ -142,7 +142,7 @@ aperolympics/                # racine du dépôt
 │   │   ├── rooms.js      # 1 salle par thème, machine à états
 │   │   ├── players.js    # comptes persistants (players.json, PIN, stats)
 │   │   └── themes/       # banques de questions
-│   └── match/            # sous-app Are We A Match? (/AreWeAMatch + ns /match)
+│   └── match/            # sous-app Alter Ego (/AlterEgo + ns /match ; dossier historique)
 │       ├── index.js      # montage express + socket.io
 │       ├── rooms.js      # 1 salle par pack, question → reveal → résultats
 │       ├── engine.js     # calcul de compatibilité (pur, testable)
@@ -155,7 +155,9 @@ aperolympics/                # racine du dépôt
     ├── admin.html        # front du panneau /admin (vanilla, sans framework)
     ├── games/quiz.js     # renderer Quiz (contrat identique à GamesHub)
     ├── quizz/            # front QuizzMaster (PWA à part : sw.js « qm-vN »)
-    ├── AreWeAMatch/      # front Are We A Match? (PWA à part : sw.js « am-vN »)
+    ├── AlterEgo/         # front Alter Ego (PWA à part : sw.js « am-vN »,
+    │                  #   icons/am-*.png : préfixe gardé, des PWA installées
+    │                  #   avant le changement de nom les réclament encore)
     ├── manifest.webmanifest
     ├── sw.js             # service worker (cache du shell)
     └── icons/icon.svg
@@ -218,6 +220,6 @@ dans le manifest et l'`apple-touch-icon`.
 ## ⚠️ Limites connues (starter)
 
 - État **en mémoire** : un redémarrage du process vide les parties en cours
-  (les *comptes* QuizzMaster / Are We A Match ?, eux, sont bien persistés sur disque).
+  (les *comptes* QuizzMaster / Alter Ego, eux, sont bien persistés sur disque).
 - Dans une partie, le contrôle passe par le rôle *host* — élu = 1ᵉʳ connecté encore
   actif. L'administration hors-partie, elle, est derrière `/admin` + `ADMIN_PASSWORD`.

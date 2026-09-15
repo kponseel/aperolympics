@@ -1,26 +1,26 @@
-// Are We A Match? — version et date de la dernière mise à jour, affichées en
+// Alter Ego — version et date de la dernière mise à jour, affichées en
 // petit dans le hall. C'est aussi le témoin fiable qu'un déploiement a bien
 // pris : /admin.html est servi par le serveur frontal de l'hébergeur sans
 // passer par Node, alors que ceci sort du process Node lui-même.
 //
-// À CHAQUE changement du jeu (server/match/* ou public/AreWeAMatch/*) :
+// À CHAQUE changement du jeu (server/match/* ou public/AlterEgo/*) :
 //   - VERSION : incrémenter (1.0 → 1.1 pour une retouche, 2.0 pour une
 //     refonte). C'est le repère humain, il ne se calcule pas.
 //   - DATE    : mettre la date du jour. Elle sert de repli : quand le dépôt
 //     git est disponible au démarrage, la date affichée est celle du dernier
 //     commit qui touche le jeu (jamais périmée, même si on oublie ce fichier).
 // ATTENTION : VERSION sert aussi de casse-cache pour le CDN de l'hébergeur.
-// En la changeant, changer les ?v=… de public/AreWeAMatch/index.html et le V
-// de public/AreWeAMatch/sw.js — sinon les téléphones et le CDN gardent
+// En la changeant, changer les ?v=… de public/AlterEgo/index.html et le V
+// de public/AlterEgo/sw.js — sinon les téléphones et le CDN gardent
 // l'ancien code. Le test /tmp/verify_cachebust.js (et verify_version) le
 // vérifie.
-const VERSION = "3.7";
-const DATE = "2026-09-12";
+const VERSION = "3.9";
+const DATE = "2026-09-14";
 
 const { execFileSync } = require("child_process");
 const path = require("path");
 
-const GAME_PATHS = ["server/match", "public/AreWeAMatch"];
+const GAME_PATHS = ["server/match", "public/AlterEgo"];
 
 // Date (AAAA-MM-JJ) et sha court du dernier commit touchant le jeu, ou null si
 // git ou le dépôt manquent (archive déployée sans .git, binaire absent…).
