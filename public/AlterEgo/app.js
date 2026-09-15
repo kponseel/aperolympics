@@ -490,6 +490,60 @@
       warn(m.reason === "removed" ? T("Tu as été retiré de cette partie.") : T("Cette partie n'existe plus."));
       goHome();
     });
+    socket.on("rename_ack", function (m) {
+      var err = $("amRenameErr"), go = $("amRenameGo");
+      if (m && m.ok) {
+        setPseudo(m.name);
+        closeSheet();
+        updateMe();
+        toast(T("✏️ Tu t'appelles maintenant %1.", m.name));
+        // Les écrans affichent des pseudos — la liste des joueurs, la
+        // révélation, les résultats. Le serveur rediffuse les parties ; ici on
+        // repeint ce qui est à l'écran tout de suite, sans attendre.
+        if (screen === "s-home") { if (socket) socket.emit("my_games"); }
+        else if (screen === "s-results" && currentCode) socket.emit("game_results", { code: currentCode });
+        return;
+      }
+      var why = m && m.reason;
+      var msg = why === "name_taken" ? T("Le pseudo « %1 » est déjà pris. Choisis-en un autre.", (m && m.tried) || "")
+        : why === "bad_name" ? T("Ce pseudo ne convient pas. Essaie autre chose.")
+        : why === "not_owner" ? T("Ce pseudo appartient à un autre appareil.")
+        : T("Renommage impossible.");
+      if (err) { err.textContent = msg; if (go) go.disabled = false; }
+      else warn(msg);
+    });
+    // Le même compte ouvert ailleurs (un onglet resté sur un ordinateur) :
+    // il doit suivre, sinon il continue de parler au serveur sous un pseudo
+    // qui n'existe plus.
+    socket.on("renamed", function (m) {
+      if (!m || !m.name) return;
+      setPseudo(m.name);
+      updateMe();
+      toast(T("✏️ Tu t'appelles maintenant %1.", m.name));
+    });
+    socket.on("delete_me_impact", function (m) { if (m && m.name) openDeleteMe(m); });
+    socket.on("delete_me_ack", function (m) {
+      if (m && m.ok) {
+        // Le compte n'existe plus : ce téléphone ne doit garder aucune trace
+        // qui le ferait se reconnecter sous un pseudo effacé.
+        try {
+          localStorage.removeItem("am.pseudo");
+          localStorage.removeItem("am.cid");
+          localStorage.removeItem("am.devToken");
+        } catch (e) {}
+        memPseudo = ""; memCid = null;
+        location.href = BASE + "/";
+        return;
+      }
+      var why = m && m.reason;
+      var err = $("amDelMeErr"), go = $("amDelMeGo");
+      var msg = why === "pin_wrong" ? T("Ce code de reprise n'est pas le bon.")
+        : why === "confirm_wrong" ? T("Recopie exactement ton pseudo.")
+        : why === "not_owner" ? T("Ce pseudo appartient à un autre appareil.")
+        : T("Suppression impossible.");
+      if (err) { err.textContent = msg; if (go) go.disabled = false; }
+      else warn(msg);
+    });
     socket.on("profile", function (m) {
       if (!m || m.ok === false) { warn(T("Pas encore de profil.")); return; }
       openProfile(m);
@@ -1542,11 +1596,111 @@
     var html = '<div class="am-card"><h3>' + (p.locked ? "🔒 " : "") + esc(p.name) + '</h3>' +
       '<p class="am-hint">' + (p.games > 1 ? T("%1 parties finies", p.games) : T("1 partie finie")) + ' · ' +
       (p.answered > 1 ? T("%1 réponses enregistrées", p.answered) : T("1 réponse enregistrée")) + '</p></div>' +
+      T('<button type="button" class="am-ghost" id="amRename">✏️ Changer mon pseudo</button>') +
       T('<button type="button" class="am-ghost" id="amChangePin">🔒 Changer mon code de reprise</button>') +
-      T('<button type="button" class="am-ghost" id="amLogout">🚪 Me déconnecter de ce téléphone</button>');
+      T('<button type="button" class="am-ghost" id="amLogout">🚪 Me déconnecter de ce téléphone</button>') +
+      T('<button type="button" class="am-ghost am-danger" id="amDelMe">🗑️ Supprimer mon compte</button>');
     openSheet("👤 " + T("Profil"), html, function (body) {
+      body.querySelector("#amRename").onclick = openRename;
       body.querySelector("#amChangePin").onclick = function () { protectName(false); };
       body.querySelector("#amLogout").onclick = logout;
+      body.querySelector("#amDelMe").onclick = function () {
+        if (socket && connected) socket.emit("delete_me_impact");
+        else warn(T("Pas de connexion."));
+      };
+    });
+  }
+
+  // ---------- changer de pseudo ----------
+  // Le pseudo n'est pas qu'une étiquette : c'est sous lui que sont rangées les
+  // réponses, ici comme dans chaque partie. Le serveur déplace les deux d'un
+  // coup ; l'écran, lui, doit surtout dire que le changement se voit PARTOUT,
+  // y compris dans les parties déjà jouées — sinon on croit renommer un
+  // surnom local et on surprend tout le groupe.
+  function openRename() {
+    var actuel = getPseudo();
+    openSheet(T("✏️ Changer mon pseudo"),
+      T("<p>Ton nouveau pseudo remplace l'ancien <b>partout</b> : dans tes parties en cours, dans celles qui sont finies, et pour tous les autres joueurs.</p>") +
+      T("<p class='am-hint'>Tes réponses, tes résultats et ton code de reprise ne bougent pas.</p>") +
+      '<label class="am-label" for="amRenameIn">' + T("Nouveau pseudo") + '</label>' +
+      '<input id="amRenameIn" maxlength="16" autocomplete="off" placeholder="' + esc(actuel) + '" />' +
+      '<button type="button" class="am-primary" id="amRenameGo">' + T("✏️ Renommer") + '</button>' +
+      '<button type="button" class="am-ghost" id="amRenameNo">' + T("Annuler") + '</button>' +
+      '<div class="am-error center" id="amRenameErr"></div>',
+      function (body) {
+        var input = body.querySelector("#amRenameIn");
+        var go = body.querySelector("#amRenameGo");
+        input.value = actuel;
+        setTimeout(function () { input.focus(); input.select(); }, 80);
+        body.querySelector("#amRenameNo").onclick = closeSheet;
+        input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go.click(); } });
+        go.onclick = function () {
+          var voulu = input.value.trim();
+          var err = body.querySelector("#amRenameErr");
+          if (!voulu) { err.textContent = T("Entre ton pseudo."); return; }
+          if (voulu === actuel) { err.textContent = T("C'est déjà ton pseudo."); return; }
+          if (!socket || !connected) { err.textContent = T("Pas de connexion."); return; }
+          err.textContent = ""; go.disabled = true;
+          socket.emit("rename_me", { name: voulu });
+        };
+      });
+  }
+
+  // ---------- supprimer son compte ----------
+  // Irréversible, et destructeur pour les AUTRES : leurs scores se recalculent
+  // sans les réponses effacées. L'écran annonce donc des chiffres — combien de
+  // parties, combien de réponses, combien d'autres joueurs vont le voir —
+  // plutôt qu'un « êtes-vous sûr ? » qui ne renseigne sur rien. Les chiffres
+  // viennent du serveur : le client ne les connaît pas tous.
+  function openDeleteMe(m) {
+    var i = m.impact || {};
+    var what = T("<p>Ton compte, ton code de reprise et tes réponses mémorisées vont être <b>effacés définitivement</b>. Le pseudo <b>%1</b> redeviendra libre.</p>", esc(m.name));
+    if (i.parties) {
+      var p = i.parties > 1 ? T("<b>%1 parties</b>", i.parties) : T("<b>1 partie</b>");
+      var r = i.reponses > 1 ? T("<b>%1 réponses</b>", i.reponses) : (i.reponses === 1 ? T("<b>1 réponse</b>") : T("aucune réponse"));
+      what += T("<p class='am-danger-box'>Tu sors aussi de %1, et %2 y disparaissent avec toi. Les scores des autres seront recalculés sans toi.</p>", p, r);
+      if (i.hote) {
+        what += i.perdues
+          ? (i.perdues > 1
+              ? T("<p class='am-danger-box'>%1 parties dont tu es l'hôte n'ont aucun autre joueur : elles seront supprimées.</p>", i.perdues)
+              : T("<p class='am-danger-box'>1 partie dont tu es l'hôte n'a aucun autre joueur : elle sera supprimée.</p>"))
+          : T("<p class='am-hint'>Les parties dont tu es l'hôte passent au joueur arrivé le plus tôt : elles continuent sans toi.</p>");
+      }
+    } else {
+      what += T("<p class='am-hint'>Tu n'es dans aucune partie : personne d'autre n'est concerné.</p>");
+    }
+    what += T("<p class='am-hint'>Si tu veux juste que ce téléphone t'oublie, ferme cette fenêtre et choisis <b>Me déconnecter</b> : rien ne sera supprimé.</p>");
+    // La preuve demandée. Le code de reprise quand il existe — c'est LE moment
+    // où il sert vraiment, malgré la promesse « tu ne le tapes jamais ici ».
+    // Un compte d'avant la v2 n'en a pas : on fait retaper le pseudo, comme
+    // pour supprimer une partie.
+    what += m.has_pin
+      ? T('<label class="am-label" for="amDelMeIn">Ton code de reprise, pour confirmer</label>') +
+        '<input id="amDelMeIn" type="password" inputmode="numeric" maxlength="4" autocomplete="off" />'
+      : T('<label class="am-label" for="amDelMeIn">Recopie ton pseudo pour confirmer</label>') +
+        '<input id="amDelMeIn" maxlength="16" autocomplete="off" placeholder="' + esc(m.name) + '" />';
+    what += '<button type="button" class="am-primary am-danger-btn" id="amDelMeGo" disabled>' + T("🗑️ Supprimer mon compte") + '</button>' +
+      '<button type="button" class="am-ghost" id="amDelMeNo">' + T("Annuler") + '</button>' +
+      '<div class="am-error center" id="amDelMeErr"></div>';
+
+    openSheet(T("🗑️ Supprimer mon compte"), what, function (body) {
+      var input = body.querySelector("#amDelMeIn");
+      var go = body.querySelector("#amDelMeGo");
+      body.querySelector("#amDelMeNo").onclick = closeSheet;
+      input.addEventListener("input", function () {
+        if (m.has_pin) {
+          input.value = input.value.replace(/\D/g, "").slice(0, 4);
+          go.disabled = input.value.length !== 4;
+        } else {
+          go.disabled = input.value.trim().toLowerCase() !== String(m.name).trim().toLowerCase();
+        }
+      });
+      go.onclick = function () {
+        if (go.disabled) return;
+        if (!socket || !connected) { body.querySelector("#amDelMeErr").textContent = T("Pas de connexion."); return; }
+        go.disabled = true;
+        socket.emit("delete_me", m.has_pin ? { pin: input.value } : { confirm: input.value.trim() });
+      };
     });
   }
 

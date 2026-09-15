@@ -619,6 +619,101 @@ function removePlayer(code, hostName, targetName) {
   touch(g);
   return { ok: true };
 }
+// ------------------------------------------------- pseudo : renommer, effacer
+//
+// Dans une partie, le joueur est rangé sous la clé de son pseudo — et ses
+// réponses avec lui. Les deux fonctions ci-dessous sont la moitié « parties »
+// d'une opération qui touche aussi le compte (players.js) ; index.js appelle
+// les deux ensemble. Elles rendent la liste des codes touchés pour que
+// l'appelant puisse rediffuser l'état à ceux qui regardent.
+
+// Renommer : on DÉPLACE l'entrée, on ne recopie pas. Les réponses voyagent
+// avec, et l'hôte reste l'hôte (hostKey est la même clé).
+function renamePlayer(oldName, newName) {
+  const from = key(oldName), to = key(newName);
+  const propre = String(newName || "").trim().slice(0, 16);
+  if (!from || !to || !propre) return { ok: false, reason: "bad_name", codes: [] };
+  const codes = [];
+  for (const c in data.byCode) {
+    const g = data.byCode[c];
+    const p = g.players[from];
+    const estHote = g.hostKey === from;
+    if (!p && !estHote) continue;
+    // Le pseudo visé est déjà occupé DANS CETTE PARTIE par quelqu'un d'autre :
+    // deux joueurs ne peuvent pas porter le même nom, les résultats les
+    // confondraient. Le contrôle d'unicité du compte l'attrape presque
+    // toujours avant — presque : une partie peut contenir un pseudo dont le
+    // compte a été supprimé depuis.
+    if (from !== to && g.players[to]) return { ok: false, reason: "name_taken", codes: [] };
+  }
+  for (const c in data.byCode) {
+    const g = data.byCode[c];
+    let change = false;
+    if (g.players[from]) {
+      const p = g.players[from];
+      p.name = propre;
+      if (from !== to) { g.players[to] = p; delete g.players[from]; }
+      change = true;
+    }
+    if (g.hostKey === from) { g.hostKey = to; g.hostName = propre; change = true; }
+    if (change) { g.updatedAt = Date.now(); codes.push(g.code); }
+  }
+  if (codes.length) scheduleSave();
+  return { ok: true, codes };
+}
+
+// Effacer : le joueur sort de toutes les parties, ses réponses partent avec
+// lui. Les scores des autres sont recalculés sans lui — c'est le prix du
+// « tout effacer », et l'écran de confirmation doit le dire.
+//
+// Le cas qui demande une décision, c'est l'HÔTE. Une partie sans hôte ne peut
+// plus être fermée ni supprimée par personne : elle resterait là pour
+// toujours. On passe donc la main au joueur humain arrivé le plus tôt. S'il
+// n'y en a aucun — personne d'autre, ou seulement des bots du mode dev — la
+// partie n'a plus de raison d'exister et elle est supprimée.
+function purgePlayer(name) {
+  const k = key(name);
+  if (!k) return { codes: [], supprimees: [], transferees: [] };
+  const codes = [], supprimees = [], transferees = [];
+  for (const c of Object.keys(data.byCode)) {
+    const g = data.byCode[c];
+    const etaitJoueur = !!g.players[k], etaitHote = g.hostKey === k;
+    if (!etaitJoueur && !etaitHote) continue;
+    delete g.players[k];
+    if (etaitHote) {
+      const suivant = Object.keys(g.players)
+        .filter((x) => !g.players[x].bot)
+        .sort((a, b) => (g.players[a].joinedAt || 0) - (g.players[b].joinedAt || 0))[0];
+      if (!suivant) { delete data.byCode[c]; supprimees.push(g.code); continue; }
+      g.hostKey = suivant;
+      g.hostName = g.players[suivant].name;
+      transferees.push({ code: g.code, to: g.hostName });
+    }
+    g.updatedAt = Date.now();
+    codes.push(g.code);
+  }
+  if (codes.length || supprimees.length) scheduleSave();
+  return { codes, supprimees, transferees };
+}
+
+// Ce que la suppression du compte va détruire, pour l'écrire noir sur blanc
+// avant de le faire plutôt qu'après.
+function purgeImpact(name) {
+  const k = key(name);
+  let parties = 0, reponses = 0, hote = 0, perdues = 0, avecAutres = 0;
+  for (const c in data.byCode) {
+    const g = data.byCode[c];
+    const p = g.players[k];
+    if (!p && g.hostKey !== k) continue;
+    parties++;
+    if (p) reponses += Object.keys(p.answers || {}).length;
+    const autres = Object.keys(g.players).filter((x) => x !== k && !g.players[x].bot).length;
+    if (autres > 0) avecAutres++;
+    if (g.hostKey === k) { hote++; if (autres === 0) perdues++; }
+  }
+  return { parties, reponses, hote, perdues, avecAutres };
+}
+
 function hideGame(code, name) {
   const g = getGame(code); const p = g && g.players[key(name)];
   if (!p) return { ok: false, reason: "not_in_game" };
@@ -718,6 +813,7 @@ function _reset() { data = emptyData(); if (saveTimer) { clearTimeout(saveTimer)
 module.exports = {
   createGame, joinGame, answer, unanswer, results, reveal, revealsFor, state, listFor, markSeen, isPlayer,
   closeGame, reopenGame, removePlayer, hideGame, deleteGame, deleteGameAsHost, deletionImpact,
+  renamePlayer, purgePlayer, purgeImpact,
   createTestGame, purgeTestGames, adminList,
   getGame, normCode, flush, question: (id, lang) => { const q = BY_ID.get(id); return q ? pubQuestion(q, lang) : null; },
   LANGS, LANG_DEFAUT, normLang,

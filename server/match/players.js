@@ -335,6 +335,69 @@ function adminDelete(name) {
   save();
   return true;
 }
+
+// ---------------------------------------------------------------- pseudo
+// Le pseudo N'EST PAS une étiquette : c'est la clé. Les réponses sont rangées
+// sous lui ici, et sous lui aussi dans chaque partie (voir games.js). Le
+// renommer, c'est déplacer un enregistrement, pas modifier un champ — et il
+// faut le faire des DEUX côtés ou les réponses deviennent orphelines. Ici on
+// ne s'occupe que du compte ; games.renamePlayer() fait l'autre moitié, et
+// index.js les appelle ensemble.
+//
+// Changer la casse seulement (« kevin » → « Kevin ») est un cas à part : la
+// clé ne bouge pas, donc rien à déplacer et rien à vérifier — sans ça, le
+// pseudo se serait déclaré « déjà pris » par lui-même.
+//   { ok: true, name }
+//   { ok: false, reason: "bad_name" | "same" | "name_taken" }
+function rename(oldName, newName) {
+  const from = key(oldName), to = key(newName);
+  const propre = String(newName || "").trim().slice(0, 16);
+  if (!from || !data.byName[from]) return { ok: false, reason: "bad_name" };
+  if (!to || !propre || RESERVED_KEYS.has(to)) return { ok: false, reason: "bad_name" };
+  if (from === to) {
+    if (data.byName[from].name === propre) return { ok: false, reason: "same" };
+    data.byName[from].name = propre;             // même clé, autre casse
+    data.updated_at = Date.now(); save();
+    return { ok: true, name: propre };
+  }
+  if (data.byName[to]) return { ok: false, reason: "name_taken" };
+  const a = data.byName[from];
+  a.name = propre;
+  data.byName[to] = a;
+  delete data.byName[from];
+  data.updated_at = Date.now(); save();
+  return { ok: true, name: propre };
+}
+
+// La suppression demandée par le joueur lui-même. Elle efface le compte :
+// le pseudo est libéré, le code de reprise et les réponses mémorisées (celles
+// qui alimentent les « parties d'un autre soir ») disparaissent.
+//
+// Elle ne touche PAS aux parties — c'est games.purgePlayer() qui s'en charge,
+// et index.js appelle les deux. Les séparer n'est pas un oubli : players.js ne
+// connaît pas games.js (c'est games.js qui dépend de players.js, pas
+// l'inverse), et les inverser créerait un cycle de modules.
+function deleteAccount(name) { return adminDelete(name); }
+
+// Le code de reprise, vérifié pour une action irréversible. `authenticate()`
+// ne convient pas ici : il ouvre une session, crée le compte au besoin et
+// compte les échecs pour le verrouillage anti-force-brute. Ici on veut juste
+// savoir si celui qui est déjà connecté sait son code.
+// Un compte sans code (d'avant la v2) renvoie "no_pin" : à l'appelant de
+// demander autre chose, il ne peut pas prouver quoi que ce soit avec un PIN
+// qui n'existe pas.
+function checkPin(name, pin) {
+  const a = getAccount(name);
+  if (!a) return { ok: false, reason: "bad_name" };
+  if (!a.pinHash || !a.salt) return { ok: false, reason: "no_pin" };
+  if (!PIN_RE.test(String(pin || ""))) return { ok: false, reason: "pin_wrong" };
+  const attendu = Buffer.from(a.pinHash, "utf8");
+  const recu = Buffer.from(hashPin(pin, a.salt), "utf8");
+  // Comparaison à temps constant : la durée d'un rejet ne doit pas dire
+  // combien de caractères du condensat étaient bons.
+  const bon = attendu.length === recu.length && crypto.timingSafeEqual(attendu, recu);
+  return bon ? { ok: true } : { ok: false, reason: "pin_wrong" };
+}
 function adminResetPin(name) {
   const a = data.byName[key(name)];
   if (!a) return false;
@@ -361,5 +424,6 @@ module.exports = {
   authenticate, isProtected, getAccount, setPin, setLang, getLang, recordGame, recordAnswersByPack,
   historicMatches, profile,
   adminList, adminDelete, adminResetPin,
+  rename, deleteAccount, checkPin,
   PIN_RE, weakPin, TOP_N, _reset,
 };
