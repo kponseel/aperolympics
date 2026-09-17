@@ -103,8 +103,7 @@ function unknownCodeExhausted(ip) {
   const e = unknownByIp.get(ip);
   return !!(e && now - e.since <= UNKNOWN_CODE_WINDOW_MS && e.count > UNKNOWN_CODE_MAX);
 }
-// Créer une partie : 15 par heure et par compte, 40 par adresse, au-delà on
-// refuse.
+// Créer une partie : au-delà des seuils ci-dessous, on refuse.
 //
 // C'était la seule action coûteuse SANS frein. Elle ne demande qu'un compte —
 // un pseudo et quatre chiffres, ni e-mail ni vérification — et un client seul
@@ -249,12 +248,29 @@ function mount({ app, io }) {
   // lien (WhatsApp, iMessage…) de CETTE partie. Le chemin n'existe pas sur le
   // disque, donc le serveur frontal de l'hébergeur le laisse remonter à Node.
   const INDEX_HTML = fs.readFileSync(path.join(PUBLIC_MATCH, "index.html"), "utf8");
+  // L'aperçu est écrit dans la langue de CELUI QUI REÇOIT, pas de celui qui
+  // partage : c'est son navigateur qui demande la page, et son Accept-Language
+  // qu'on lit — la même règle que l'app applique à son démarrage. Un lien
+  // envoyé par un francophone à une anglophone lui parlait en français, alors
+  // que l'app, elle, s'ouvrait en anglais juste après.
+  function langueDe(req) {
+    const brut = String(req.headers["accept-language"] || "");
+    for (const bout of brut.split(",")) {
+      const l = bout.trim().slice(0, 2).toLowerCase();
+      if (l === "fr" || l === "en") return l;
+    }
+    return "fr";
+  }
   function pageFor(g, req) {
     if (!g) return INDEX_HTML;
     const host = escHtml(g.hostName);
     const n = Object.keys(g.players).length;
-    const title = `${host} t'invite · Alter Ego`;
-    const desc = `${g.sceneIds.length} scènes, 3 réponses à classer à chaque fois. Réponds quand tu veux — personne ne t'attend. ${n} joueur${n > 1 ? "s ont" : " a"} déjà rejoint. À la fin : à quel point vous faites pareil.`;
+    const s = g.sceneIds.length;
+    const en = langueDe(req) === "en";
+    const title = en ? `${host} invites you · Alter Ego` : `${host} t'invite · Alter Ego`;
+    const desc = en
+      ? `${s} scenes, 3 answers to rank each time. Answer whenever you like — nobody's waiting. ${n} player${n > 1 ? "s have" : " has"} already joined. At the end: how alike you really are.`
+      : `${s} scènes, 3 réponses à classer à chaque fois. Réponds quand tu veux — personne ne t'attend. ${n} joueur${n > 1 ? "s ont" : " a"} déjà rejoint. À la fin : à quel point vous faites pareil.`;
     // L'aperçu annonce toujours l'adresse canonique, même si la visite arrive
     // par l'ancien chemin : c'est elle qui sera repartagée.
     const url = `${req.protocol}://${req.get("host")}${BASE}/g/${g.code}`;
@@ -262,7 +278,11 @@ function mount({ app, io }) {
       `<meta property="og:title" content="${title}">` +
       `<meta property="og:description" content="${escHtml(desc)}">` +
       `<meta property="og:url" content="${escHtml(url)}">` +
-      `<meta property="og:image" content="${escHtml(req.protocol + "://" + req.get("host") + "/icons/icon-512.png")}">` +
+      // L'icône d'ALTER EGO, pas celle de l'app parente : la vignette montrait
+      // le logo d'un autre jeu à chaque lien partagé. Horodatée comme les
+      // autres icônes, sinon les messageries gardent l'ancienne vignette en
+      // cache bien après un changement.
+      `<meta property="og:image" content="${escHtml(req.protocol + "://" + req.get("host") + "/icons/am-512.png?v=" + require("./version").version)}">` +
       `<meta name="twitter:card" content="summary">`;
     return INDEX_HTML.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`).replace("</head>", meta + "</head>");
   }

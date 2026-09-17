@@ -1124,10 +1124,40 @@
   }
   // Le texte doit se suffire à lui-même : celui qui le reçoit n'a aucun
   // contexte, et personne ne sera là pour lui expliquer.
+  //
+  // Il atterrit dans WhatsApp neuf fois sur dix. D'où trois partis pris :
+  //   - des LIGNES, pas un pavé. Un paragraphe de quatre phrases collé dans
+  //     une conversation ne se lit pas, il se survole ;
+  //   - le *gras* de WhatsApp à deux endroits SEULEMENT, la première ligne
+  //     et le code. Ailleurs (iMessage, Signal, presse-papier) les étoiles
+  //     s'affichent telles quelles : à deux endroits ça passe, partout ça
+  //     ferait sale ;
+  //   - le lien EN DERNIER, seul sur sa ligne. Les messageries n'affichent
+  //     l'aperçu que du DERNIER lien, et un lien au milieu coupe la lecture.
+  //
+  // Le code est écrit en toutes lettres EN PLUS du lien : si l'aperçu ne
+  // charge pas, ou si le lien se fait tronquer en chemin, c'est ce qui reste
+  // pour entrer.
+  //
+  // La durée vient de dureeMin(), comme le curseur de création et l'image de
+  // story. Elle était écrite en dur : quelle que soit la longueur choisie, on
+  // promettait deux minutes à ceux qu'on invitait.
   function shareGame(g) {
     var n = g.sceneCount || 20;
-    shareLink((g.hostName === getPseudo() ? T("Fais mon test « Alter Ego »") : T("Rejoins la partie « Alter Ego » de %1", g.hostName))
-      + T(" : %1 scènes, 3 réponses à classer à chaque fois. Tu réponds quand tu veux (2 min, ou demain), et on voit à quel point on fait pareil. Rien à installer → ", n) + gameUrl(g.code));
+    var lignes = [];
+    lignes.push(g.hostName === getPseudo()
+      ? T("*Je t'invite sur Alter Ego*")
+      : T("*%1 t'invite sur Alter Ego*", g.hostName));
+    // Le titre SEULEMENT s'il en porte un : sans titre il vaudrait
+    // « Partie de X », et la ligne ne ferait que répéter celle du dessus.
+    if (g.title) lignes.push("\u00ab\u00a0" + g.title + "\u00a0\u00bb");
+    lignes.push(T("%1 scènes · ~%2 min · tu réponds quand tu veux", n, dureeMin(n)));
+    lignes.push("");
+    lignes.push(T("3 réponses à classer à chaque fois. À la fin, on voit à quel point on se ressemble."));
+    lignes.push("");
+    lignes.push(T("Rien à installer. Code : *%1*", g.code));
+    lignes.push(gameUrl(g.code));
+    shareLink(lignes.join("\n"));
   }
   function copyText(t) {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast(T("Copié !")); }, function () { notice(t); });

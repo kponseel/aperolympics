@@ -406,6 +406,47 @@ const MUTATIONS = [
     "    if (false) {",
     "85-pseudo-ecran",
     "l'\u00e9cran repropose \u00ab masquer \u00bb sur une partie d\u00e9j\u00e0 masqu\u00e9e"],
+
+  // --- le message de partage ------------------------------------------------
+  // La dur\u00e9e repasse en dur : une partie de 40 sc\u00e8nes promet deux minutes \u00e0
+  // ceux qu'on invite, et ils le d\u00e9couvrent une fois dedans.
+  ["public/AlterEgo/app.js",
+    'lignes.push(T("%1 sc\u00e8nes \u00b7 ~%2 min \u00b7 tu r\u00e9ponds quand tu veux", n, dureeMin(n)));',
+    'lignes.push(T("%1 sc\u00e8nes \u00b7 ~%2 min \u00b7 tu r\u00e9ponds quand tu veux", n, 2));',
+    "80-ecran",
+    "le message de partage annonce une dur\u00e9e \u00e9crite en dur"],
+
+  // Le message redevient un pav\u00e9 d'une seule ligne : dans WhatsApp, il ne se
+  // lit plus, il se survole.
+  ["public/AlterEgo/app.js",
+    'shareLink(lignes.join("\\n"));',
+    'shareLink(lignes.join(" "));',
+    "80-ecran",
+    "le message de partage redevient un pav\u00e9 d'une seule ligne"],
+
+  // Le code dispara\u00eet du message : si l'aper\u00e7u ne charge pas ou si le lien est
+  // tronqu\u00e9, il ne reste plus rien pour entrer.
+  ["public/AlterEgo/app.js",
+    '    lignes.push(T("Rien \u00e0 installer. Code : *%1*", g.code));',
+    '    lignes.push(T("Rien \u00e0 installer."));',
+    "80-ecran",
+    "le code de la partie dispara\u00eet du message de partage"],
+
+  // La vignette repointe sur l'ic\u00f4ne de l'app parente : chaque lien partag\u00e9
+  // montre le logo d'un autre jeu.
+  ["server/match/index.js",
+    '"/icons/am-512.png?v=" + require("./version").version',
+    '"/icons/icon-512.png"',
+    "80-ecran",
+    "l'aper\u00e7u de lien montre l'ic\u00f4ne d'un autre jeu"],
+
+  // L'aper\u00e7u ignore la langue du destinataire : un lien re\u00e7u par une
+  // anglophone lui parle fran\u00e7ais, juste avant que l'app s'ouvre en anglais.
+  ["server/match/index.js",
+    "    const en = langueDe(req) === \"en\";",
+    "    const en = false;",
+    "95-bilingue",
+    "l'aper\u00e7u de lien ignore la langue de celui qui re\u00e7oit"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");

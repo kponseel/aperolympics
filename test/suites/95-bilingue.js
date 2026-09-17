@@ -242,5 +242,30 @@ exports.run = async (t) => {
     /Résultats|compatib/i.test(await E.textContent("#amResultsBody")), (await E.textContent("#amResultsBody")).slice(0, 80));
   t.check("… et son score n'a pas bougé", (await pct(E)) === 100, String(await pct(E)));
 
+  t.section("L'aperçu de lien parle la langue de celui qui REÇOIT");
+  // Un lien de partie finit presque toujours dans une messagerie, qui affiche
+  // un aperçu — titre, description, vignette. Il est fabriqué par NODE, pas par
+  // le client, et c'est le navigateur du DESTINATAIRE qui demande la page :
+  // c'est donc son Accept-Language qui décide, pas la langue de celui qui
+  // partage. Sans ça, un lien envoyé par un francophone parlait français à une
+  // anglophone — alors que l'app, elle, s'ouvrait en anglais juste après.
+  const apercu = async (page) => page.evaluate(async (u) => {
+    const html = await (await fetch(u)).text();
+    const lire = (n) => { const m = new RegExp('<meta property="og:' + n + '" content="([^"]*)"').exec(html); return m ? m[1] : null; };
+    return { titre: lire("title"), desc: lire("description") };
+  }, srv.base + "/AlterEgo/g/" + code);
+
+  const vuFr = await apercu(F), vuEn = await apercu(E);
+  t.check("Chloé voit un aperçu en français",
+    /t'invite/.test(vuFr.titre || "") && /scènes/.test(vuFr.desc || ""), JSON.stringify(vuFr));
+  t.check("Sam voit le MÊME lien en anglais",
+    /invites you/.test(vuEn.titre || "") && /scenes/.test(vuEn.desc || ""), JSON.stringify(vuEn));
+  t.check("… et ce n'est pas du français recopié",
+    !/scènes|Réponds quand/.test(vuEn.desc || ""), vuEn.desc);
+  // Les deux décrivent la même partie : les chiffres doivent coïncider.
+  const nFr = parseInt((/(\d+)\s*sc/.exec(vuFr.desc || "") || [0, 0])[1], 10);
+  const nEn = parseInt((/(\d+)\s*sc/.exec(vuEn.desc || "") || [0, 0])[1], 10);
+  t.check("Les deux annoncent la même longueur de partie", nFr > 0 && nFr === nEn, nFr + " vs " + nEn);
+
   t.check("Aucune erreur dans les deux navigateurs", erreurs.length === 0, erreurs.slice(0, 3).join(" | "));
 };
