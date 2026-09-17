@@ -20,8 +20,8 @@
 // sert les fichiers du disque depuis son propre cache en ignorant
 // Cache-Control : changer l'URL est le seul moyen sûr d'obtenir la dernière
 // version. Voir le commentaire détaillé dans index.html.
-const V = "4.3";
-const CACHE = "am-v26";
+const V = "4.4";
+const CACHE = "am-v27";
 const SHELL = [
   "/AlterEgo/", "/AlterEgo/index.html",
   "/AlterEgo/app.js?v=" + V, "/AlterEgo/i18n.js?v=" + V, "/AlterEgo/style.css?v=" + V,

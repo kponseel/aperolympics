@@ -447,8 +447,17 @@ const MUTATIONS = [
     "    const en = false;",
     "95-bilingue",
     "l'aper\u00e7u de lien ignore la langue de celui qui re\u00e7oit"],
-];
 
+  // L'aperçu repasse en http derrière le proxy : les messageries refusent
+  // souvent une vignette non sécurisée sur une page https, et la redirection
+  // vers https perd la chaîne de requête — donc le ?v= qui leur fait justement
+  // recharger l'image après un changement.
+  ["server/match/index.js",
+    "    const proto = xf === \"https\" || xf === \"http\" ? xf : req.protocol;",
+    "    const proto = req.protocol;",
+    "80-ecran",
+    "l'aperçu de lien repasse en http derrière le proxy"],
+];
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");
 const ecrire = (f, s) => fs.writeFileSync(path.join(RACINE, f), s);
 
