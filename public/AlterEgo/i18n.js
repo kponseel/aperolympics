@@ -371,4 +371,7 @@ window.AM_I18N = { en: {
   "<label class=\"am-label\" for=\"amDelMeIn\">Ton code de reprise, pour confirmer</label>": "<label class=\"am-label\" for=\"amDelMeIn\">Your recovery code, to confirm</label>",
   "<label class=\"am-label\" for=\"amDelMeIn\">Recopie ton pseudo pour confirmer</label>": "<label class=\"am-label\" for=\"amDelMeIn\">Type your name to confirm</label>",
   "🗑️ Supprimer mon compte": "🗑️ Delete my account",
+  "↩️ Elle est de nouveau dans ta liste.": "↩️ It's back in your list.",
+  "<p class=\"am-hint center\">🙈 Cette partie n'est pas dans ta liste — tu es entré avec son code.</p>": "<p class=\"am-hint center\">🙈 This game isn't in your list — you came in with its code.</p>",
+  "<button class=\"am-ghost\" id=\"amUnhide\">↩️ Remettre dans ma liste</button>": "<button class=\"am-ghost\" id=\"amUnhide\">↩️ Put it back in my list</button>",
 } };

@@ -380,6 +380,32 @@ const MUTATIONS = [
     '  const p = g.players[key(name)] || { answers: Object.create(null), name: String(name) };\n  if (!g.sceneIds.includes(qid)) return { ok: false, reason: "unknown_scene" };\n  const q = BY_ID.get(qid);',
     "05-hostile",
     "on peut r\u00e9pondre dans une partie qu'on n'a pas rejointe"],
+
+  // --- masquer une partie ---------------------------------------------------
+  // L'\u00e9tat ne remonte plus au client : l'\u00e9cran ne peut plus dire qu'une partie
+  // est masqu\u00e9e, et repropose \u00ab Masquer \u00bb dessus. C'est exactement ce que Kevin
+  // a vu \u2014 une partie qui existe, o\u00f9 l'on entre avec son code, et qui ne revient
+  // jamais dans la liste.
+  ["server/match/games.js",
+    "undoable: undoableIndexes(g, me), hidden: !!me.hidden }",
+    "undoable: undoableIndexes(g, me) }",
+    "55-pseudo",
+    "l'\u00e9cran ne sait plus qu'une partie est masqu\u00e9e"],
+
+  // Le chemin du retour dispara\u00eet : masquer redevient une porte \u00e0 sens unique.
+  ["server/match/games.js",
+    "  p.hidden = false; touch(g);\n  return { ok: true };",
+    "  return { ok: true };",
+    "55-pseudo",
+    "une partie masqu\u00e9e ne revient plus dans la liste"],
+
+  // Le bouton repropose \u00ab Masquer \u00bb au lieu de \u00ab Remettre \u00bb : l'app ment sur
+  // l'\u00e9tat, et le retour devient introuvable m\u00eame s'il existe c\u00f4t\u00e9 serveur.
+  ["public/AlterEgo/app.js",
+    "    if (me.hidden) {",
+    "    if (false) {",
+    "85-pseudo-ecran",
+    "l'\u00e9cran repropose \u00ab masquer \u00bb sur une partie d\u00e9j\u00e0 masqu\u00e9e"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");

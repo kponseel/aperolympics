@@ -700,6 +700,18 @@ function mount({ app, io }) {
       const r = games.hideGame(m && m.code, sess.name);
       socket.emit("game_hidden", Object.assign({ code: games.normCode(m && m.code) }, r));
     });
+    // Le chemin du retour. Sans lui, masquer était définitif : la partie
+    // restait accessible par son code mais ne revenait jamais dans la liste.
+    socket.on("unhide_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const code = games.normCode(m && m.code);
+      const r = games.unhideGame(code, sess.name);
+      socket.emit("game_unhidden", Object.assign({ code }, r));
+      // L'écran affiche encore « pas dans ta liste » : on le repeint tout de
+      // suite plutôt que d'attendre qu'il redemande.
+      if (r.ok && sess.viewing === code) socket.emit("game_state", stateFor(code, sess));
+    });
 
     // Profil : STRICTEMENT le sien (donnée personnelle).
     socket.on("get_profile", (m) => {

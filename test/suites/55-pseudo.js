@@ -146,6 +146,38 @@ exports.run = async (t) => {
   t.check("… et annoncée comme supprimée", purgeDev.supprimees.indexOf(cd) >= 0, JSON.stringify(purgeDev));
   t.check("… donc aucun bot n'a été promu hôte", purgeDev.transferees.length === 0, JSON.stringify(purgeDev.transferees));
 
+  t.section("Masquer une partie, et la retrouver");
+  // Masquer sort une partie de SA liste sans l'effacer pour les autres. Mais
+  // c'était une porte à sens unique : rien ne remettait `hidden` à faux pour
+  // quelqu'un qui est déjà dans la partie, et l'état n'était même pas envoyé
+  // au client — le bouton proposait donc « Masquer » sur une partie déjà
+  // masquée, et la partie ne revenait jamais dans la liste. Kevin l'a vu sur
+  // une vraie partie : visible dans l'admin, absente de son écran d'accueil.
+  players.authenticate("Hote", "cid-hote", "5261");
+  players.authenticate("Invite", "cid-invite", "7264");
+  const gm = games.createGame({ hostName: "Hote" }).game;
+  games.joinGame(gm.code, "Invite");
+  const dansLaListe = (nom) => games.listFor(nom).some((x) => x.code === gm.code);
+  t.check("La partie est dans la liste de son hôte", dansLaListe("Hote"));
+  games.hideGame(gm.code, "Hote");
+  t.check("Masquée, elle n'y est plus", !dansLaListe("Hote"));
+  t.check("… mais elle existe toujours", !!games.getGame(gm.code));
+  t.check("… et les autres la voient encore", dansLaListe("Invite"));
+  // L'état doit remonter au client : sans lui, l'écran ne peut pas savoir
+  // quel bouton afficher, et c'est exactement ce qui rendait le piège
+  // invisible.
+  const vue = games.state(gm.code, "Hote", "fr");
+  t.check("L'écran sait qu'elle est masquée", vue && vue.me && vue.me.hidden === true,
+    JSON.stringify(vue && vue.me && vue.me.hidden));
+  const remise = games.unhideGame(gm.code, "Hote");
+  t.check("On peut la remettre dans sa liste", remise && remise.ok === true, JSON.stringify(remise));
+  t.check("… et elle y est revenue", dansLaListe("Hote"));
+  t.check("… l'écran le sait aussi", games.state(gm.code, "Hote", "fr").me.hidden === false);
+  // Quelqu'un qui n'est pas dans la partie ne peut rien démasquer.
+  t.check("Un étranger ne peut pas démasquer",
+    games.unhideGame(gm.code, "Personne").reason === "not_in_game",
+    JSON.stringify(games.unhideGame(gm.code, "Personne")));
+
   t.section("Le code de reprise, vérifié pour une action irréversible");
   t.check("Le bon code passe", players.checkPin("Tom", "7391").ok === true);
   t.check("Un mauvais code est refusé", players.checkPin("Tom", "7392").reason === "pin_wrong");

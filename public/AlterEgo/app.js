@@ -474,6 +474,7 @@
     });
     socket.on("player_removed", function (m) { if (m && m.ok) toast(m.name + T(" a été retiré de la partie.")); });
     socket.on("game_hidden", function (m) { if (m && m.ok) { toast(T("Partie masquée — tu la retrouveras avec son code.")); goHome(); } });
+    socket.on("game_unhidden", function (m) { if (m && m.ok) toast(T("↩️ Elle est de nouveau dans ta liste.")); });
     socket.on("game_deleted", function (m) {
       if (m && m.ok) { closeSheet(); toast(T("🗑️ Partie supprimée.")); goHome(); return; }
       var why = m && m.reason;
@@ -1207,7 +1208,17 @@
     // Masquer existe pour tout le monde, l'hôte compris : sans cette sortie,
     // un hôte qui veut juste ranger sa liste n'avait que la suppression —
     // c'est-à-dire détruire la partie pour tous les autres.
-    body += T('<button class="am-ghost" id="amHide">Masquer cette partie de ma liste</button>');
+    //
+    // Le bouton DIT dans quel sens il va. Avant, il proposait « Masquer » même
+    // sur une partie déjà masquée, et rien ne la ramenait : on entrait avec le
+    // code, on la voyait, et elle restait absente de sa liste. Vu de l'écran,
+    // ça ressemblait à une partie disparue.
+    if (me.hidden) {
+      body += T('<p class="am-hint center">🙈 Cette partie n\'est pas dans ta liste — tu es entré avec son code.</p>');
+      body += T('<button class="am-ghost" id="amUnhide">↩️ Remettre dans ma liste</button>');
+    } else {
+      body += T('<button class="am-ghost" id="amHide">Masquer cette partie de ma liste</button>');
+    }
     if (me.host && !g.test) body += T('<button class="am-ghost am-danger" id="amDelete">🗑️ Supprimer la partie</button>');
     body += T('<button class="am-ghost" id="amHowto">💡 Comment ça marche ?</button>');
     $("amGameBody").innerHTML = body;
@@ -1225,6 +1236,10 @@
     };
     var ob = $("amReopen"); if (ob) ob.onclick = function () { socket.emit("reopen_game", { code: g.code }); };
     var hb = $("amHide"); if (hb) hb.onclick = function () { if (window.confirm(T("Masquer cette partie de ta liste ?\n\nElle continue d'exister pour les autres, et tu la retrouveras avec son code."))) socket.emit("hide_game", { code: g.code }); };
+    // Pas de confirmation : remettre une partie dans sa liste ne détruit rien
+    // et se refait en un clic. Demander « es-tu sûr ? » pour ça, c'est apprendre
+    // aux gens à cliquer sur oui sans lire.
+    var ub = $("amUnhide"); if (ub) ub.onclick = function () { socket.emit("unhide_game", { code: g.code }); };
     var db = $("amDelete"); if (db) db.onclick = function () { deleteGameSheet(g); };
     Array.prototype.forEach.call($("amGameBody").querySelectorAll("[data-kick]"), function (b) {
       b.onclick = function () { var n = b.getAttribute("data-kick"); if (window.confirm(T("Retirer %1 de la partie ?", n))) socket.emit("remove_player", { code: g.code, name: n }); };
