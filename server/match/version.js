@@ -14,7 +14,7 @@
 // de public/AlterEgo/sw.js — sinon les téléphones et le CDN gardent
 // l'ancien code. Le test /tmp/verify_cachebust.js (et verify_version) le
 // vérifie.
-const VERSION = "4.2";
+const VERSION = "4.3";
 const DATE = "2026-09-17";
 
 const { execFileSync } = require("child_process");

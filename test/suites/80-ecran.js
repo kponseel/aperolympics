@@ -138,6 +138,64 @@ exports.run = async (t) => {
   t.check("… une seule fois", sh && (sh.text.match(/https?:\/\//g) || []).length === 1, sh && sh.text);
   t.check("… et sans champ url à recoller derrière", sh && sh.url == null, JSON.stringify(sh));
 
+  t.section("Le message partagé est lisible dans WhatsApp");
+  // C'est là qu'il atterrit neuf fois sur dix. Un pavé d'une seule ligne ne s'y
+  // lit pas : il faut des retours, et chaque information sur sa ligne.
+  const txt = (sh && sh.text) || "";
+  t.check("Il est écrit en plusieurs lignes, pas en un pavé", txt.split("\n").length >= 4,
+    JSON.stringify(txt).slice(0, 180));
+  // LA durée. Elle était écrite en dur (« 2 min ») quel que soit le nombre de
+  // scènes : une partie de 40 scènes promettait donc deux minutes.
+  // On ne vérifie pas un chiffre précis mais le LIEN entre les deux — c'est
+  // l'invariant, et il tient quelle que soit la longueur choisie.
+  const nScenes = parseInt((/(\d+)\s*sc[èe]ne/.exec(txt) || [0, 0])[1], 10);
+  t.check("Il annonce un nombre de scènes", nScenes > 0, txt);
+  const dureeAttendue = Math.max(1, Math.round(nScenes / 5));
+  t.check("… et une durée calculée sur ce nombre, pas écrite en dur",
+    new RegExp("~" + dureeAttendue + "\\s*min").test(txt), "attendu ~" + dureeAttendue + " min dans : " + txt);
+  // Le code en toutes lettres : si l'aperçu ne charge pas, ou si le lien se
+  // fait tronquer en chemin, c'est ce qui reste pour entrer.
+  const codePartie = String(await p.evaluate(() => (document.querySelector(".am-code-big") || {}).textContent) || "").trim();
+  // On cherche le code EN DEHORS du lien : l'adresse se termine par lui, donc
+  // le chercher dans le texte entier revenait à trouver le lien et à déclarer
+  // le contrôle satisfait même sans la ligne « Code ». Il passait au vert avec
+  // et sans ce qu'il était censé vérifier.
+  const sansLien = txt.replace(/https?:\/\/\S+/g, "");
+  t.check("Il contient le code de la partie, en plus du lien",
+    !!codePartie && sansLien.indexOf(codePartie) >= 0, codePartie + " | " + JSON.stringify(sansLien));
+  // Le lien À LA FIN : les messageries n'affichent l'aperçu que du dernier
+  // lien, et un lien au milieu coupe la lecture en deux.
+  t.check("Le lien est dans la dernière ligne",
+    /https?:\/\//.test(txt.trim().split("\n").pop()), JSON.stringify(txt.trim().split("\n").slice(-2)));
+
+  t.section("L'aperçu que WhatsApp affiche sous le message");
+  // Sous le lien, la messagerie affiche une vignette, un titre et une
+  // description : elles viennent des balises og: que NODE pose, pas du client.
+  // C'est le premier contact de quelqu'un qui n'a jamais ouvert l'app, et ça ne
+  // se teste nulle part ailleurs. On les lit sur une VRAIE partie : sur un code
+  // inconnu le serveur sert la page nue, et le contrôle ne prouverait rien.
+  const og = await p.evaluate(async (u) => {
+    const html = await (await fetch(u)).text();
+    const lire = (n) => {
+      const m = new RegExp('<meta property="og:' + n + '" content="([^"]*)"').exec(html);
+      return m ? m[1] : null;
+    };
+    return { titre: lire("title"), desc: lire("description"), image: lire("image"), url: lire("url") };
+  }, srv.base + "/AlterEgo/g/" + codePartie);
+  t.check("L'aperçu existe bien", !!(og.titre && og.desc), JSON.stringify(og));
+  t.check("Le titre nomme l'hôte et le jeu", /Kevin/.test(og.titre) && /Alter Ego/.test(og.titre), og.titre);
+  // La vignette doit être celle d'Alter Ego. Elle pointait sur l'icône de
+  // l'app PARENTE : chaque aperçu montrait donc le logo d'un autre jeu.
+  t.check("La vignette est l'icône d'Alter Ego, pas celle d'Aperolympics",
+    /\/icons\/am-512\.png/.test(og.image || ""), og.image);
+  t.check("L'aperçu annonce l'adresse canonique", /\/AlterEgo\/g\//.test(og.url || ""), og.url);
+  // Le message et l'aperçu sont fabriqués par deux codes différents — le client
+  // et Node — et décrivent la même partie. S'ils annoncent deux longueurs, l'un
+  // des deux ment, et on ne saurait pas lequel sans ce recoupement.
+  const nApercu = parseInt((/(\d+)\s*sc[èe]ne/.exec(og.desc || "") || [0, 0])[1], 10);
+  t.check("La description et le message annoncent la même longueur",
+    nApercu > 0 && nApercu === nScenes, nApercu + " dans l'aperçu vs " + nScenes + " dans le message");
+
   t.section("Un vieux QR code ouvre encore la partie");
   // LE contrôle du changement de nom. Des QR codes pointant /AreWeAMatch/g/CODE
   // circulent : imprimés, postés en story, envoyés dans des conversations. Ils
