@@ -148,6 +148,55 @@ exports.run = async (t) => {
   // sinon plus personne ne peut fermer ni supprimer la partie.
   t.check("… et il en est devenu l'hôte (la couronne)", /👑/.test(apres) && /👑\s*Tom/.test(apres), apres);
 
+  t.section("Masquer une partie, et la retrouver — à l'écran");
+  // Le parcours exact que Kevin a vécu : sa partie disparue de l'accueil,
+  // visible dans l'admin, accessible avec son code — et impossible à faire
+  // revenir. Trois choses se vérifient ici, et la troisième est celle qui
+  // manquait : que le bouton dise dans quel sens il va.
+  const H = await ouvrir("Hote2");
+  await entrer(H, "Hote2", "5261");
+  await H.click("#amCreate");
+  await H.waitForSelector("#amFormGo", { timeout: 8000 });
+  await H.fill("#amFormTitle", "Ma soirée à moi");
+  await H.click("#amFormGo");
+  await H.waitForFunction(() => document.querySelector(".am-code-big"), null, { timeout: 10000 });
+  const monCode = (await H.textContent(".am-code-big")).trim();
+
+  const surAccueil = async (p) => {
+    await p.evaluate(() => { const b = document.getElementById("amBack"); if (b) b.click(); });
+    await p.waitForFunction(() => document.getElementById("s-home").classList.contains("on"), null, { timeout: 8000 });
+    await p.waitForTimeout(400);
+    return p.textContent("#amHomeBody").catch(() => p.textContent("#s-home"));
+  };
+  t.check("La partie est bien dans ma liste au départ", /Ma soirée à moi/.test(await surAccueil(H)));
+
+  // On la masque, comme depuis l'écran de la partie.
+  await H.evaluate((c) => { window.confirm = () => true; }, monCode);
+  await H.goto(srv.base + "/AlterEgo/g/" + monCode, { waitUntil: "domcontentloaded" });
+  await H.waitForSelector("#amHide", { timeout: 10000 });
+  await H.evaluate(() => { window.confirm = () => true; document.getElementById("amHide").click(); });
+  await H.waitForTimeout(800);
+  t.check("Masquée, elle a quitté ma liste", !/Ma soirée à moi/.test(await surAccueil(H)));
+
+  // On y revient avec le code : c'est ce que Kevin a dû faire.
+  await H.goto(srv.base + "/AlterEgo/g/" + monCode, { waitUntil: "domcontentloaded" });
+  await H.waitForTimeout(900);
+  const corps = await H.textContent("#amGameBody");
+  t.check("En y entrant par le code, l'écran DIT qu'elle n'est pas dans ma liste",
+    /pas dans ta liste/.test(corps), corps.replace(/\s+/g, " ").slice(0, 140));
+  // LE point. Avant, le bouton proposait « Masquer » sur une partie déjà
+  // masquée : aucun moyen de savoir, aucun moyen de revenir.
+  t.check("… et propose de l'y remettre, pas de la masquer encore",
+    !!(await H.$("#amUnhide")) && (await H.$("#amHide")) === null);
+
+  await H.click("#amUnhide");
+  await H.waitForTimeout(800);
+  t.check("Un clic la remet dans ma liste", /Ma soirée à moi/.test(await surAccueil(H)));
+  // Et l'écran de la partie repasse dans l'autre sens, sans rechargement.
+  await H.goto(srv.base + "/AlterEgo/g/" + monCode, { waitUntil: "domcontentloaded" });
+  await H.waitForSelector("#amHide", { timeout: 10000 });
+  t.check("… et le bouton est repassé sur « Masquer »", (await H.$("#amUnhide")) === null);
+
   t.section("Le pseudo libéré peut être repris");
   const N = await ouvrir("Nouvelle");
   await entrer(N, "Marion", "5261");

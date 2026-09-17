@@ -337,6 +337,75 @@ const MUTATIONS = [
     "",
     "85-pseudo-ecran",
     "un renommage n'est pas rediffus\u00e9 aux autres joueurs"],
+
+  // --- avant diffusion publique ---------------------------------------------
+  // Le frein sur la cr\u00e9ation de parties saute : un client seul en obtenait
+  // 91 000 par seconde, soit 108 Mo de JSON en deux secondes. Ce n'est pas un
+  // vol de donn\u00e9es, c'est l'arr\u00eat du service pour tout le monde.
+  ["server/match/index.js",
+    "      if (!createHit(sess.name, clientIp(socket))) { socket.emit(\"error_msg\", { msg: \"slow_down\" }); return; }",
+    "",
+    "05-hostile",
+    "on peut cr\u00e9er des parties en boucle sans limite"],
+
+  // Le frein devient global : un joueur qui cr\u00e9e sa partie se fait refuser
+  // parce qu'un autre a spamm\u00e9. Une protection qui bloque les gens de bonne
+  // foi est pire que pas de protection.
+  ["server/match/index.js",
+    "const CREATE_MAX_NAME = 20, CREATE_MAX_IP = 120, CREATE_WINDOW_MS = 60 * 60 * 1000;",
+    "const CREATE_MAX_NAME = 20, CREATE_MAX_IP = 1, CREATE_WINDOW_MS = 60 * 60 * 1000;",
+    "05-hostile",
+    "le frein punit les joueurs de bonne foi"],
+
+  // L'\u00e9chappement du pseudo saute dans la page d'invitation, celle que Node
+  // fabrique pour l'aper\u00e7u de lien \u2014 un chemin s\u00e9par\u00e9 de celui du client.
+  ["server/match/index.js",
+    "    const host = escHtml(g.hostName);",
+    "    const host = g.hostName;",
+    "05-hostile",
+    "le pseudo n'est plus \u00e9chapp\u00e9 dans la page d'invitation"],
+
+  // Une r\u00e9ponse fabriqu\u00e9e \u00e0 la main n'est plus v\u00e9rifi\u00e9e : un classement
+  // invalide entre dans la partie et fausse les scores de tout le monde.
+  ["server/match/games.js",
+    '  if (!engine.isValidRanking(ranking, nbOptions(q))) return { ok: false, reason: "bad_ranking" };',
+    "",
+    "05-hostile",
+    "un classement invalide est accept\u00e9"],
+
+  // On peut r\u00e9pondre dans une partie qu'on n'a pas rejointe : n'importe qui
+  // connaissant un code fausse les r\u00e9sultats des autres.
+  ["server/match/games.js",
+    '  const p = g.players[key(name)];\n  if (!p) return { ok: false, reason: "not_in_game" };\n  if (!g.sceneIds.includes(qid)) return { ok: false, reason: "unknown_scene" };\n  const q = BY_ID.get(qid);',
+    '  const p = g.players[key(name)] || { answers: Object.create(null), name: String(name) };\n  if (!g.sceneIds.includes(qid)) return { ok: false, reason: "unknown_scene" };\n  const q = BY_ID.get(qid);',
+    "05-hostile",
+    "on peut r\u00e9pondre dans une partie qu'on n'a pas rejointe"],
+
+  // --- masquer une partie ---------------------------------------------------
+  // L'\u00e9tat ne remonte plus au client : l'\u00e9cran ne peut plus dire qu'une partie
+  // est masqu\u00e9e, et repropose \u00ab Masquer \u00bb dessus. C'est exactement ce que Kevin
+  // a vu \u2014 une partie qui existe, o\u00f9 l'on entre avec son code, et qui ne revient
+  // jamais dans la liste.
+  ["server/match/games.js",
+    "undoable: undoableIndexes(g, me), hidden: !!me.hidden }",
+    "undoable: undoableIndexes(g, me) }",
+    "55-pseudo",
+    "l'\u00e9cran ne sait plus qu'une partie est masqu\u00e9e"],
+
+  // Le chemin du retour dispara\u00eet : masquer redevient une porte \u00e0 sens unique.
+  ["server/match/games.js",
+    "  p.hidden = false; touch(g);\n  return { ok: true };",
+    "  return { ok: true };",
+    "55-pseudo",
+    "une partie masqu\u00e9e ne revient plus dans la liste"],
+
+  // Le bouton repropose \u00ab Masquer \u00bb au lieu de \u00ab Remettre \u00bb : l'app ment sur
+  // l'\u00e9tat, et le retour devient introuvable m\u00eame s'il existe c\u00f4t\u00e9 serveur.
+  ["public/AlterEgo/app.js",
+    "    if (me.hidden) {",
+    "    if (false) {",
+    "85-pseudo-ecran",
+    "l'\u00e9cran repropose \u00ab masquer \u00bb sur une partie d\u00e9j\u00e0 masqu\u00e9e"],
 ];
 
 const lire = (f) => fs.readFileSync(path.join(RACINE, f), "utf8");

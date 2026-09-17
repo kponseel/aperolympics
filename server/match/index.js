@@ -103,6 +103,56 @@ function unknownCodeExhausted(ip) {
   const e = unknownByIp.get(ip);
   return !!(e && now - e.since <= UNKNOWN_CODE_WINDOW_MS && e.count > UNKNOWN_CODE_MAX);
 }
+// Créer une partie : 15 par heure et par compte, 40 par adresse, au-delà on
+// refuse.
+//
+// C'était la seule action coûteuse SANS frein. Elle ne demande qu'un compte —
+// un pseudo et quatre chiffres, ni e-mail ni vérification — et un client seul
+// en obtenait 91 000 par seconde en parlant au socket : 108 Mo de JSON en deux
+// secondes. Ce n'est pas un vol de données, c'est l'arrêt du service pour tout
+// le monde : le fichier des parties est réécrit EN ENTIER à chaque sauvegarde,
+// donc plus il grossit, plus chaque réponse de chaque joueur coûte cher.
+//
+// Trois compteurs, comme pour les codes inconnus, et pour les mêmes raisons :
+// par compte (le frein utile), par adresse (un pseudo est gratuit, on en
+// changerait), et un plafond global (l'adresse vient de x-forwarded-for, que
+// le client peut inventer). Les seuils sont très au-dessus d'un usage réel :
+// un hôte qui organise trois soirées dans la soirée en crée cinq ou six.
+//
+// Le compteur par COMPTE est celui qui protège vraiment ; celui par adresse
+// n'est qu'un filet contre le changement de pseudo à répétition, et il est
+// volontairement large : derrière le proxy de l'hébergeur, rien ne garantit
+// qu'on voie l'adresse réelle du joueur (x-forwarded-for peut manquer), et
+// toute une soirée se retrouverait alors derrière la même. Un seuil serré
+// aurait bloqué des gens de bonne foi pour rien — alors que contre un
+// attaquant il n'aurait rien apporté, puisqu'il serait derrière ce proxy lui
+// aussi : ce sont le compteur par compte et le plafond global qui l'arrêtent.
+const CREATE_MAX_NAME = 20, CREATE_MAX_IP = 120, CREATE_WINDOW_MS = 60 * 60 * 1000;
+const CREATE_GLOBAL_MAX = 2000, CREATE_MAX_ENTRIES = 5000;
+const createByKey = new Map();          // "n:pseudo" | "i:ip" -> { count, since }
+let createGlobal = { count: 0, since: Date.now() };
+function createAllowed(cle, max, now) {
+  const e = createByKey.get(cle);
+  if (!e || now - e.since > CREATE_WINDOW_MS) { createByKey.set(cle, { count: 1, since: now }); return true; }
+  e.count += 1;
+  return e.count <= max;
+}
+// Renvoie false quand il faut refuser. Les deux compteurs sont incrémentés
+// avant d'être jugés : sinon, dépasser sur l'un remettrait l'autre à zéro.
+function createHit(name, ip) {
+  const now = Date.now();
+  if (now - createGlobal.since > CREATE_WINDOW_MS) createGlobal = { count: 0, since: now };
+  createGlobal.count += 1;
+  if (createGlobal.count > CREATE_GLOBAL_MAX) return false;
+  if (createByKey.size > CREATE_MAX_ENTRIES) {
+    for (const [k, e] of createByKey) if (now - e.since > CREATE_WINDOW_MS) createByKey.delete(k);
+    if (createByKey.size > CREATE_MAX_ENTRIES) createByKey.clear();
+  }
+  const okNom = createAllowed("n:" + String(name || "").trim().toLowerCase(), CREATE_MAX_NAME, now);
+  const okIp = createAllowed("i:" + ip, CREATE_MAX_IP, now);
+  return okNom && okIp;
+}
+
 // L'adresse vue derrière le proxy de l'hébergeur. Reste indicative : c'est
 // pour ça que les compteurs ci-dessus ont tous un plafond global.
 function reqIp(req) {
@@ -504,6 +554,8 @@ function mount({ app, io }) {
       // Hors fourchette, on ne corrige pas en silence — on retombe sur la
       // valeur par défaut. Sinon on pourrait se créer une partie d'une scène,
       // où le score de compatibilité ne reposerait sur rien.
+      // Le frein, AVANT de tirer les scènes et d'écrire quoi que ce soit.
+      if (!createHit(sess.name, clientIp(socket))) { socket.emit("error_msg", { msg: "slow_down" }); return; }
       const brut = Number(m && m.sceneCount);
       const n = Number.isInteger(brut) && brut >= games.SCENE_MIN && brut <= games.SCENE_MAX ? brut : undefined;
       const r = games.createGame({ hostName: sess.name, title: m && m.title, sceneCount: n });
@@ -647,6 +699,18 @@ function mount({ app, io }) {
       if (!sess || !sess.name) return;
       const r = games.hideGame(m && m.code, sess.name);
       socket.emit("game_hidden", Object.assign({ code: games.normCode(m && m.code) }, r));
+    });
+    // Le chemin du retour. Sans lui, masquer était définitif : la partie
+    // restait accessible par son code mais ne revenait jamais dans la liste.
+    socket.on("unhide_game", (m) => {
+      const sess = sessions.get(socket.id);
+      if (!sess || !sess.name) return;
+      const code = games.normCode(m && m.code);
+      const r = games.unhideGame(code, sess.name);
+      socket.emit("game_unhidden", Object.assign({ code }, r));
+      // L'écran affiche encore « pas dans ta liste » : on le repeint tout de
+      // suite plutôt que d'attendre qu'il redemande.
+      if (r.ok && sess.viewing === code) socket.emit("game_state", stateFor(code, sess));
     });
 
     // Profil : STRICTEMENT le sien (donnée personnelle).

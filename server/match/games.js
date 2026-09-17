@@ -553,8 +553,8 @@ function state(code, name, lang) {
     sceneCount: g.sceneIds.length, createdAt: g.createdAt, updatedAt: g.updatedAt, closedAt: g.closedAt,
     players: all.map((p) => ({ name: p.name, progress: progressOf(g, p), finished: !!p.finishedAt, host: key(p.name) === g.hostKey, me: p === me, bot: !!p.bot })),
     playerCount: all.length, finishedCount: all.filter((p) => p.finishedAt).length,
-    me: me ? { joined: true, host: k === g.hostKey, progress: progressOf(g, me), finished: !!me.finishedAt, nextIndex: nextIndexOf(g, me), teaser: me.finishedAt ? null : teaserFor(g, me), undoable: undoableIndexes(g, me) }
-            : { joined: false, host: false, progress: 0, finished: false, nextIndex: 0, teaser: null, undoable: [] },
+    me: me ? { joined: true, host: k === g.hostKey, progress: progressOf(g, me), finished: !!me.finishedAt, nextIndex: nextIndexOf(g, me), teaser: me.finishedAt ? null : teaserFor(g, me), undoable: undoableIndexes(g, me), hidden: !!me.hidden }
+            : { joined: false, host: false, progress: 0, finished: false, nextIndex: 0, teaser: null, undoable: [], hidden: false },
   };
   if (me) out.scenes = scenes(g, lang);   // le contenu des scènes, réservé aux joueurs de la partie
   return out;
@@ -720,6 +720,19 @@ function hideGame(code, name) {
   p.hidden = true; touch(g);
   return { ok: true };
 }
+// Le retour. Il manquait, et son absence faisait de « Masquer » une porte à
+// SENS UNIQUE : rien ne remettait `hidden` à faux pour quelqu'un déjà dans la
+// partie (seul joinGame le faisait, et on ne rejoint pas une partie qu'on n'a
+// jamais quittée). La partie existait, on y entrait avec son code, mais elle
+// ne revenait jamais dans la liste — et comme l'état n'était pas envoyé au
+// client, l'écran proposait « Masquer » sur une partie déjà masquée. De
+// l'extérieur, ça ressemblait à une partie disparue.
+function unhideGame(code, name) {
+  const g = getGame(code); const p = g && g.players[key(name)];
+  if (!p) return { ok: false, reason: "not_in_game" };
+  p.hidden = false; touch(g);
+  return { ok: true };
+}
 function deleteGame(code) {
   const c = normCode(code);
   if (!data.byCode[c]) return false;
@@ -812,7 +825,7 @@ function _reset() { data = emptyData(); if (saveTimer) { clearTimeout(saveTimer)
 
 module.exports = {
   createGame, joinGame, answer, unanswer, results, reveal, revealsFor, state, listFor, markSeen, isPlayer,
-  closeGame, reopenGame, removePlayer, hideGame, deleteGame, deleteGameAsHost, deletionImpact,
+  closeGame, reopenGame, removePlayer, hideGame, unhideGame, deleteGame, deleteGameAsHost, deletionImpact,
   renamePlayer, purgePlayer, purgeImpact,
   createTestGame, purgeTestGames, adminList,
   getGame, normCode, flush, question: (id, lang) => { const q = BY_ID.get(id); return q ? pubQuestion(q, lang) : null; },
