@@ -196,6 +196,28 @@ exports.run = async (t) => {
   t.check("La description et le message annoncent la même longueur",
     nApercu > 0 && nApercu === nScenes, nApercu + " dans l'aperçu vs " + nScenes + " dans le message");
 
+  // Derrière le proxy de l'hébergeur, Node reçoit du HTTP en clair : req.protocol
+  // vaut « http », et l'aperçu annonçait donc des adresses http:// sur une page
+  // servie en https. Deux dégâts, invisibles depuis le serveur :
+  //   - les messageries refusent souvent une vignette en http sur une page
+  //     sécurisée, ou ne suivent pas la redirection — pas d'image du tout ;
+  //   - et cette redirection PERD la chaîne de requête, donc le ?v= qui force
+  //     justement le rechargement de la vignette après un changement.
+  // C'est x-forwarded-proto qu'il faut lire, celui que le proxy pose.
+  const ogProxy = await p.evaluate(async (u) => {
+    const html = await (await fetch(u, { headers: { "X-Forwarded-Proto": "https" } })).text();
+    const lire = (n) => { const m = new RegExp('<meta property="og:' + n + '" content="([^"]*)"').exec(html); return m ? m[1] : null; };
+    return { image: lire("image"), url: lire("url") };
+  }, srv.base + "/AlterEgo/g/" + codePartie);
+  t.check("Derrière un proxy https, la vignette est annoncée en https",
+    /^https:\/\//.test(ogProxy.image || ""), ogProxy.image);
+  t.check("… en gardant sa marque de version", /\?v=\d/.test(ogProxy.image || ""), ogProxy.image);
+  t.check("… et l'adresse de la partie aussi", /^https:\/\//.test(ogProxy.url || ""), ogProxy.url);
+  // Sans proxy devant (développement local), on n'invente rien : le protocole
+  // réellement servi est le bon.
+  t.check("Sans proxy, l'adresse reste celle qu'on sert vraiment",
+    /^http:\/\//.test(og.image || ""), og.image);
+
   t.section("Un vieux QR code ouvre encore la partie");
   // LE contrôle du changement de nom. Des QR codes pointant /AreWeAMatch/g/CODE
   // circulent : imprimés, postés en story, envoyés dans des conversations. Ils

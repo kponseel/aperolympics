@@ -261,6 +261,23 @@ function mount({ app, io }) {
     }
     return "fr";
   }
+  // L'origine telle qu'elle est vue DE L'EXTÉRIEUR. Derrière le proxy de
+  // l'hébergeur, Node reçoit du HTTP en clair : req.protocol vaut « http », et
+  // l'aperçu annonçait donc des adresses http:// sur une page servie en https.
+  // Les messageries refusent souvent une vignette en http sur une page
+  // sécurisée — et quand elles suivent la redirection, celle-ci PERD la chaîne
+  // de requête, donc le ?v= qui sert justement à leur faire recharger la
+  // vignette. Résultat : pas d'image, ou une image périmée.
+  //
+  // On ne touche pas au « trust proxy » d'Express : il vaut pour tout le
+  // serveur, et les deux autres jeux n'ont pas demandé ce changement. Ici on
+  // lit l'en-tête qu'on attend, et on retombe sur le protocole réel sans lui —
+  // en développement local, il n'y a pas de proxy et rien à corriger.
+  function origine(req) {
+    const xf = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
+    const proto = xf === "https" || xf === "http" ? xf : req.protocol;
+    return proto + "://" + req.get("host");
+  }
   function pageFor(g, req) {
     if (!g) return INDEX_HTML;
     const host = escHtml(g.hostName);
@@ -273,7 +290,7 @@ function mount({ app, io }) {
       : `${s} scènes, 3 réponses à classer à chaque fois. Réponds quand tu veux — personne ne t'attend. ${n} joueur${n > 1 ? "s ont" : " a"} déjà rejoint. À la fin : à quel point vous faites pareil.`;
     // L'aperçu annonce toujours l'adresse canonique, même si la visite arrive
     // par l'ancien chemin : c'est elle qui sera repartagée.
-    const url = `${req.protocol}://${req.get("host")}${BASE}/g/${g.code}`;
+    const url = `${origine(req)}${BASE}/g/${g.code}`;
     const meta =
       `<meta property="og:title" content="${title}">` +
       `<meta property="og:description" content="${escHtml(desc)}">` +
@@ -282,7 +299,7 @@ function mount({ app, io }) {
       // le logo d'un autre jeu à chaque lien partagé. Horodatée comme les
       // autres icônes, sinon les messageries gardent l'ancienne vignette en
       // cache bien après un changement.
-      `<meta property="og:image" content="${escHtml(req.protocol + "://" + req.get("host") + "/icons/am-512.png?v=" + require("./version").version)}">` +
+      `<meta property="og:image" content="${escHtml(origine(req) + "/icons/am-512.png?v=" + require("./version").version)}">` +
       `<meta name="twitter:card" content="summary">`;
     return INDEX_HTML.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`).replace("</head>", meta + "</head>");
   }
